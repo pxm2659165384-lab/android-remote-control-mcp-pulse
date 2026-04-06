@@ -181,7 +181,9 @@ class ClickNodeTool
         ) {
             server.addTool(
                 name = "$toolNamePrefix$TOOL_NAME",
-                description = "Click the specified accessibility node by node ID. Returns after the click is performed.",
+                description =
+                    "Click the specified accessibility node by node ID. " +
+                        "Returns after the click is performed.",
                 inputSchema =
                     ToolSchema(
                         properties =
@@ -239,7 +241,9 @@ class LongClickNodeTool
         ) {
             server.addTool(
                 name = "$toolNamePrefix$TOOL_NAME",
-                description = "Long-click the specified accessibility node by node ID. Returns after the action is performed.",
+                description =
+                    "Long-click the specified accessibility node by node ID. " +
+                        "Returns after the action is performed.",
                 inputSchema =
                     ToolSchema(
                         properties =

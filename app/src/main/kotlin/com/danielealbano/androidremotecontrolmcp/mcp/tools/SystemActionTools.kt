@@ -88,7 +88,9 @@ class PressBackHandler
         ) {
             server.addTool(
                 name = "$toolNamePrefix$TOOL_NAME",
-                description = "Presses the back button (global accessibility action). Returns after the action is performed.",
+                description =
+                    "Presses the back button (global accessibility action). " +
+                        "Returns after the action is performed.",
                 inputSchema =
                     ToolSchema(
                         properties = buildJsonObject {},

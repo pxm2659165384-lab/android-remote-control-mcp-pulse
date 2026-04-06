@@ -276,9 +276,10 @@ class WaitForNodeTool
         ) {
             server.addTool(
                 name = "$toolNamePrefix$TOOL_NAME",
-                description = "Wait until a node matching criteria appears (with timeout). " +
-                    "Only use when you need a specific element to appear (e.g., after navigation). " +
-                    "Action tools already wait for their gesture/action to complete before returning.",
+                description =
+                    "Wait until a node matching criteria appears (with timeout). " +
+                        "Only use when you need a specific element to appear (e.g., after navigation). " +
+                        "Action tools already wait for their gesture/action to complete before returning.",
                 inputSchema =
                     ToolSchema(
                         properties =
@@ -467,9 +468,11 @@ class WaitForIdleTool
         ) {
             server.addTool(
                 name = "$toolNamePrefix$TOOL_NAME",
-                description = "Wait for the UI to become idle (similarity-based change detection). " +
-                    "Only use when you need to confirm a specific UI transition completed (e.g., screen finished loading). " +
-                    "Action tools already wait for their gesture/action to complete before returning.",
+                description =
+                    "Wait for the UI to become idle (similarity-based change detection). " +
+                        "Only use when you need to confirm a specific UI transition completed " +
+                        "(e.g., screen finished loading). " +
+                        "Action tools already wait for their gesture/action to complete before returning.",
                 inputSchema =
                     ToolSchema(
                         properties =

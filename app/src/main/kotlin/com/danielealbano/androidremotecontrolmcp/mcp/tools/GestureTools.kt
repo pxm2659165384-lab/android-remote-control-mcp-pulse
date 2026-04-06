@@ -338,7 +338,9 @@ class CustomGestureTool
         ) {
             server.addTool(
                 name = "$toolNamePrefix$TOOL_NAME",
-                description = "Executes a custom multi-touch gesture defined by path points. Returns after the gesture completes.",
+                description =
+                    "Executes a custom multi-touch gesture defined by path points. " +
+                        "Returns after the gesture completes.",
                 inputSchema =
                     ToolSchema(
                         properties =
