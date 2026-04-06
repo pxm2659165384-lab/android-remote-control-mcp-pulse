@@ -57,9 +57,10 @@ class LocationToolsTest {
             runTest {
                 coEvery {
                     mockLocationProvider.getLocation(false)
-                } returns Result.success(
-                    LocationData(37.7749, -122.4194, 10.0f, "123 Main St"),
-                )
+                } returns
+                    Result.success(
+                        LocationData(37.7749, -122.4194, 10.0f, "123 Main St"),
+                    )
 
                 handler.execute(null, freshFixParamEnabled = true)
 
@@ -71,9 +72,10 @@ class LocationToolsTest {
             runTest {
                 coEvery {
                     mockLocationProvider.getLocation(true)
-                } returns Result.success(
-                    LocationData(37.7749, -122.4194, 5.0f, null),
-                )
+                } returns
+                    Result.success(
+                        LocationData(37.7749, -122.4194, 5.0f, null),
+                    )
 
                 val params = buildJsonObject { put("fresh_fix", true) }
                 handler.execute(params, freshFixParamEnabled = true)
@@ -86,9 +88,10 @@ class LocationToolsTest {
             runTest {
                 coEvery {
                     mockLocationProvider.getLocation(any())
-                } returns Result.success(
-                    LocationData(37.7749, -122.4194, 10.5f, "123 Main St, SF"),
-                )
+                } returns
+                    Result.success(
+                        LocationData(37.7749, -122.4194, 10.5f, "123 Main St, SF"),
+                    )
 
                 val result = handler.execute(null, freshFixParamEnabled = true)
                 val text = (result.content[0] as TextContent).text
@@ -107,9 +110,10 @@ class LocationToolsTest {
             runTest {
                 coEvery {
                     mockLocationProvider.getLocation(any())
-                } returns Result.success(
-                    LocationData(37.7749, -122.4194, 10.5f, null),
-                )
+                } returns
+                    Result.success(
+                        LocationData(37.7749, -122.4194, 10.5f, null),
+                    )
 
                 val result = handler.execute(null, freshFixParamEnabled = true)
                 val text = (result.content[0] as TextContent).text
@@ -122,9 +126,10 @@ class LocationToolsTest {
             runTest {
                 coEvery {
                     mockLocationProvider.getLocation(any())
-                } returns Result.failure(
-                    SecurityException("Location permission not granted"),
-                )
+                } returns
+                    Result.failure(
+                        SecurityException("Location permission not granted"),
+                    )
 
                 assertThrows<McpToolException.PermissionDenied> {
                     handler.execute(null, freshFixParamEnabled = true)
@@ -136,9 +141,10 @@ class LocationToolsTest {
             runTest {
                 coEvery {
                     mockLocationProvider.getLocation(any())
-                } returns Result.failure(
-                    IllegalStateException("Google Play Services not available"),
-                )
+                } returns
+                    Result.failure(
+                        IllegalStateException("Google Play Services not available"),
+                    )
 
                 assertThrows<McpToolException.ActionFailed> {
                     handler.execute(null, freshFixParamEnabled = true)
@@ -160,9 +166,10 @@ class LocationToolsTest {
             runTest {
                 coEvery {
                     mockLocationProvider.getLocation(any())
-                } returns Result.success(
-                    LocationData(37.7749, -122.4194, 10.5f, null),
-                )
+                } returns
+                    Result.success(
+                        LocationData(37.7749, -122.4194, 10.5f, null),
+                    )
 
                 val result = handler.execute(null, freshFixParamEnabled = true)
                 val text = (result.content[0] as TextContent).text
@@ -175,9 +182,10 @@ class LocationToolsTest {
             runTest {
                 coEvery {
                     mockLocationProvider.getLocation(false)
-                } returns Result.success(
-                    LocationData(37.7749, -122.4194, 10.5f, null),
-                )
+                } returns
+                    Result.success(
+                        LocationData(37.7749, -122.4194, 10.5f, null),
+                    )
 
                 val params = buildJsonObject { put("fresh_fix", true) }
                 handler.execute(params, freshFixParamEnabled = false)

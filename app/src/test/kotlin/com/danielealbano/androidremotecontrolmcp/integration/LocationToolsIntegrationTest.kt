@@ -32,14 +32,15 @@ class LocationToolsIntegrationTest {
             val deps = McpIntegrationTestHelper.createMockDependencies()
             coEvery {
                 deps.locationProvider.getLocation(false)
-            } returns Result.success(
-                LocationData(
-                    latitude = 37.7749,
-                    longitude = -122.4194,
-                    accuracyMeters = 10.5f,
-                    street = "123 Main St, San Francisco, CA",
-                ),
-            )
+            } returns
+                Result.success(
+                    LocationData(
+                        latitude = 37.7749,
+                        longitude = -122.4194,
+                        accuracyMeters = 10.5f,
+                        street = "123 Main St, San Francisco, CA",
+                    ),
+                )
 
             McpIntegrationTestHelper.withTestApplication(deps) { client, _ ->
                 val result =
@@ -65,14 +66,15 @@ class LocationToolsIntegrationTest {
             val deps = McpIntegrationTestHelper.createMockDependencies()
             coEvery {
                 deps.locationProvider.getLocation(false)
-            } returns Result.success(
-                LocationData(
-                    latitude = 37.7749,
-                    longitude = -122.4194,
-                    accuracyMeters = 10.5f,
-                    street = null,
-                ),
-            )
+            } returns
+                Result.success(
+                    LocationData(
+                        latitude = 37.7749,
+                        longitude = -122.4194,
+                        accuracyMeters = 10.5f,
+                        street = null,
+                    ),
+                )
 
             McpIntegrationTestHelper.withTestApplication(deps) { client, _ ->
                 val result =
@@ -93,14 +95,15 @@ class LocationToolsIntegrationTest {
             val deps = McpIntegrationTestHelper.createMockDependencies()
             coEvery {
                 deps.locationProvider.getLocation(true)
-            } returns Result.success(
-                LocationData(
-                    latitude = 37.7749,
-                    longitude = -122.4194,
-                    accuracyMeters = 5.0f,
-                    street = null,
-                ),
-            )
+            } returns
+                Result.success(
+                    LocationData(
+                        latitude = 37.7749,
+                        longitude = -122.4194,
+                        accuracyMeters = 5.0f,
+                        street = null,
+                    ),
+                )
 
             McpIntegrationTestHelper.withTestApplication(deps) { client, _ ->
                 val result =
@@ -119,9 +122,10 @@ class LocationToolsIntegrationTest {
             val deps = McpIntegrationTestHelper.createMockDependencies()
             coEvery {
                 deps.locationProvider.getLocation(any())
-            } returns Result.failure(
-                SecurityException("Location permission not granted"),
-            )
+            } returns
+                Result.failure(
+                    SecurityException("Location permission not granted"),
+                )
 
             McpIntegrationTestHelper.withTestApplication(deps) { client, _ ->
                 val result =
@@ -141,9 +145,10 @@ class LocationToolsIntegrationTest {
             val deps = McpIntegrationTestHelper.createMockDependencies()
             coEvery {
                 deps.locationProvider.getLocation(any())
-            } returns Result.failure(
-                IllegalStateException("Google Play Services not available"),
-            )
+            } returns
+                Result.failure(
+                    IllegalStateException("Google Play Services not available"),
+                )
 
             McpIntegrationTestHelper.withTestApplication(deps) { client, _ ->
                 val result =
@@ -163,9 +168,10 @@ class LocationToolsIntegrationTest {
             val deps = McpIntegrationTestHelper.createMockDependencies()
             coEvery {
                 deps.locationProvider.getLocation(any())
-            } returns Result.failure(
-                IllegalStateException("No last known location available. Try with fresh_fix=true."),
-            )
+            } returns
+                Result.failure(
+                    IllegalStateException("No last known location available. Try with fresh_fix=true."),
+                )
 
             McpIntegrationTestHelper.withTestApplication(deps) { client, _ ->
                 val result =
@@ -189,14 +195,15 @@ class LocationToolsIntegrationTest {
                 )
             coEvery {
                 deps.locationProvider.getLocation(false)
-            } returns Result.success(
-                LocationData(
-                    latitude = 37.7749,
-                    longitude = -122.4194,
-                    accuracyMeters = 10.5f,
-                    street = null,
-                ),
-            )
+            } returns
+                Result.success(
+                    LocationData(
+                        latitude = 37.7749,
+                        longitude = -122.4194,
+                        accuracyMeters = 10.5f,
+                        street = null,
+                    ),
+                )
 
             McpIntegrationTestHelper.withTestApplication(deps, perms = perms) { client, _ ->
                 val result =

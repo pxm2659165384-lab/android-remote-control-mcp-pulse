@@ -135,7 +135,7 @@ class McpProtocolIntegrationTest {
         }
 
     companion object {
-        private const val EXPECTED_TOOL_COUNT = 54
+        private const val EXPECTED_TOOL_COUNT = 55
 
         private val EXPECTED_TOOL_NAMES =
             setOf(
@@ -198,6 +198,8 @@ class McpProtocolIntegrationTest {
                 "android_notification_snooze",
                 "android_notification_action",
                 "android_notification_reply",
+                // Location tools
+                "android_get_location",
             )
     }
 }

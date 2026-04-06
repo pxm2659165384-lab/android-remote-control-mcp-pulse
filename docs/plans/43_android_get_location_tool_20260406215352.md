@@ -998,32 +998,32 @@ The following sections MUST be updated:
 
 ### Acceptance Criteria
 
-- [ ] `make lint` passes with no warnings or errors
-- [ ] `./gradlew build` succeeds with no warnings or errors
-- [ ] All unit tests pass (`./gradlew test`)
-- [ ] All existing tests still pass (no regressions)
-- [ ] Code review subagent passes in plan compliance mode
+- [x] `make lint` passes with no warnings or errors
+- [x] `./gradlew build` succeeds with no warnings or errors
+- [x] All unit tests pass (`./gradlew test`)
+- [x] All existing tests still pass (no regressions)
+- [x] Code review subagent passes in plan compliance mode
 
 ---
 
 ### Task 9.1: Run linting and fix any issues
 
-- [ ] Run `make lint`
-- [ ] Fix any lint/format violations
+- [x] Run `make lint`
+- [x] Fix any lint/format violations
 
 ---
 
 ### Task 9.2: Run full build
 
-- [ ] Run `./gradlew build`
-- [ ] Fix any build errors or warnings
+- [x] Run `./gradlew build`
+- [x] Fix any build errors or warnings
 
 ---
 
 ### Task 9.3: Run full test suite
 
-- [ ] Run `make test-unit`
-- [ ] Fix any failing tests
+- [x] Run `make test-unit`
+- [x] Fix any failing tests
 
 ---
 
@@ -1031,30 +1031,30 @@ The following sections MUST be updated:
 
 Perform a complete review of EVERY file changed or created in this plan, verifying:
 
-- [ ] All files match the plan specification exactly
-- [ ] No divergence from what was discussed with the user
-- [ ] `LocationProviderImpl` checks Play Services on invocation (not at startup)
-- [ ] `LocationProviderImpl` checks permission on invocation (not at startup)
-- [ ] `fresh_fix` default is `false`
-- [ ] `fresh_fix` is forced to `false` when user disables the param toggle
-- [ ] Tool uses `untrustedTextResult()` for device-derived content
-- [ ] Tool is toggleable via existing enable/disable system
-- [ ] Location permission appears in Permissions settings screen
-- [ ] Geocoder failure is non-fatal
-- [ ] 10-second timeout for fresh fix
-- [ ] Tool description mentions timeout, nullable street, permission requirement
-- [ ] No new unnecessary dependencies added
-- [ ] All error paths mapped correctly (SecurityException → PermissionDenied, others → ActionFailed)
-- [ ] Hilt bindings correct
-- [ ] Integration test helper updated
-- [ ] `docs/PROJECT.md` updated (Frameworks, Folder Structure, Permissions, Integration Tests, permissions list)
-- [ ] `docs/ARCHITECTURE.md` updated (Permission Model table, Component Diagram if applicable)
-- [ ] `docs/MCP_TOOLS.md` updated with `get_location` tool documentation
-- [ ] All tests pass
+- [x] All files match the plan specification exactly
+- [x] No divergence from what was discussed with the user
+- [x] `LocationProviderImpl` checks Play Services on invocation (not at startup)
+- [x] `LocationProviderImpl` checks permission on invocation (not at startup)
+- [x] `fresh_fix` default is `false`
+- [x] `fresh_fix` is forced to `false` when user disables the param toggle
+- [x] Tool uses `untrustedTextResult()` for device-derived content
+- [x] Tool is toggleable via existing enable/disable system
+- [x] Location permission appears in Permissions settings screen
+- [x] Geocoder failure is non-fatal
+- [x] 10-second timeout for fresh fix
+- [x] Tool description mentions timeout, nullable street, permission requirement
+- [x] No new unnecessary dependencies added
+- [x] All error paths mapped correctly (SecurityException → PermissionDenied, others → ActionFailed)
+- [x] Hilt bindings correct
+- [x] Integration test helper updated
+- [x] `docs/PROJECT.md` updated (Frameworks, Folder Structure, Permissions, Integration Tests, permissions list)
+- [x] `docs/ARCHITECTURE.md` updated (Permission Model table, Component Diagram if applicable)
+- [x] `docs/MCP_TOOLS.md` updated with `get_location` tool documentation
+- [x] All tests pass
 
 ---
 
 ### Task 9.5: Spawn `code-reviewer` subagent
 
-- [ ] Spawn `code-reviewer` in plan compliance mode to verify entire implementation matches this plan
-- [ ] Address all findings
+- [x] Spawn `code-reviewer` in plan compliance mode to verify entire implementation matches this plan
+- [x] Address all findings

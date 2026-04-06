@@ -20,10 +20,12 @@ import com.google.android.gms.tasks.OnSuccessListener
 import com.google.android.gms.tasks.Task
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkConstructor
 import io.mockk.mockkStatic
 import io.mockk.slot
 import io.mockk.unmockkAll
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceTimeBy
@@ -38,6 +40,7 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @DisplayName("LocationProviderImpl")
 class LocationProviderImplTest {
     private lateinit var mockContext: Context
@@ -203,8 +206,9 @@ class LocationProviderImplTest {
                     assertEquals(37.7749, result.getOrThrow().latitude)
                 }
 
-            // Wait for requestLocationUpdates to be called
-            testScheduler.advanceUntilIdle()
+            // Let the coroutine suspend at suspendCancellableCoroutine without
+            // advancing virtual time past the withTimeout threshold
+            advanceTimeBy(1)
 
             // Invoke the callback
             callbackSlot.captured.onLocationResult(mockLocationResult)
@@ -228,9 +232,14 @@ class LocationProviderImplTest {
             setupLastLocationTask(mockLocation)
 
             val listenerSlot = slot<Geocoder.GeocodeListener>()
-            val mockGeocoder = mockk<Geocoder>()
+            mockkConstructor(Geocoder::class)
             every {
-                mockGeocoder.getFromLocation(any<Double>(), any<Double>(), any<Int>(), capture(listenerSlot))
+                anyConstructed<Geocoder>().getFromLocation(
+                    any<Double>(),
+                    any<Double>(),
+                    any<Int>(),
+                    capture(listenerSlot),
+                )
             } answers {
                 val mockAddress =
                     mockk<Address> {
@@ -238,10 +247,6 @@ class LocationProviderImplTest {
                     }
                 listenerSlot.captured.onGeocode(listOf(mockAddress))
             }
-
-            // Mock the Geocoder constructor
-            mockkStatic(::Geocoder)
-            every { Geocoder(any(), any()) } returns mockGeocoder
 
             val result = provider.getLocation(false)
 
@@ -286,15 +291,17 @@ class LocationProviderImplTest {
             setupLastLocationTask(mockLocation)
 
             val listenerSlot = slot<Geocoder.GeocodeListener>()
-            val mockGeocoder = mockk<Geocoder>()
+            mockkConstructor(Geocoder::class)
             every {
-                mockGeocoder.getFromLocation(any<Double>(), any<Double>(), any<Int>(), capture(listenerSlot))
+                anyConstructed<Geocoder>().getFromLocation(
+                    any<Double>(),
+                    any<Double>(),
+                    any<Int>(),
+                    capture(listenerSlot),
+                )
             } answers {
                 listenerSlot.captured.onError("Service unavailable")
             }
-
-            mockkStatic(::Geocoder)
-            every { Geocoder(any(), any()) } returns mockGeocoder
 
             val result = provider.getLocation(false)
 
@@ -317,15 +324,17 @@ class LocationProviderImplTest {
             setupLastLocationTask(mockLocation)
 
             val listenerSlot = slot<Geocoder.GeocodeListener>()
-            val mockGeocoder = mockk<Geocoder>()
+            mockkConstructor(Geocoder::class)
             every {
-                mockGeocoder.getFromLocation(any<Double>(), any<Double>(), any<Int>(), capture(listenerSlot))
+                anyConstructed<Geocoder>().getFromLocation(
+                    any<Double>(),
+                    any<Double>(),
+                    any<Int>(),
+                    capture(listenerSlot),
+                )
             } answers {
                 listenerSlot.captured.onGeocode(emptyList())
             }
-
-            mockkStatic(::Geocoder)
-            every { Geocoder(any(), any()) } returns mockGeocoder
 
             val result = provider.getLocation(false)
 
@@ -373,7 +382,8 @@ class LocationProviderImplTest {
                     assertTrue(result.exceptionOrNull()!!.message!!.contains("Location result was null"))
                 }
 
-            testScheduler.advanceUntilIdle()
+            // Let coroutine suspend without advancing past withTimeout
+            advanceTimeBy(1)
             callbackSlot.captured.onLocationResult(mockLocationResult)
             testScheduler.advanceUntilIdle()
             job.join()
@@ -390,17 +400,23 @@ class LocationProviderImplTest {
             every { mockFusedClient.lastLocation } returns mockTask
             every { mockTask.addOnSuccessListener(any()) } returns mockTask
             every { mockTask.addOnFailureListener(any()) } returns mockTask
-            val cancelSlot = slot<OnCanceledListener>()
-            every { mockTask.addOnCanceledListener(capture(cancelSlot)) } returns mockTask
+            every { mockTask.addOnCanceledListener(any()) } returns mockTask
 
-            assertThrows<CancellationException> {
-                val job =
-                    launch {
+            var thrownException: Throwable? = null
+            val job =
+                launch {
+                    try {
                         provider.getLocation(false)
+                    } catch (e: CancellationException) {
+                        thrownException = e
+                        throw e
                     }
-                testScheduler.advanceUntilIdle()
-                job.cancel()
-                job.join()
-            }
+                }
+            testScheduler.advanceUntilIdle()
+            job.cancel()
+            job.join()
+
+            assertNotNull(thrownException)
+            assertTrue(thrownException is CancellationException)
         }
 }

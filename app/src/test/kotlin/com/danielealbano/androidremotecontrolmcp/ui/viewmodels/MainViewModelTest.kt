@@ -1024,6 +1024,7 @@ class MainViewModelTest {
                 every { PermissionUtils.isNotificationPermissionGranted(context) } returns false
                 every { PermissionUtils.isCameraPermissionGranted(context) } returns false
                 every { PermissionUtils.isMicrophonePermissionGranted(context) } returns false
+                every { PermissionUtils.isLocationPermissionGranted(context) } returns false
                 every { PermissionUtils.isNotificationListenerEnabled(context, any()) } returns true
                 coEvery { storageLocationProvider.getAllLocations() } returns emptyList()
 
@@ -1048,6 +1049,7 @@ class MainViewModelTest {
                 every { PermissionUtils.isNotificationPermissionGranted(context) } returns false
                 every { PermissionUtils.isCameraPermissionGranted(context) } returns false
                 every { PermissionUtils.isMicrophonePermissionGranted(context) } returns false
+                every { PermissionUtils.isLocationPermissionGranted(context) } returns false
                 every { PermissionUtils.isNotificationListenerEnabled(context, any()) } returns false
                 coEvery { storageLocationProvider.getAllLocations() } returns emptyList()
 

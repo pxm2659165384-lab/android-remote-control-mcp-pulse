@@ -38,7 +38,7 @@ class LocationProviderImpl
         private val fusedLocationClient: FusedLocationProviderClient =
             LocationServices.getFusedLocationProviderClient(context)
 
-        @Suppress("TooGenericExceptionCaught")
+        @Suppress("TooGenericExceptionCaught", "ReturnCount")
         override suspend fun getLocation(freshFix: Boolean): Result<LocationData> {
             val playServicesStatus =
                 GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(context)
@@ -73,6 +73,7 @@ class LocationProviderImpl
                         IllegalStateException(
                             "Timed out waiting for fresh GPS fix " +
                                 "(${LocationProvider.FRESH_FIX_TIMEOUT_MS}ms)",
+                            e,
                         ),
                     )
                 } catch (e: CancellationException) {
@@ -104,8 +105,7 @@ class LocationProviderImpl
         }
 
         @SuppressLint("MissingPermission")
-        private suspend fun getLastKnownLocation(): Location? =
-            fusedLocationClient.lastLocation.await()
+        private suspend fun getLastKnownLocation(): Location? = fusedLocationClient.lastLocation.await()
 
         @SuppressLint("MissingPermission")
         private suspend fun requestFreshLocation(): Location =

@@ -319,6 +319,7 @@ class ToolPermissionsIntegrationTest {
                 "notification_action",
                 "notification_reply",
                 "get_screen_state",
+                "get_location",
             )
     }
 }
