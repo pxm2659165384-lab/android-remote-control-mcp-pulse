@@ -144,6 +144,7 @@ class McpServerService : Service() {
                 stopSelf()
                 return START_NOT_STICKY
             }
+
             ACTION_START, null -> {
                 if (!serverActive.compareAndSet(false, true)) {
                     Log.w(TAG, "Server already starting or running, ignoring duplicate start request")
@@ -243,6 +244,7 @@ class McpServerService : Service() {
                                     ),
                                 )
                             }
+
                             is TunnelStatus.Error -> {
                                 Log.w(TAG, "Tunnel error: ${status.message}")
                                 emitLogEntry(
@@ -253,9 +255,11 @@ class McpServerService : Service() {
                                     ),
                                 )
                             }
+
                             is TunnelStatus.Connecting -> {
                                 Log.i(TAG, "Tunnel connecting...")
                             }
+
                             is TunnelStatus.Disconnected -> {
                                 // No-op for initial state; logged at stop time
                             }

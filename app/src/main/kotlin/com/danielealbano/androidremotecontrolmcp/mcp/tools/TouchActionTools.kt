@@ -327,9 +327,13 @@ class ScrollTool
             val direction =
                 when (directionStr.lowercase()) {
                     "up" -> ScrollDirection.UP
+
                     "down" -> ScrollDirection.DOWN
+
                     "left" -> ScrollDirection.LEFT
+
                     "right" -> ScrollDirection.RIGHT
+
                     else -> throw McpToolException.InvalidParams(
                         "Parameter 'direction' must be one of: up, down, left, right. Got: '$directionStr'",
                     )
@@ -338,8 +342,11 @@ class ScrollTool
             val amount =
                 when (amountStr.lowercase()) {
                     "small" -> ScrollAmount.SMALL
+
                     "medium" -> ScrollAmount.MEDIUM
+
                     "large" -> ScrollAmount.LARGE
+
                     else -> throw McpToolException.InvalidParams(
                         "Parameter 'amount' must be one of: small, medium, large. Got: '$amountStr'",
                     )

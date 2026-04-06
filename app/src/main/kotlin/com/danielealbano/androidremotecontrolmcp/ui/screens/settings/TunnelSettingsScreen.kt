@@ -137,10 +137,13 @@ fun TunnelSettingsScreen(
                                 Text(
                                     text =
                                         when (provider) {
-                                            TunnelProviderType.CLOUDFLARE ->
+                                            TunnelProviderType.CLOUDFLARE -> {
                                                 stringResource(R.string.remote_access_provider_cloudflare)
-                                            TunnelProviderType.NGROK ->
+                                            }
+
+                                            TunnelProviderType.NGROK -> {
                                                 stringResource(R.string.remote_access_provider_ngrok)
+                                            }
                                         },
                                     style = MaterialTheme.typography.bodyLarge,
                                 )
@@ -148,10 +151,13 @@ fun TunnelSettingsScreen(
                                 Text(
                                     text =
                                         when (provider) {
-                                            TunnelProviderType.CLOUDFLARE ->
+                                            TunnelProviderType.CLOUDFLARE -> {
                                                 stringResource(R.string.remote_access_provider_cloudflare_desc)
-                                            TunnelProviderType.NGROK ->
+                                            }
+
+                                            TunnelProviderType.NGROK -> {
                                                 stringResource(R.string.remote_access_provider_ngrok_desc)
+                                            }
                                         },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -269,6 +275,7 @@ private fun TunnelStatusIndicator(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+
             is TunnelStatus.Connecting -> {
                 CircularProgressIndicator(
                     modifier = Modifier.size(STATUS_INDICATOR_SIZE_DP.dp),
@@ -281,6 +288,7 @@ private fun TunnelStatusIndicator(
                     color = MaterialTheme.colorScheme.tertiary,
                 )
             }
+
             is TunnelStatus.Connected -> {
                 Text(
                     text = stringResource(R.string.remote_access_status_connected),
@@ -294,6 +302,7 @@ private fun TunnelStatusIndicator(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+
             is TunnelStatus.Error -> {
                 Text(
                     text = stringResource(R.string.remote_access_status_error, status.message),

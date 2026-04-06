@@ -153,19 +153,37 @@ class IntentDispatcherImpl
                 "Extra '$key' is null but type override '$typeOverride' requires a value"
             }
             when (typeOverride) {
-                "string" -> intent.putExtra(key, value.toString())
-                "int" -> intent.putExtra(key, (value as? Number)?.toInt() ?: value.toString().toInt())
-                "long" -> intent.putExtra(key, (value as? Number)?.toLong() ?: value.toString().toLong())
-                "float" -> intent.putExtra(key, (value as? Number)?.toFloat() ?: value.toString().toFloat())
-                "double" -> intent.putExtra(key, (value as? Number)?.toDouble() ?: value.toString().toDouble())
+                "string" -> {
+                    intent.putExtra(key, value.toString())
+                }
+
+                "int" -> {
+                    intent.putExtra(key, (value as? Number)?.toInt() ?: value.toString().toInt())
+                }
+
+                "long" -> {
+                    intent.putExtra(key, (value as? Number)?.toLong() ?: value.toString().toLong())
+                }
+
+                "float" -> {
+                    intent.putExtra(key, (value as? Number)?.toFloat() ?: value.toString().toFloat())
+                }
+
+                "double" -> {
+                    intent.putExtra(key, (value as? Number)?.toDouble() ?: value.toString().toDouble())
+                }
+
                 "boolean" -> {
                     val boolVal: Boolean = value as? Boolean ?: value.toString().toBooleanStrict()
                     intent.putExtra(key, boolVal)
                 }
-                else -> throw IllegalArgumentException(
-                    "Unsupported extras_types value: '$typeOverride'. " +
-                        "Supported: string, int, long, float, double, boolean",
-                )
+
+                else -> {
+                    throw IllegalArgumentException(
+                        "Unsupported extras_types value: '$typeOverride'. " +
+                            "Supported: string, int, long, float, double, boolean",
+                    )
+                }
             }
         }
 
@@ -175,16 +193,31 @@ class IntentDispatcherImpl
             value: Any?,
         ) {
             when {
-                value == null -> return
-                value is String -> intent.putExtra(key, value)
-                value is Boolean -> intent.putExtra(key, value)
-                value is Number -> putNumericExtra(intent, key, value)
+                value == null -> {
+                    return
+                }
+
+                value is String -> {
+                    intent.putExtra(key, value)
+                }
+
+                value is Boolean -> {
+                    intent.putExtra(key, value)
+                }
+
+                value is Number -> {
+                    putNumericExtra(intent, key, value)
+                }
+
                 value is List<*> && value.all { it is String } -> {
                     intent.putExtra(key, ArrayList(value.filterIsInstance<String>()))
                 }
-                else -> throw IllegalArgumentException(
-                    "Cannot infer extra type for key '$key': unsupported value type",
-                )
+
+                else -> {
+                    throw IllegalArgumentException(
+                        "Cannot infer extra type for key '$key': unsupported value type",
+                    )
+                }
             }
         }
 

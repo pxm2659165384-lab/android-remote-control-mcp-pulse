@@ -817,9 +817,12 @@ internal fun mapNodeActionException(
     nodeId: String,
 ): Nothing {
     when (exception) {
-        is NoSuchElementException -> throw McpToolException.NodeNotFound(
-            "Node '$nodeId' not found in accessibility tree",
-        )
+        is NoSuchElementException -> {
+            throw McpToolException.NodeNotFound(
+                "Node '$nodeId' not found in accessibility tree",
+            )
+        }
+
         is IllegalStateException -> {
             if (exception.message?.contains("not available") == true) {
                 throw McpToolException.PermissionDenied(
@@ -830,8 +833,11 @@ internal fun mapNodeActionException(
                 exception.message ?: "Action failed on node '$nodeId'",
             )
         }
-        else -> throw McpToolException.ActionFailed(
-            "Action failed on node '$nodeId': ${exception.message}",
-        )
+
+        else -> {
+            throw McpToolException.ActionFailed(
+                "Action failed on node '$nodeId': ${exception.message}",
+            )
+        }
     }
 }

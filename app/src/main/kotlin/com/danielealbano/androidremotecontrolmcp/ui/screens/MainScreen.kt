@@ -54,7 +54,7 @@ fun MainScreen(
         },
     ) { paddingValues ->
         when (selectedTabRoute) {
-            TopLevelRoute.Server.route ->
+            TopLevelRoute.Server.route -> {
                 ServerScreen(
                     onNavigateToPermissions = {
                         pendingSettingsRoute = SettingsRoute.Permissions.route
@@ -63,7 +63,9 @@ fun MainScreen(
                     modifier = Modifier.padding(paddingValues),
                     viewModel = viewModel,
                 )
-            TopLevelRoute.Settings.route ->
+            }
+
+            TopLevelRoute.Settings.route -> {
                 SettingsScreen(
                     onRequestNotificationPermission = onRequestNotificationPermission,
                     onRequestCameraPermission = onRequestCameraPermission,
@@ -73,8 +75,13 @@ fun MainScreen(
                     modifier = Modifier.padding(paddingValues),
                     viewModel = viewModel,
                 )
-            TopLevelRoute.About.route -> AboutScreen(modifier = Modifier.padding(paddingValues))
-            else ->
+            }
+
+            TopLevelRoute.About.route -> {
+                AboutScreen(modifier = Modifier.padding(paddingValues))
+            }
+
+            else -> {
                 ServerScreen(
                     onNavigateToPermissions = {
                         pendingSettingsRoute = SettingsRoute.Permissions.route
@@ -83,6 +90,7 @@ fun MainScreen(
                     modifier = Modifier.padding(paddingValues),
                     viewModel = viewModel,
                 )
+            }
         }
     }
 }

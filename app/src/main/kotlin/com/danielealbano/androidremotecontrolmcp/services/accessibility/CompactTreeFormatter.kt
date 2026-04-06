@@ -236,10 +236,17 @@ class CompactTreeFormatter
                     ?.trim()
                     ?.ifEmpty { null }
             return when {
-                sanitized == null -> NULL_VALUE
-                sanitized.length > MAX_TEXT_LENGTH ->
+                sanitized == null -> {
+                    NULL_VALUE
+                }
+
+                sanitized.length > MAX_TEXT_LENGTH -> {
                     sanitized.substring(0, MAX_TEXT_LENGTH) + TRUNCATION_SUFFIX
-                else -> sanitized
+                }
+
+                else -> {
+                    sanitized
+                }
             }
         }
 

@@ -25,8 +25,14 @@ fun AndroidRemoteControlMcpTheme(
                     dynamicLightColorScheme(context)
                 }
             }
-            darkTheme -> DarkColorScheme
-            else -> LightColorScheme
+
+            darkTheme -> {
+                DarkColorScheme
+            }
+
+            else -> {
+                LightColorScheme
+            }
         }
 
     MaterialTheme(

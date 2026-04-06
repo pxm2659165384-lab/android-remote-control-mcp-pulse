@@ -126,10 +126,13 @@ fun SecuritySettingsScreen(
                                 Text(
                                     text =
                                         when (source) {
-                                            CertificateSource.AUTO_GENERATED ->
+                                            CertificateSource.AUTO_GENERATED -> {
                                                 stringResource(R.string.config_cert_auto_generated)
-                                            CertificateSource.CUSTOM ->
+                                            }
+
+                                            CertificateSource.CUSTOM -> {
                                                 stringResource(R.string.config_cert_custom)
+                                            }
                                         },
                                     style = MaterialTheme.typography.bodyLarge,
                                 )

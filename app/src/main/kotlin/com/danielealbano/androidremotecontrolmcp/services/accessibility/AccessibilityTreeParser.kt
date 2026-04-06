@@ -328,16 +328,33 @@ class AccessibilityTreeParser
             /** Maps [AccessibilityWindowInfo] type constants to human-readable labels. */
             fun mapWindowType(type: Int): String =
                 when (type) {
-                    AccessibilityWindowInfo.TYPE_APPLICATION -> "APPLICATION"
-                    AccessibilityWindowInfo.TYPE_INPUT_METHOD -> "INPUT_METHOD"
-                    AccessibilityWindowInfo.TYPE_SYSTEM -> "SYSTEM"
-                    AccessibilityWindowInfo.TYPE_ACCESSIBILITY_OVERLAY ->
+                    AccessibilityWindowInfo.TYPE_APPLICATION -> {
+                        "APPLICATION"
+                    }
+
+                    AccessibilityWindowInfo.TYPE_INPUT_METHOD -> {
+                        "INPUT_METHOD"
+                    }
+
+                    AccessibilityWindowInfo.TYPE_SYSTEM -> {
+                        "SYSTEM"
+                    }
+
+                    AccessibilityWindowInfo.TYPE_ACCESSIBILITY_OVERLAY -> {
                         "ACCESSIBILITY_OVERLAY"
-                    AccessibilityWindowInfo.TYPE_SPLIT_SCREEN_DIVIDER ->
+                    }
+
+                    AccessibilityWindowInfo.TYPE_SPLIT_SCREEN_DIVIDER -> {
                         "SPLIT_SCREEN_DIVIDER"
-                    AccessibilityWindowInfo.TYPE_MAGNIFICATION_OVERLAY ->
+                    }
+
+                    AccessibilityWindowInfo.TYPE_MAGNIFICATION_OVERLAY -> {
                         "MAGNIFICATION_OVERLAY"
-                    else -> "UNKNOWN($type)"
+                    }
+
+                    else -> {
+                        "UNKNOWN($type)"
+                    }
                 }
         }
     }

@@ -71,9 +71,11 @@ class McpAccessibilityService : AccessibilityService() {
                         "activity=$currentActivityName",
                 )
             }
+
             AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
                 Log.d(TAG, "Window content changed: package=${event.packageName}")
             }
+
             else -> {
                 // Ignored event types
             }

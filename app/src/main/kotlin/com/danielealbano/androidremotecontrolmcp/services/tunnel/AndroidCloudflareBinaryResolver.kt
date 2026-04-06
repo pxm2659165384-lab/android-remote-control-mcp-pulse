@@ -28,11 +28,15 @@ class AndroidCloudflareBinaryResolver
                     Log.e(TAG, "cloudflared binary not found at: ${binaryFile.absolutePath}")
                     null
                 }
+
                 !binaryFile.canExecute() -> {
                     Log.e(TAG, "cloudflared binary is not executable: ${binaryFile.absolutePath}")
                     null
                 }
-                else -> binaryFile.absolutePath
+
+                else -> {
+                    binaryFile.absolutePath
+                }
             }
         }
 

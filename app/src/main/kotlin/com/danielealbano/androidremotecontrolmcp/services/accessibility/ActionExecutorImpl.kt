@@ -146,10 +146,13 @@ class ActionExecutorImpl
                 }
                 val action =
                     when (direction) {
-                        ScrollDirection.UP, ScrollDirection.LEFT ->
+                        ScrollDirection.UP, ScrollDirection.LEFT -> {
                             AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
-                        ScrollDirection.DOWN, ScrollDirection.RIGHT ->
+                        }
+
+                        ScrollDirection.DOWN, ScrollDirection.RIGHT -> {
                             AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
+                        }
                     }
                 val success = realNode.performAction(action)
                 if (success) {
@@ -345,6 +348,7 @@ class ActionExecutorImpl
                         startY.coerceAtMost(endY - MIN_SCROLL_DISTANCE).coerceIn(0f, screenHeight)
                     swipe(centerX, adjustedStartY, centerX, endY)
                 }
+
                 // Scroll down (reveal content below): finger swipes upward (y1 > y2)
                 ScrollDirection.DOWN -> {
                     val startY = (centerY + halfDistance).coerceIn(0f, screenHeight)
@@ -353,6 +357,7 @@ class ActionExecutorImpl
                         startY.coerceAtLeast(endY + MIN_SCROLL_DISTANCE).coerceIn(0f, screenHeight)
                     swipe(centerX, adjustedStartY, centerX, endY)
                 }
+
                 // Scroll left (reveal content to the left): finger swipes rightward (x1 < x2)
                 ScrollDirection.LEFT -> {
                     val startX = (centerX - halfDistance).coerceIn(0f, screenWidth)
@@ -361,6 +366,7 @@ class ActionExecutorImpl
                         startX.coerceAtMost(endX - MIN_SCROLL_DISTANCE).coerceIn(0f, screenWidth)
                     swipe(adjustedStartX, centerY, endX, centerY)
                 }
+
                 // Scroll right (reveal content to the right): finger swipes leftward (x1 > x2)
                 ScrollDirection.RIGHT -> {
                     val startX = (centerX + halfDistance).coerceIn(0f, screenWidth)

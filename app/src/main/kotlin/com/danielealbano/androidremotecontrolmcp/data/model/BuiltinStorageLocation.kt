@@ -90,17 +90,31 @@ enum class BuiltinStorageLocation(
 
         private fun findPathValidationError(path: String): String? =
             when {
-                path.startsWith("/") -> "Path must be relative, not absolute"
-                else ->
+                path.startsWith("/") -> {
+                    "Path must be relative, not absolute"
+                }
+
+                else -> {
                     path.split("/").filter { it.isNotEmpty() }.firstNotNullOfOrNull { segment ->
                         when {
-                            segment == ".." -> "Path must not contain '..' segments"
-                            segment == "." -> "Path must not contain '.' segments"
-                            CONTROL_CHAR_REGEX.containsMatchIn(segment) ->
+                            segment == ".." -> {
+                                "Path must not contain '..' segments"
+                            }
+
+                            segment == "." -> {
+                                "Path must not contain '.' segments"
+                            }
+
+                            CONTROL_CHAR_REGEX.containsMatchIn(segment) -> {
                                 "Path must not contain control characters"
-                            else -> null
+                            }
+
+                            else -> {
+                                null
+                            }
                         }
                     }
+                }
             }
 
         private val CONTROL_CHAR_REGEX = Regex("[\\p{Cntrl}]")

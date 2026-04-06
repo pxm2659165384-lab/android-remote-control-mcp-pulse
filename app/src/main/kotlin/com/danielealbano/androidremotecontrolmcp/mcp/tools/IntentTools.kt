@@ -85,8 +85,14 @@ class SendIntentHandler
             value: JsonElement,
         ): Any? =
             when (value) {
-                is JsonPrimitive -> convertPrimitive(value)
-                is JsonArray -> convertStringArray(key, value)
+                is JsonPrimitive -> {
+                    convertPrimitive(value)
+                }
+
+                is JsonArray -> {
+                    convertStringArray(key, value)
+                }
+
                 else -> {
                     Logger.w(TAG, "Skipping unsupported extra type for key: $key")
                     null
@@ -95,14 +101,21 @@ class SendIntentHandler
 
         private fun convertPrimitive(value: JsonPrimitive): Any =
             when {
-                value.isString -> value.content
-                value.content == "true" || value.content == "false" -> value.content.toBooleanStrict()
+                value.isString -> {
+                    value.content
+                }
+
+                value.content == "true" || value.content == "false" -> {
+                    value.content.toBooleanStrict()
+                }
+
                 value.content.contains('.') -> {
                     value.content.toDoubleOrNull()
                         ?: throw IllegalArgumentException(
                             "Cannot parse numeric extra: '${value.content}'",
                         )
                 }
+
                 else -> {
                     value.content.toLongOrNull()
                         ?: throw IllegalArgumentException(

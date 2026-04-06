@@ -996,16 +996,29 @@ class PressKeyTool
                         throw McpToolException.ActionFailed("BACK key failed: ${e.message}")
                     }
                 }
+
                 "HOME" -> {
                     val result = actionExecutor.pressHome()
                     result.onFailure { e ->
                         throw McpToolException.ActionFailed("HOME key failed: ${e.message}")
                     }
                 }
-                "ENTER" -> pressEnter()
-                "DEL" -> pressDelete()
-                "TAB" -> appendCharToFocused('\t')
-                "SPACE" -> appendCharToFocused(' ')
+
+                "ENTER" -> {
+                    pressEnter()
+                }
+
+                "DEL" -> {
+                    pressDelete()
+                }
+
+                "TAB" -> {
+                    appendCharToFocused('\t')
+                }
+
+                "SPACE" -> {
+                    appendCharToFocused(' ')
+                }
             }
 
             Log.d(TAG, "press_key: key=$upperKey succeeded")

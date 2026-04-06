@@ -122,6 +122,7 @@ private fun ServerLogEntryRow(entry: ServerLogEntry) {
                 )
             }
         }
+
         ServerLogEntry.Type.TUNNEL,
         ServerLogEntry.Type.SERVER,
         -> {

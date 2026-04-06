@@ -54,8 +54,14 @@ fun getGitDescribeVersion(): String? {
                 val hash = match.groupValues[3]
                 "$baseVersion-dev.$commitCount+$hash"
             }
-            tagPattern.matches(output) -> tagPattern.find(output)!!.groupValues[1]
-            else -> "0.0.0-dev+$output"
+
+            tagPattern.matches(output) -> {
+                tagPattern.find(output)!!.groupValues[1]
+            }
+
+            else -> {
+                "0.0.0-dev+$output"
+            }
         }
     } catch (_: Exception) {
         null

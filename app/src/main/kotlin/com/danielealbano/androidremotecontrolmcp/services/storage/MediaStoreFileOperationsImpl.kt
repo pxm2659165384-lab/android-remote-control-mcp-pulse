@@ -707,11 +707,17 @@ class MediaStoreFileOperationsImpl
                 }
             val errorMessage =
                 when {
-                    parsedUrl.protocol != "http" && parsedUrl.protocol != "https" ->
+                    parsedUrl.protocol != "http" && parsedUrl.protocol != "https" -> {
                         "Unsupported URL protocol: ${parsedUrl.protocol}. Only HTTP and HTTPS are supported."
-                    parsedUrl.protocol == "http" && !config.allowHttpDownloads ->
+                    }
+
+                    parsedUrl.protocol == "http" && !config.allowHttpDownloads -> {
                         "HTTP downloads are not allowed. Enable 'Allow HTTP Downloads' in settings, or use HTTPS."
-                    else -> null
+                    }
+
+                    else -> {
+                        null
+                    }
                 }
             if (errorMessage != null) {
                 throw McpToolException.ActionFailed(errorMessage)

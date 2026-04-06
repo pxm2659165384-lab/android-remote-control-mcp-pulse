@@ -51,6 +51,7 @@ class AdbServiceTrampolineActivity : Activity() {
                     }
                 startForegroundService(serviceIntent)
             }
+
             ACTION_VALUE_STOP -> {
                 Log.i(TAG, "Stopping McpServerService via trampoline")
                 val serviceIntent =
@@ -59,6 +60,7 @@ class AdbServiceTrampolineActivity : Activity() {
                     }
                 startForegroundService(serviceIntent)
             }
+
             else -> {
                 Log.w(TAG, "Unknown or missing action: '$action' (expected 'start' or 'stop')")
             }

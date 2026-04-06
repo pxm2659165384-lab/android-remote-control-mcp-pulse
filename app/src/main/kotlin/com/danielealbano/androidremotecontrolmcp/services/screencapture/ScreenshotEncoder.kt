@@ -142,11 +142,13 @@ class ScreenshotEncoder
                         val scale = minOf(widthRatio, heightRatio, 1f)
                         Pair((originalWidth * scale).toInt(), (originalHeight * scale).toInt())
                     }
+
                     maxWidth != null -> {
                         // Scale to width (as an upper bound), proportional height; never upscale
                         val scale = (maxWidth.toFloat() / originalWidth).coerceAtMost(1f)
                         Pair((originalWidth * scale).toInt(), (originalHeight * scale).toInt())
                     }
+
                     else -> {
                         // maxHeight != null: scale to height (as an upper bound); never upscale
                         val scale = (maxHeight!!.toFloat() / originalHeight).coerceAtMost(1f)

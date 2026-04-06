@@ -104,8 +104,11 @@ class ListAppsHandler
             val filter =
                 when (filterStr.lowercase()) {
                     "all" -> AppFilter.ALL
+
                     "user" -> AppFilter.USER
+
                     "system" -> AppFilter.SYSTEM
+
                     else -> throw McpToolException.InvalidParams(
                         "Parameter 'filter' must be one of: 'all', 'user', 'system'. Got: '$filterStr'",
                     )

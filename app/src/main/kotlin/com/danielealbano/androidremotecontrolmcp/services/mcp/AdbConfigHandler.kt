@@ -77,8 +77,14 @@ class AdbConfigHandler(
         val value = intent.getStringExtra(EXTRA_BINDING_ADDRESS) ?: return
         val address =
             when (value) {
-                BindingAddress.NETWORK.address -> BindingAddress.NETWORK
-                BindingAddress.LOCALHOST.address -> BindingAddress.LOCALHOST
+                BindingAddress.NETWORK.address -> {
+                    BindingAddress.NETWORK
+                }
+
+                BindingAddress.LOCALHOST.address -> {
+                    BindingAddress.LOCALHOST
+                }
+
                 else -> {
                     Log.w(
                         TAG,
