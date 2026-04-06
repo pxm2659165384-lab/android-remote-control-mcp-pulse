@@ -414,19 +414,19 @@ Note: The `registerLocationTools()` call in `registerAllTools()` is added in Tas
 
 ### Acceptance Criteria
 
-- [ ] `GetLocationHandler` created in `LocationTools.kt` following the existing handler pattern
-- [ ] Tool name: `get_location`
-- [ ] Input parameter: `fresh_fix` (optional boolean, default `false`)
-- [ ] `fresh_fix` parameter is force-overridden to `false` when the user has disabled it via `freshFixParamEnabled=false`
-- [ ] Returns JSON with `latitude`, `longitude`, `accuracy_meters`, `street` (nullable)
-- [ ] Uses `untrustedTextResult()` (device-derived content)
-- [ ] Play Services unavailable → `McpToolException.ActionFailed`
-- [ ] Permission not granted → `McpToolException.PermissionDenied`
-- [ ] No location available → `McpToolException.ActionFailed`
-- [ ] Tool description mentions 10s timeout for fresh fix, nullable street, permission requirement
-- [ ] `registerLocationTools()` function created with `perms.isToolEnabled` check
-- [ ] `registerLocationTools()` called from `McpServerService.registerAllTools()`
-- [ ] Tool registered in `ALL_TOOL_CATEGORIES` in `McpToolsSettingsScreen.kt` with `fresh_fix` param toggle
+- [x] `GetLocationHandler` created in `LocationTools.kt` following the existing handler pattern
+- [x] Tool name: `get_location`
+- [x] Input parameter: `fresh_fix` (optional boolean, default `false`)
+- [x] `fresh_fix` parameter is force-overridden to `false` when the user has disabled it via `freshFixParamEnabled=false`
+- [x] Returns JSON with `latitude`, `longitude`, `accuracy_meters`, `street` (nullable)
+- [x] Uses `untrustedTextResult()` (device-derived content)
+- [x] Play Services unavailable → `McpToolException.ActionFailed`
+- [x] Permission not granted → `McpToolException.PermissionDenied`
+- [x] No location available → `McpToolException.ActionFailed`
+- [x] Tool description mentions 10s timeout for fresh fix, nullable street, permission requirement
+- [x] `registerLocationTools()` function created with `perms.isToolEnabled` check
+- [x] `registerLocationTools()` called from `McpServerService.registerAllTools()`
+- [x] Tool registered in `ALL_TOOL_CATEGORIES` in `McpToolsSettingsScreen.kt` with `fresh_fix` param toggle
 
 ---
 
@@ -555,7 +555,7 @@ fun registerLocationTools(
 
 **Definition of Done**:
 
-- [ ] `LocationTools.kt` created matching the code above
+- [x] `LocationTools.kt` created matching the code above
 
 ---
 
@@ -577,8 +577,8 @@ registerLocationTools(server, locationProvider, toolNamePrefix, perms)
 
 **Definition of Done**:
 
-- [ ] Import for `registerLocationTools` added
-- [ ] `registerLocationTools` called in `registerAllTools()`
+- [x] Import for `registerLocationTools` added
+- [x] `registerLocationTools` called in `registerAllTools()`
 
 ---
 
@@ -603,9 +603,9 @@ ToolCategory(
 
 **Definition of Done**:
 
-- [ ] "Location" category appears in MCP Tools settings screen
-- [ ] `get_location` tool has enable/disable toggle
-- [ ] `fresh_fix` param has its own toggle (visible when tool is enabled)
+- [x] "Location" category appears in MCP Tools settings screen
+- [x] `get_location` tool has enable/disable toggle
+- [x] `fresh_fix` param has its own toggle (visible when tool is enabled)
 
 ---
 

@@ -23,6 +23,7 @@ import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerFileTools
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerGestureTools
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerIntentTools
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerNodeActionTools
+import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerLocationTools
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerNotificationTools
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerScreenIntrospectionTools
 import com.danielealbano.androidremotecontrolmcp.services.location.LocationProvider
@@ -332,6 +333,7 @@ class McpServerService : Service() {
         registerCameraTools(server, cameraProvider, fileOperationProvider, toolNamePrefix, perms)
         registerIntentTools(server, intentDispatcher, toolNamePrefix, perms)
         registerNotificationTools(server, notificationProvider, toolNamePrefix, perms)
+        registerLocationTools(server, locationProvider, toolNamePrefix, perms)
     }
 
     override fun onDestroy() {

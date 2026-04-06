@@ -169,6 +169,16 @@ private val ALL_TOOL_CATEGORIES: List<ToolCategory> =
                 ToolEntry("notification_reply", "Notification Reply"),
             ),
         ),
+        ToolCategory(
+            "Location",
+            listOf(
+                ToolEntry(
+                    "get_location",
+                    "Get Location",
+                    listOf(ParamEntry("fresh_fix", "Allow fresh GPS fix")),
+                ),
+            ),
+        ),
     )
 
 @OptIn(ExperimentalMaterial3Api::class)
