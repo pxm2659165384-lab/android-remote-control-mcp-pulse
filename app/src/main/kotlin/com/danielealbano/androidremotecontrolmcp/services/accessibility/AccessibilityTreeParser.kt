@@ -323,7 +323,7 @@ class AccessibilityTreeParser
              * Extra data key added by Compose's AccessibilityNodeProvider to every
              * virtual accessibility node. Present in [AccessibilityNodeInfo.getAvailableExtraData].
              */
-            private const val COMPOSE_SEMANTICS_ID_KEY = "androidx.compose.ui.semantics.id"
+            internal const val COMPOSE_SEMANTICS_ID_KEY = "androidx.compose.ui.semantics.id"
 
             /** Maps [AccessibilityWindowInfo] type constants to human-readable labels. */
             fun mapWindowType(type: Int): String =

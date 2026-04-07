@@ -41,8 +41,8 @@ internal const val COMPOSE_SEMANTICS_ID_KEY = "androidx.compose.ui.semantics.id"
 
 #### Definition of Done
 
-- [ ] `COMPOSE_SEMANTICS_ID_KEY` is `internal const val` in `AccessibilityTreeParser.Companion`.
-- [ ] No other changes to `AccessibilityTreeParser.kt`.
+- [x] `COMPOSE_SEMANTICS_ID_KEY` is `internal const val` in `AccessibilityTreeParser.Companion`.
+- [x] No other changes to `AccessibilityTreeParser.kt`.
 
 ---
 
@@ -180,10 +180,10 @@ private fun rawNodeMatchesRecursive(
 
 #### Definition of Done
 
-- [ ] `rawNodeExists()` function is added to `UtilityTools.kt` as `internal` top-level function.
-- [ ] `rawNodeMatchesRecursive()` is added as `private` top-level function.
-- [ ] Both functions match the code above exactly.
-- [ ] The two imports listed above are added to `UtilityTools.kt`.
+- [x] `rawNodeExists()` function is added to `UtilityTools.kt` as `internal` top-level function.
+- [x] `rawNodeMatchesRecursive()` is added as `private` top-level function.
+- [x] Both functions match the code above exactly.
+- [x] The two imports listed above are added to `UtilityTools.kt`.
 
 ---
 
@@ -252,13 +252,13 @@ private const val POLL_INTERVAL_MS = 150L
 
 #### Definition of Done
 
-- [ ] Poll loop uses `rawNodeExists()` for lightweight checking, then `getFreshWindows()` + `findElements()` only on match.
-- [ ] Race condition handled: if `findElements()` returns empty after a raw match, polling continues.
-- [ ] `POLL_INTERVAL_MS` is `150L`.
-- [ ] Error handling preserved: `PermissionDenied` propagates, other exceptions retry.
-- [ ] The `treeParser` and `elementFinder` dependencies remain in `WaitForNodeTool` constructor (needed for the final full-parse phase).
-- [ ] The `nodeCache` dependency remains in `WaitForNodeTool` constructor (needed by `getFreshWindows` in the final phase).
-- [ ] Response JSON shape unchanged.
+- [x] Poll loop uses `rawNodeExists()` for lightweight checking, then `getFreshWindows()` + `findElements()` only on match.
+- [x] Race condition handled: if `findElements()` returns empty after a raw match, polling continues.
+- [x] `POLL_INTERVAL_MS` is `150L`.
+- [x] Error handling preserved: `PermissionDenied` propagates, other exceptions retry.
+- [x] The `treeParser` and `elementFinder` dependencies remain in `WaitForNodeTool` constructor (needed for the final full-parse phase).
+- [x] The `nodeCache` dependency remains in `WaitForNodeTool` constructor (needed by `getFreshWindows` in the final phase).
+- [x] Response JSON shape unchanged.
 
 ---
 
