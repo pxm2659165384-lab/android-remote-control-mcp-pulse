@@ -8,7 +8,6 @@ import android.view.accessibility.AccessibilityWindowInfo
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.stripUntrustedWarning
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.AccessibilityNodeData
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.BoundsData
-import com.danielealbano.androidremotecontrolmcp.services.accessibility.FindBy
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.ScreenInfo
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.WindowData
 import io.mockk.coEvery
@@ -166,21 +165,16 @@ class ErrorHandlingIntegrationTest {
             mockkStatic(SystemClock::class)
             try {
                 var clockMs = 0L
-                every { SystemClock.elapsedRealtime() } answers { clockMs }
+                every { SystemClock.elapsedRealtime() } answers {
+                    val current = clockMs
+                    clockMs += 200L
+                    current
+                }
 
                 val deps = McpIntegrationTestHelper.createMockDependencies()
                 McpIntegrationTestHelper.setupMultiWindowMock(deps, sampleTree, sampleScreenInfo)
-                every {
-                    deps.elementFinder.findElements(
-                        any<List<WindowData>>(),
-                        FindBy.TEXT,
-                        "nonexistent_element_xyz",
-                        false,
-                    )
-                } answers {
-                    clockMs += 600L
-                    emptyList()
-                }
+                // No findElements mock needed — rawNodeExists returns false
+                // (raw node properties are null/0/empty by default), findElements is never called
 
                 McpIntegrationTestHelper.withTestApplication(deps) { client, _ ->
                     val result =

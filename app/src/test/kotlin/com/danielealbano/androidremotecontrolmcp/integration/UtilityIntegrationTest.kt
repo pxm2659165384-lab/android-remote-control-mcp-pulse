@@ -66,6 +66,18 @@ class UtilityIntegrationTest {
             orientation = "portrait",
         )
 
+    private val sampleElementInfoA =
+        ElementInfo(
+            id = "node_a",
+            text = "Hello World",
+            contentDescription = "A button",
+            className = "android.widget.Button",
+            bounds = BoundsData(50, 800, 250, 1000),
+            clickable = true,
+            enabled = true,
+            visible = true,
+        )
+
     @BeforeEach
     fun setUp() {
         McpIntegrationTestHelper.mockAndroidLog()
@@ -174,7 +186,10 @@ class UtilityIntegrationTest {
                 every { SystemClock.elapsedRealtime() } returns 0L
 
                 val deps = McpIntegrationTestHelper.createMockDependencies()
-                McpIntegrationTestHelper.setupMultiWindowMock(deps, sampleTree, sampleScreenInfo)
+                val mockRootNode =
+                    McpIntegrationTestHelper.setupMultiWindowMock(deps, sampleTree, sampleScreenInfo)
+                // Stub raw node text so rawNodeExists() finds the match
+                every { mockRootNode.text } returns "Hello World"
 
                 every {
                     deps.elementFinder.findElements(
@@ -183,19 +198,7 @@ class UtilityIntegrationTest {
                         "Hello World",
                         false,
                     )
-                } returns
-                    listOf(
-                        ElementInfo(
-                            id = "node_a",
-                            text = "Hello World",
-                            contentDescription = "A button",
-                            className = "android.widget.Button",
-                            bounds = BoundsData(50, 800, 250, 1000),
-                            clickable = true,
-                            enabled = true,
-                            visible = true,
-                        ),
-                    )
+                } returns listOf(sampleElementInfoA)
 
                 McpIntegrationTestHelper.withTestApplication(deps) { client, _ ->
                     val result =

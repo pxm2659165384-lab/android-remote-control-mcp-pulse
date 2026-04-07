@@ -87,7 +87,7 @@ object McpIntegrationTestHelper {
         packageName: String = "com.example.app",
         activityName: String = ".MainActivity",
         windowId: Int = 0,
-    ) {
+    ): AccessibilityNodeInfo {
         val mockRootNode = mockk<AccessibilityNodeInfo>()
         val mockWindowInfo = mockk<AccessibilityWindowInfo>(relaxed = true)
 
@@ -100,6 +100,16 @@ object McpIntegrationTestHelper {
         every { mockWindowInfo.isFocused } returns true
         every { mockRootNode.refresh() } returns true
         every { mockRootNode.packageName } returns packageName
+        // Raw-node walk support: rawNodeExists() reads these properties directly
+        // from AccessibilityNodeInfo without going through AccessibilityTreeParser.
+        // Return null/0/empty so the root node does not match any search criteria
+        // (individual tests that need a match will override these stubs).
+        every { mockRootNode.text } returns null
+        every { mockRootNode.contentDescription } returns null
+        every { mockRootNode.viewIdResourceName } returns null
+        every { mockRootNode.className } returns null
+        every { mockRootNode.childCount } returns 0
+        every { mockRootNode.availableExtraData } returns emptyList()
         every {
             deps.accessibilityServiceProvider.getAccessibilityWindows()
         } returns listOf(mockWindowInfo)
@@ -107,6 +117,7 @@ object McpIntegrationTestHelper {
         every { deps.accessibilityServiceProvider.getCurrentActivityName() } returns activityName
         every { deps.accessibilityServiceProvider.getScreenInfo() } returns screenInfo
         every { deps.treeParser.parseTree(mockRootNode, "root_w$windowId", any()) } returns tree
+        return mockRootNode
     }
 
     /**
