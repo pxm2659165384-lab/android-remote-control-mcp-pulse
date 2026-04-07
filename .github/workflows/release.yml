@@ -121,24 +121,48 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@748248ddd2a24f49513d8f472f81c3a07d4d50e1 # v4.4.4
+
+      # ── 6. Compile native dependencies (cached by submodule content) ──
+      - name: Cache cloudflared Android native
+        id: cache-cloudflared
+        uses: actions/cache@v5
+        with:
+          path: |
+            app/src/main/jniLibs/arm64-v8a/libcloudflared.so
+            app/src/main/jniLibs/x86_64/libcloudflared.so
+          key: cloudflared-android-${{ runner.os }}-${{ hashFiles('.gitmodules', 'vendor/cloudflared/**/*.go', 'vendor/cloudflared/go.sum') }}
+
+      - name: Cache ngrok-java Android native
+        id: cache-ngrok-android
+        uses: actions/cache@v5
+        with:
+          path: |
+            app/src/main/jniLibs/arm64-v8a/libngrok_java.so
+            app/src/main/jniLibs/x86_64/libngrok_java.so
+            vendor/ngrok-java/ngrok-java/target/ngrok-java-1.1.1.jar
+            vendor/ngrok-java/ngrok-java-native/target/ngrok-java-native-classes.jar
+          key: ngrok-android-${{ runner.os }}-${{ hashFiles('.gitmodules', 'vendor/ngrok-java/**/*.toml', 'vendor/ngrok-java/**/pom.xml', 'vendor/ngrok-java/ngrok-java-native/src/**') }}
+
       - name: Set up Go
+        if: steps.cache-cloudflared.outputs.cache-hit != 'true'
         uses: actions/setup-go@v5
         with:
           go-version: '1.25.6'
 
       - name: Set up Rust
+        if: steps.cache-ngrok-android.outputs.cache-hit != 'true'
         uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
         with:
           targets: aarch64-linux-android,x86_64-linux-android
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@748248ddd2a24f49513d8f472f81c3a07d4d50e1 # v4.4.4
-
-      # ── 6. Compile native dependencies ──
       - name: Compile cloudflared for Android
+        if: steps.cache-cloudflared.outputs.cache-hit != 'true'
         run: make compile-cloudflared
 
       - name: Compile ngrok-java native for Android
+        if: steps.cache-ngrok-android.outputs.cache-hit != 'true'
         run: make compile-ngrok-native
         env:
           JAVA_11_HOME: ${{ env.JAVA_HOME }}
