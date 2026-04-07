@@ -26,6 +26,12 @@ dependencies {
     testImplementation(libs.testcontainers)
     testImplementation(libs.testcontainers.junit.jupiter)
 
+    // Force patched commons-compress to fix CVE-2024-25710 and CVE-2024-26308.
+    // Testcontainers 1.21.3 ships commons-compress 1.24.0 which is vulnerable.
+    constraints {
+        testImplementation("org.apache.commons:commons-compress:1.27.1")
+    }
+
     // MCP SDK client (Streamable HTTP transport)
     testImplementation(libs.mcp.kotlin.sdk.client)
     testImplementation(libs.ktor.client.cio)
