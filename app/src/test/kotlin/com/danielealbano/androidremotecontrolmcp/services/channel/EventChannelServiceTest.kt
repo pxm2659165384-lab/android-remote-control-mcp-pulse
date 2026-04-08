@@ -1,3 +1,7 @@
+// Note: EventChannelService extends android.app.Service and requires Android
+// framework to instantiate. Full lifecycle tests (ACTION_START/STOP, listener
+// creation, config observer) require Robolectric or instrumented tests. These
+// JVM-only tests verify config validation logic, constants, and contracts.
 package com.danielealbano.androidremotecontrolmcp.services.channel
 
 import com.danielealbano.androidremotecontrolmcp.data.model.ChannelConnectionStatus

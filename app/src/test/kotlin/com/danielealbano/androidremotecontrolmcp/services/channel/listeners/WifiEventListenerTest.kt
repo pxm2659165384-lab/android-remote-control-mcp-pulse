@@ -1,3 +1,8 @@
+// Note: WifiEventListener uses Android BroadcastReceiver and ConnectivityManager.
+// Testing discovered/lost/connected/disconnected events requires mocking
+// WifiManager.scanResults and ConnectivityManager.NetworkCallback which need
+// Android framework. These JVM-only tests verify lifecycle safety, SSID
+// matching logic, event toggle config, and scan interval constant.
 package com.danielealbano.androidremotecontrolmcp.services.channel.listeners
 
 import com.danielealbano.androidremotecontrolmcp.data.model.ChannelConnectionStatus

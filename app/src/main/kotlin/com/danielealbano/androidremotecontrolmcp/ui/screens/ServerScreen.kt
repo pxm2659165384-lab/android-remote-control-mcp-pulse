@@ -58,6 +58,7 @@ fun ServerScreen(
     onNavigateToPermissions: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MainViewModel = hiltViewModel(),
+    channelViewModel: ChannelViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
@@ -129,7 +130,7 @@ fun ServerScreen(
                 },
             )
 
-            ChannelStatusCard()
+            ChannelStatusCard(channelViewModel)
 
             Spacer(Modifier.height(16.dp))
 

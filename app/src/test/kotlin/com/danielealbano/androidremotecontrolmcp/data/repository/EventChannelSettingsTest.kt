@@ -1,3 +1,8 @@
+// Note: Full DataStore persistence tests require PreferencesDataStore with
+// test context (Android instrumented test). These JVM-only tests verify
+// serialization round-trips, URL validation logic, and config defaults.
+// Serialization tests confirm that toJson/fromJson preserves all fields,
+// which is the core persistence mechanism used by SettingsRepositoryImpl.
 package com.danielealbano.androidremotecontrolmcp.data.repository
 
 import com.danielealbano.androidremotecontrolmcp.data.model.EventChannelConfig

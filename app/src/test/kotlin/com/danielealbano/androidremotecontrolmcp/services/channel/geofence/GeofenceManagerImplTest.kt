@@ -1,3 +1,8 @@
+// Note: GeofenceManagerImpl wraps GeofencingClient from Google Play Services.
+// Mocking GeofencingClient.addGeofences() requires mocking Task<Void> which
+// is non-trivial in JVM-only tests. These tests verify transition type
+// calculation, initial trigger logic, and geofence parameter correctness.
+// Full integration tests would require Play Services test infrastructure.
 package com.danielealbano.androidremotecontrolmcp.services.channel.geofence
 
 import com.danielealbano.androidremotecontrolmcp.data.model.GeofenceZone

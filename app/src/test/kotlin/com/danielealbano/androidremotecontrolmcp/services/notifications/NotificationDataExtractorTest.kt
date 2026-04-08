@@ -1,3 +1,8 @@
+// Note: NotificationDataExtractor.extract() requires StatusBarNotification,
+// Notification, and Bundle from the Android framework. Mocking Bundle.getCharSequence()
+// in JVM-only tests causes MockK issues. These tests verify the shared hash
+// utility functions (computeNotificationHash, computeActionHash) used by the
+// extractor. Full extract() testing requires instrumented tests.
 package com.danielealbano.androidremotecontrolmcp.services.notifications
 
 import org.junit.jupiter.api.Assertions.assertEquals

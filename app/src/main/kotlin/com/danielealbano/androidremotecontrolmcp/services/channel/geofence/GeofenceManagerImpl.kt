@@ -36,6 +36,9 @@ class GeofenceManagerImpl
             )
         }
 
+        // Permission (ACCESS_FINE_LOCATION + ACCESS_BACKGROUND_LOCATION) is declared in manifest
+        // and requested at runtime via PermissionsSettingsScreen. SecurityException from missing
+        // permission is caught and returned as Result.failure().
         @SuppressWarnings("MissingPermission")
         override suspend fun addGeofence(zone: GeofenceZone): Result<Unit> =
             withContext(Dispatchers.IO) {
