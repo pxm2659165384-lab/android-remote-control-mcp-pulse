@@ -952,7 +952,7 @@ Monitor WiFi networks for configured SSIDs and send discovery/loss/connection/di
 - [x] Detects WiFi scan results for configured SSIDs (discovered/lost)
 - [x] Detects WiFi connection/disconnection for configured SSIDs
 - [x] Events dispatched via `EventDispatcher`
-- [ ] WiFi scan throttling limitations documented in UI (done in US10)
+- [x] WiFi scan throttling limitations documented in UI
 - [x] `ACCESS_WIFI_STATE`, `CHANGE_WIFI_STATE`, and `NEARBY_WIFI_DEVICES` permissions declared
 
 ### Task 7.1: WifiEventListener
@@ -1583,14 +1583,14 @@ Channel configuration screens, connection status display, and geofence map.
 
 ### Acceptance Criteria
 
-- [ ] Channel settings accessible from Settings index
-- [ ] Main channel screen: enable toggle, endpoint URL, auth token
-- [ ] Notification filter screen: mode selector (ALL/WHITELIST/BLACKLIST), app list with checkboxes
-- [ ] WiFi monitor screen: SSID list management, event type toggles
-- [ ] Geofence list screen: list of zones with add/edit/delete
-- [ ] Geofence map screen: Google Maps with address search, tap-to-place, circle overlay, radius slider
-- [ ] Connection status indicator on Server tab
-- [ ] Background location permission request in Permissions section
+- [x] Channel settings accessible from Settings index
+- [x] Main channel screen: enable toggle, endpoint URL, auth token
+- [x] Notification filter screen: mode selector (ALL/WHITELIST/BLACKLIST), app list with checkboxes
+- [x] WiFi monitor screen: SSID list management, event type toggles
+- [x] Geofence list screen: list of zones with add/edit/delete
+- [x] Geofence map screen: Google Maps with address search, tap-to-place, circle overlay, radius slider
+- [x] Connection status indicator on Server tab
+- [x] Background location permission request in Permissions section
 
 ### Task 10.1: ChannelViewModel
 
@@ -1727,8 +1727,8 @@ class ChannelViewModel @Inject constructor(
 Uses `@ApplicationContext` injection (not Context passed from UI) per Android architecture best practices.
 
 **Definition of Done**:
-- [ ] ViewModel compiles with all methods
-- [ ] No Context parameter passed from UI
+- [x] ViewModel compiles with all methods
+- [x] No Context parameter passed from UI
 
 ### Task 10.2: ChannelSettingsScreen
 
@@ -1820,8 +1820,8 @@ fun ChannelSettingsScreen(
 All config fields disabled while channel is enabled (same pattern as MCP server settings).
 
 **Definition of Done**:
-- [ ] Screen renders with all fields
-- [ ] Fields disabled while channel is running
+- [x] Screen renders with all fields
+- [x] Fields disabled while channel is running
 
 ### Task 10.3: NotificationFilterScreen
 
@@ -1878,9 +1878,9 @@ fun NotificationFilterScreen(
 ```
 
 **Definition of Done**:
-- [ ] Filter mode switches correctly
-- [ ] App list shows with checkboxes when WHITELIST or BLACKLIST selected
-- [ ] Search filters the app list
+- [x] Filter mode switches correctly
+- [x] App list shows with checkboxes when WHITELIST or BLACKLIST selected
+- [x] Search filters the app list
 
 ### Task 10.4: WifiMonitorScreen
 
@@ -1970,8 +1970,8 @@ fun WifiMonitorScreen(
 ```
 
 **Definition of Done**:
-- [ ] SSIDs can be added and removed
-- [ ] Event type toggles persist
+- [x] SSIDs can be added and removed
+- [x] Event type toggles persist
 
 ### Task 10.5: GeofenceListScreen
 
@@ -2038,9 +2038,9 @@ fun GeofenceListScreen(
 ```
 
 **Definition of Done**:
-- [ ] Zones listed with edit/delete actions
-- [ ] Delete confirmation dialog works
-- [ ] FAB navigates to map screen
+- [x] Zones listed with edit/delete actions
+- [x] Delete confirmation dialog works
+- [x] FAB navigates to map screen
 
 ### Task 10.6: GeofenceMapScreen
 
@@ -2166,10 +2166,10 @@ fun GeofenceMapScreen(
 Minimum radius enforced at 100m (Google `GeofencingClient` reliability threshold). Geocoder search uses `android.location.Geocoder.getFromLocationName()` — the implementation should handle the `IOException` and show a Snackbar on failure.
 
 **Definition of Done**:
-- [ ] Map displays and responds to tap (places marker)
-- [ ] Circle overlay updates with radius slider
-- [ ] Address search moves camera and marker
-- [ ] Save creates/updates geofence zone
+- [x] Map displays and responds to tap (places marker)
+- [x] Circle overlay updates with radius slider
+- [x] Address search moves camera and marker
+- [x] Save creates/updates geofence zone
 
 ### Task 10.7: Settings navigation integration
 
@@ -2200,8 +2200,8 @@ data class GeofenceMap(val zoneId: String? = null) :
 Add composable destinations in the Settings navigation graph for each screen. Create `ChannelViewModel` at the Settings navigation level via `hiltViewModel()` so all channel sub-screens share the same instance.
 
 **Definition of Done**:
-- [ ] "Event Channel" appears in Settings index
-- [ ] All sub-screen navigation routes work
+- [x] "Event Channel" appears in Settings index
+- [x] All sub-screen navigation routes work
 
 ### Task 10.8: Server screen connection status
 
@@ -2238,8 +2238,8 @@ if (channelConfig.enabled) {
 The `channelViewModel` must be provided to `ServerScreen`. Since `ChannelViewModel` is scoped at the Settings navigation level, the server screen needs its own instance or a shared one. Use `hiltViewModel()` in the ServerScreen composable — Hilt will provide the same singleton-scoped dependencies.
 
 **Definition of Done**:
-- [ ] Status card visible when channel enabled
-- [ ] Status indicator updates in real-time
+- [x] Status card visible when channel enabled
+- [x] Status indicator updates in real-time
 
 ### Task 10.9: Permission section updates
 
@@ -2296,9 +2296,9 @@ private val requestNearbyWifiPermission = registerForActivityResult(
 And a call site in the permissions UI to request it when WiFi channel is enabled.
 
 **Definition of Done**:
-- [ ] Background location permission status shown when geofence enabled
-- [ ] User can navigate to system settings to grant it
-- [ ] NEARBY_WIFI_DEVICES permission requestable
+- [x] Background location permission status shown when geofence enabled
+- [x] User can navigate to system settings to grant it
+- [x] NEARBY_WIFI_DEVICES permission requestable
 
 ---
 

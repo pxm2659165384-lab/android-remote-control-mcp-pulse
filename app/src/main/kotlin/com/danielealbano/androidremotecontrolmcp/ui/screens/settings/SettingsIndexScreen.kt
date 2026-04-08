@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.CellTower
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Lock
@@ -80,6 +81,12 @@ fun SettingsIndexScreen(
                 title = stringResource(R.string.settings_storage_title),
                 subtitle = stringResource(R.string.settings_storage_subtitle),
                 onClick = { onNavigate(SettingsRoute.Storage.route) },
+            )
+            SettingsEntry(
+                icon = Icons.Default.CellTower,
+                title = "Event Channel",
+                subtitle = "Notifications, WiFi, and geofence event forwarding",
+                onClick = { onNavigate(SettingsRoute.ChannelSettings.route) },
             )
         }
     }

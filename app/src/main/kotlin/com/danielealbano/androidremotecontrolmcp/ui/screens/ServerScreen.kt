@@ -5,6 +5,8 @@ package com.danielealbano.androidremotecontrolmcp.ui.screens
 import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,17 +15,21 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Card
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -37,7 +43,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danielealbano.androidremotecontrolmcp.R
+import com.danielealbano.androidremotecontrolmcp.data.model.ChannelConnectionStatus
 import com.danielealbano.androidremotecontrolmcp.data.model.TunnelStatus
+import com.danielealbano.androidremotecontrolmcp.ui.viewmodels.ChannelViewModel
 import com.danielealbano.androidremotecontrolmcp.ui.components.ConnectionInfoCard
 import com.danielealbano.androidremotecontrolmcp.ui.components.ServerLogsSection
 import com.danielealbano.androidremotecontrolmcp.ui.components.ServerStatusCard
@@ -121,11 +129,54 @@ fun ServerScreen(
                 },
             )
 
+            ChannelStatusCard()
+
             Spacer(Modifier.height(16.dp))
 
             ServerLogsSection(
                 logs = serverLogs,
             )
+        }
+    }
+}
+
+@Composable
+private fun ChannelStatusCard(channelViewModel: ChannelViewModel = hiltViewModel()) {
+    val channelConfig by channelViewModel.eventChannelConfig.collectAsStateWithLifecycle()
+    val channelStatus by channelViewModel.channelConnectionStatus.collectAsStateWithLifecycle()
+
+    if (channelConfig.enabled) {
+        Spacer(Modifier.height(16.dp))
+
+        Card(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                val (color, label) =
+                    when (channelStatus) {
+                        is ChannelConnectionStatus.Idle -> Color.Gray to "Idle"
+                        is ChannelConnectionStatus.Active -> Color(0xFF4CAF50) to "Active"
+                        is ChannelConnectionStatus.Error ->
+                            Color.Red to (channelStatus as ChannelConnectionStatus.Error).message
+                    }
+                Box(
+                    modifier =
+                        Modifier
+                            .size(12.dp)
+                            .background(color, CircleShape),
+                )
+                Spacer(Modifier.width(12.dp))
+                Column {
+                    Text("Event Channel", style = MaterialTheme.typography.titleSmall)
+                    Text(label, style = MaterialTheme.typography.bodySmall)
+                }
+            }
         }
     }
 }

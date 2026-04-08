@@ -195,6 +195,29 @@ fun PermissionsSettingsScreen(
                 onAction = onRequestLocationPermission,
                 actionEnabled = !isLocationPermissionGranted,
             )
+
+            val isBackgroundLocationGranted by viewModel.isBackgroundLocationGranted.collectAsStateWithLifecycle()
+            PermissionRow(
+                label = "Background Location (Geofence)",
+                isEnabled = isBackgroundLocationGranted,
+                buttonText =
+                    if (isBackgroundLocationGranted) {
+                        stringResource(R.string.permission_granted)
+                    } else {
+                        "Open Settings"
+                    },
+                onAction = {
+                    // Background location cannot be requested via dialog — open app settings
+                    val intent =
+                        android.content.Intent(
+                            android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        ).apply {
+                            data = android.net.Uri.fromParts("package", context.packageName, null)
+                        }
+                    context.startActivity(intent)
+                },
+                actionEnabled = !isBackgroundLocationGranted,
+            )
         }
     }
 }
