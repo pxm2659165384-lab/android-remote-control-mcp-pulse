@@ -683,10 +683,10 @@ HTTP client that POSTs channel events to the channel plugin endpoint.
 
 ### Acceptance Criteria
 
-- [ ] POSTs JSON events to configured endpoint URL
-- [ ] Includes `Authorization: Bearer <token>` header
-- [ ] Tracks connection status (Idle/Active/Error)
-- [ ] Handles connection errors gracefully (logs, updates status, does not crash)
+- [x] POSTs JSON events to configured endpoint URL
+- [x] Includes `Authorization: Bearer <token>` header
+- [x] Tracks connection status (Idle/Active/Error)
+- [x] Handles connection errors gracefully (logs, updates status, does not crash)
 
 ### Task 5.1: EventDispatcher interface
 
@@ -702,7 +702,7 @@ interface EventDispatcher {
 ```
 
 **Definition of Done**:
-- [ ] Interface compiles
+- [x] Interface compiles
 
 ### Task 5.2: EventDispatcherImpl
 
@@ -773,9 +773,9 @@ class EventDispatcherImpl @Inject constructor() : EventDispatcher {
 ```
 
 **Definition of Done**:
-- [ ] Dispatches events via HTTP POST with correct headers and body
-- [ ] Connection status reflects last dispatch result
-- [ ] Network errors are caught and reported via status, not thrown
+- [x] Dispatches events via HTTP POST with correct headers and body
+- [x] Connection status reflects last dispatch result
+- [x] Network errors are caught and reported via status, not thrown
 
 ---
 
