@@ -36,6 +36,10 @@ import com.danielealbano.androidremotecontrolmcp.services.storage.PermissionChec
 import com.danielealbano.androidremotecontrolmcp.services.storage.PermissionCheckerImpl
 import com.danielealbano.androidremotecontrolmcp.services.storage.StorageLocationProvider
 import com.danielealbano.androidremotecontrolmcp.services.storage.StorageLocationProviderImpl
+import com.danielealbano.androidremotecontrolmcp.services.channel.EventDispatcher
+import com.danielealbano.androidremotecontrolmcp.services.channel.EventDispatcherImpl
+import com.danielealbano.androidremotecontrolmcp.services.channel.geofence.GeofenceManager
+import com.danielealbano.androidremotecontrolmcp.services.channel.geofence.GeofenceManagerImpl
 import com.danielealbano.androidremotecontrolmcp.services.tunnel.AndroidCloudflareBinaryResolver
 import com.danielealbano.androidremotecontrolmcp.services.tunnel.CloudflaredBinaryResolver
 import dagger.Binds
@@ -156,4 +160,12 @@ abstract class ServiceModule {
     @Binds
     @Singleton
     abstract fun bindLocationProvider(impl: LocationProviderImpl): LocationProvider
+
+    @Binds
+    @Singleton
+    abstract fun bindEventDispatcher(impl: EventDispatcherImpl): EventDispatcher
+
+    @Binds
+    @Singleton
+    abstract fun bindGeofenceManager(impl: GeofenceManagerImpl): GeofenceManager
 }

@@ -27,6 +27,15 @@
     <!-- Location -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+
+    <!-- WiFi (Event Channel) -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES" />
+
+    <!-- Foreground service type for Event Channel (location for geofence/WiFi) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
 
     <!-- Media read access (optional — enables "all files" mode for built-in storage locations) -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
@@ -116,6 +125,17 @@
             android:name=".debug.E2EConfigReceiver"
             android:exported="true">
         </receiver>
+
+        <!-- Event Channel Service -->
+        <service
+            android:name=".services.channel.EventChannelService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+
+        <!-- Geofence Transition Receiver -->
+        <receiver
+            android:name=".services.channel.geofence.GeofenceTransitionReceiver"
+            android:exported="false" />
 
         <!-- ADB Service Trampoline (headless start/stop via adb shell am start) -->
         <activity

@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import com.danielealbano.androidremotecontrolmcp.data.repository.SettingsRepository
+import com.danielealbano.androidremotecontrolmcp.services.channel.EventChannelService
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -51,6 +52,20 @@ class BootCompletedReceiver : BroadcastReceiver() {
                         context.startForegroundService(serviceIntent)
                     } else {
                         Log.i(TAG, "Auto-start disabled, skipping MCP server start")
+                    }
+
+                    // Event Channel auto-start
+                    val channelConfig = settingsRepository.getEventChannelConfig()
+                    if (channelConfig.enabled &&
+                        channelConfig.endpointUrl.isNotBlank() &&
+                        channelConfig.authToken.isNotBlank()
+                    ) {
+                        val channelIntent =
+                            Intent(context, EventChannelService::class.java).apply {
+                                action = EventChannelService.ACTION_START
+                            }
+                        context.startForegroundService(channelIntent)
+                        Log.i(TAG, "Event channel auto-started on boot")
                     }
                 }
             } catch (e: Exception) {

@@ -1,0 +1,209 @@
+package com.danielealbano.androidremotecontrolmcp.services.channel
+
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Intent
+import android.content.pm.ServiceInfo
+import android.os.IBinder
+import androidx.lifecycle.LifecycleService
+import com.danielealbano.androidremotecontrolmcp.R
+import com.danielealbano.androidremotecontrolmcp.data.model.ChannelConnectionStatus
+import com.danielealbano.androidremotecontrolmcp.data.model.EventChannelConfig
+import com.danielealbano.androidremotecontrolmcp.data.repository.SettingsRepository
+import com.danielealbano.androidremotecontrolmcp.services.channel.geofence.GeofenceManager
+import com.danielealbano.androidremotecontrolmcp.services.channel.listeners.GeofenceEventListener
+import com.danielealbano.androidremotecontrolmcp.services.channel.listeners.NotificationEventListener
+import com.danielealbano.androidremotecontrolmcp.services.channel.listeners.WifiEventListener
+import com.danielealbano.androidremotecontrolmcp.utils.Logger
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@AndroidEntryPoint
+class EventChannelService : LifecycleService() {
+    @Inject
+    lateinit var settingsRepository: SettingsRepository
+
+    @Inject
+    lateinit var eventDispatcher: EventDispatcher
+
+    @Inject
+    lateinit var geofenceManager: GeofenceManager
+
+    private var notificationEventListener: NotificationEventListener? = null
+    private var wifiEventListener: WifiEventListener? = null
+    private var geofenceEventListener: GeofenceEventListener? = null
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    override fun onBind(intent: Intent): IBinder? {
+        super.onBind(intent)
+        return null
+    }
+
+    override fun onStartCommand(
+        intent: Intent?,
+        flags: Int,
+        startId: Int,
+    ): Int {
+        super.onStartCommand(intent, flags, startId)
+        when (intent?.action) {
+            ACTION_START -> handleStart()
+            ACTION_STOP -> handleStop()
+            ACTION_GEOFENCE_EVENT -> handleGeofenceEvent(intent)
+        }
+        return START_STICKY
+    }
+
+    private fun handleStart() {
+        createNotificationChannel()
+        val notification = buildForegroundNotification()
+        startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+
+        serviceScope.launch {
+            val config = settingsRepository.getEventChannelConfig()
+            if (config.endpointUrl.isBlank() || config.authToken.isBlank()) {
+                Logger.e(TAG, "Cannot start: endpoint URL or auth token is empty")
+                stopSelf()
+                return@launch
+            }
+
+            eventDispatcher.start(config.endpointUrl, config.authToken)
+
+            serviceScope.launch {
+                eventDispatcher.connectionStatus.collect { _serviceStatus.value = it }
+            }
+
+            startListeners(config)
+
+            settingsRepository.eventChannelConfig.collect { newConfig ->
+                if (!newConfig.enabled) {
+                    handleStop()
+                    return@collect
+                }
+                reconfigureListeners(newConfig)
+            }
+        }
+    }
+
+    private fun handleStop() {
+        notificationEventListener?.stop()
+        notificationEventListener = null
+        wifiEventListener?.stop()
+        wifiEventListener = null
+        geofenceEventListener?.stop()
+        geofenceEventListener = null
+        eventDispatcher.stop()
+        _serviceStatus.value = ChannelConnectionStatus.Idle
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
+    }
+
+    private fun handleGeofenceEvent(intent: Intent) {
+        val zoneId = intent.getStringExtra(EXTRA_GEOFENCE_ZONE_ID) ?: return
+        val transition = intent.getStringExtra(EXTRA_GEOFENCE_TRANSITION) ?: return
+        serviceScope.launch {
+            geofenceEventListener?.handleTransition(zoneId, transition)
+        }
+    }
+
+    private fun startListeners(config: EventChannelConfig) {
+        if (config.notifications.enabled) {
+            notificationEventListener = NotificationEventListener(eventDispatcher, serviceScope)
+            notificationEventListener?.start(config.notifications)
+        }
+        if (config.wifi.enabled) {
+            wifiEventListener = WifiEventListener(eventDispatcher, serviceScope)
+            wifiEventListener?.start(config.wifi, applicationContext)
+        }
+        if (config.geofence.enabled) {
+            geofenceEventListener = GeofenceEventListener(eventDispatcher, geofenceManager, serviceScope)
+            geofenceEventListener?.start(config.geofence)
+        }
+    }
+
+    private fun reconfigureListeners(config: EventChannelConfig) {
+        // Notification listener
+        if (config.notifications.enabled && notificationEventListener == null) {
+            notificationEventListener = NotificationEventListener(eventDispatcher, serviceScope)
+            notificationEventListener?.start(config.notifications)
+        } else if (!config.notifications.enabled) {
+            notificationEventListener?.stop()
+            notificationEventListener = null
+        } else {
+            notificationEventListener?.updateConfig(config.notifications)
+        }
+        // WiFi listener
+        if (config.wifi.enabled && wifiEventListener == null) {
+            wifiEventListener = WifiEventListener(eventDispatcher, serviceScope)
+            wifiEventListener?.start(config.wifi, applicationContext)
+        } else if (!config.wifi.enabled) {
+            wifiEventListener?.stop()
+            wifiEventListener = null
+        } else {
+            wifiEventListener?.updateConfig(config.wifi)
+        }
+        // Geofence listener
+        if (config.geofence.enabled && geofenceEventListener == null) {
+            geofenceEventListener = GeofenceEventListener(eventDispatcher, geofenceManager, serviceScope)
+            geofenceEventListener?.start(config.geofence)
+        } else if (!config.geofence.enabled) {
+            geofenceEventListener?.stop()
+            geofenceEventListener = null
+        } else {
+            geofenceEventListener?.updateConfig(config.geofence)
+        }
+    }
+
+    private fun createNotificationChannel() {
+        val channel =
+            NotificationChannel(
+                CHANNEL_ID,
+                "Event Channel",
+                NotificationManager.IMPORTANCE_LOW,
+            )
+        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+    }
+
+    private fun buildForegroundNotification(): Notification =
+        Notification
+            .Builder(this, CHANNEL_ID)
+            .setContentTitle("Event Channel active")
+            .setSmallIcon(R.drawable.ic_notification)
+            .setOngoing(true)
+            .build()
+
+    override fun onDestroy() {
+        serviceScope.cancel()
+        notificationEventListener?.stop()
+        wifiEventListener?.stop()
+        geofenceEventListener?.stop()
+        eventDispatcher.stop()
+        _serviceStatus.value = ChannelConnectionStatus.Idle
+        Logger.i(TAG, "Event channel service destroyed")
+        super.onDestroy()
+    }
+
+    companion object {
+        const val ACTION_START = "com.danielealbano.androidremotecontrolmcp.channel.START"
+        const val ACTION_STOP = "com.danielealbano.androidremotecontrolmcp.channel.STOP"
+        const val ACTION_GEOFENCE_EVENT = "com.danielealbano.androidremotecontrolmcp.channel.GEOFENCE_EVENT"
+        const val EXTRA_GEOFENCE_ZONE_ID = "geofence_zone_id"
+        const val EXTRA_GEOFENCE_TRANSITION = "geofence_transition"
+
+        private const val NOTIFICATION_ID = 2
+        private const val CHANNEL_ID = "event_channel_status"
+        private const val TAG = "MCP:EventChannelService"
+
+        private val _serviceStatus =
+            MutableStateFlow<ChannelConnectionStatus>(ChannelConnectionStatus.Idle)
+        val serviceStatus: StateFlow<ChannelConnectionStatus> = _serviceStatus.asStateFlow()
+    }
+}

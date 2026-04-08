@@ -953,7 +953,7 @@ Monitor WiFi networks for configured SSIDs and send discovery/loss/connection/di
 - [x] Detects WiFi connection/disconnection for configured SSIDs
 - [x] Events dispatched via `EventDispatcher`
 - [ ] WiFi scan throttling limitations documented in UI (done in US10)
-- [ ] `ACCESS_WIFI_STATE`, `CHANGE_WIFI_STATE`, and `NEARBY_WIFI_DEVICES` permissions declared (done in US9)
+- [x] `ACCESS_WIFI_STATE`, `CHANGE_WIFI_STATE`, and `NEARBY_WIFI_DEVICES` permissions declared
 
 ### Task 7.1: WifiEventListener
 
@@ -1122,7 +1122,7 @@ Monitor geofence enter/exit transitions using Google Play Services GeofencingCli
 
 - [x] Geofence zones registered with `GeofencingClient`
 - [x] Enter/exit transitions detected and dispatched as events
-- [ ] Works in background with `ACCESS_BACKGROUND_LOCATION` (permission declared in US9)
+- [x] Works in background with `ACCESS_BACKGROUND_LOCATION`
 - [x] Zones dynamically add/removable at runtime
 - [x] `GeofenceTransitionReceiver` forwards raw event data to `EventChannelService` via intent
 
@@ -1330,12 +1330,12 @@ Foreground service that orchestrates event listeners and manages the event chann
 
 ### Acceptance Criteria
 
-- [ ] Starts as foreground service with persistent notification
-- [ ] Creates and manages NotificationEventListener, WifiEventListener, GeofenceEventListener
-- [ ] Observes `EventChannelConfig` changes and reconfigures listeners dynamically
-- [ ] Starts on boot if channel was enabled
-- [ ] Independent from McpServerService (can run without MCP server)
-- [ ] Validates endpoint URL and auth token are non-empty before starting
+- [x] Starts as foreground service with persistent notification
+- [x] Creates and manages NotificationEventListener, WifiEventListener, GeofenceEventListener
+- [x] Observes `EventChannelConfig` changes and reconfigures listeners dynamically
+- [x] Starts on boot if channel was enabled
+- [x] Independent from McpServerService (can run without MCP server)
+- [x] Validates endpoint URL and auth token are non-empty before starting
 
 ### Task 9.1: EventChannelService foreground service
 
@@ -1495,11 +1495,11 @@ class EventChannelService : Service() {
 Listeners are constructed manually inside the service — see Task 6.3 for rationale. `EventDispatcher` and `GeofenceManager` are Hilt-injected into the service and passed to listeners.
 
 **Definition of Done**:
-- [ ] Service starts/stops via intents
-- [ ] Foreground notification displays correctly
-- [ ] Listeners start/stop based on config
-- [ ] Config changes reconfigure listeners dynamically
-- [ ] Service validates non-empty endpoint/token before starting dispatcher
+- [x] Service starts/stops via intents
+- [x] Foreground notification displays correctly
+- [x] Listeners start/stop based on config
+- [x] Config changes reconfigure listeners dynamically
+- [x] Service validates non-empty endpoint/token before starting dispatcher
 
 ### Task 9.2: AndroidManifest changes
 
@@ -1530,8 +1530,8 @@ Add receiver (inside `<application>`):
 ```
 
 **Definition of Done**:
-- [ ] All permissions declared
-- [ ] Service and receiver registered
+- [x] All permissions declared
+- [x] Service and receiver registered
 
 ### Task 9.3: BootCompletedReceiver integration
 
@@ -1557,7 +1557,7 @@ if (channelConfig.enabled &&
 This runs inside the existing `goAsync()` coroutine scope, so the suspend call `getEventChannelConfig()` is safe.
 
 **Definition of Done**:
-- [ ] Channel auto-starts on boot when enabled with valid config
+- [x] Channel auto-starts on boot when enabled with valid config
 
 ### Task 9.4: DI wiring (AppModule)
 
@@ -1573,7 +1573,7 @@ abstract fun bindGeofenceManager(impl: GeofenceManagerImpl): GeofenceManager
 ```
 
 **Definition of Done**:
-- [ ] Hilt resolves EventDispatcher and GeofenceManager
+- [x] Hilt resolves EventDispatcher and GeofenceManager
 
 ---
 
