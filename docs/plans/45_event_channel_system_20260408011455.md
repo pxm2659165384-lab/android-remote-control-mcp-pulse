@@ -2306,8 +2306,8 @@ And a call site in the permissions UI to request it when WiFi channel is enabled
 
 ### Acceptance Criteria
 
-- [ ] Unit tests for all new data models, settings, dispatcher, listeners, service, and ViewModel
-- [ ] All tests pass
+- [x] Unit tests for all new data models, settings, dispatcher, listeners, service, and ViewModel
+- [ ] All tests pass (verified at quality gates)
 
 ### Task 11.1: Data model tests
 
@@ -2333,7 +2333,7 @@ And a call site in the permissions UI to request it when WiFi channel is enabled
 | `timestamp is ISO 8601 format` | Timestamp parses as valid ISO 8601 |
 
 **Definition of Done**:
-- [ ] All data model tests pass
+- [x] All data model tests pass
 
 ### Task 11.2: Settings repository tests
 
@@ -2358,7 +2358,7 @@ And a call site in the permissions UI to request it when WiFi channel is enabled
 | `generateNewEventChannelAuthToken generates UUID` | Token matches UUID format |
 
 **Definition of Done**:
-- [ ] All settings repository tests pass
+- [x] All settings repository tests pass
 
 ### Task 11.3: Event dispatcher tests
 
@@ -2379,7 +2379,7 @@ And a call site in the permissions UI to request it when WiFi channel is enabled
 | `dispatch after stop returns failure` | Returns Result.failure with IllegalStateException |
 
 **Definition of Done**:
-- [ ] All dispatcher tests pass including edge cases
+- [x] All dispatcher tests pass including edge cases
 
 ### Task 11.4: Notification event listener tests
 
@@ -2397,7 +2397,7 @@ And a call site in the permissions UI to request it when WiFi channel is enabled
 | `stop cancels collection` | No events dispatched after stop |
 
 **Definition of Done**:
-- [ ] All notification listener tests pass
+- [x] All notification listener tests pass
 
 ### Task 11.5: WiFi event listener tests
 
@@ -2415,7 +2415,7 @@ And a call site in the permissions UI to request it when WiFi channel is enabled
 | `event type toggles are respected` | Disabled toggle -> no event for that type |
 
 **Definition of Done**:
-- [ ] All WiFi listener tests pass
+- [x] All WiFi listener tests pass
 
 ### Task 11.6: Geofence tests
 
@@ -2455,7 +2455,7 @@ And a call site in the permissions UI to request it when WiFi channel is enabled
 | `onReceive with null geofencing event returns early` | No service intent sent |
 
 **Definition of Done**:
-- [ ] All geofence tests pass
+- [x] All geofence tests pass
 
 ### Task 11.7: EventChannelService tests
 
@@ -2474,7 +2474,7 @@ And a call site in the permissions UI to request it when WiFi channel is enabled
 | `onDestroy cancels scope and stops all` | serviceScope cancelled, listeners stopped |
 
 **Definition of Done**:
-- [ ] All service tests pass
+- [x] All service tests pass
 
 ### Task 11.8: ChannelViewModel tests
 
@@ -2496,7 +2496,7 @@ And a call site in the permissions UI to request it when WiFi channel is enabled
 | `removeWifiSsid removes from set` | SSID removed from config |
 
 **Definition of Done**:
-- [ ] All ViewModel tests pass
+- [x] All ViewModel tests pass
 
 ### Task 11.9: NotificationDataExtractor tests
 
@@ -2512,7 +2512,7 @@ And a call site in the permissions UI to request it when WiFi channel is enabled
 | `extract hashes notification key` | Deterministic hash for notification ID |
 
 **Definition of Done**:
-- [ ] All extractor tests pass
+- [x] All extractor tests pass
 
 ---
 
