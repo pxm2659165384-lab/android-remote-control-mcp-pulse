@@ -3,6 +3,7 @@
 package com.danielealbano.androidremotecontrolmcp.ui.screens.settings
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -38,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -57,7 +59,6 @@ fun ChannelSettingsScreen(
     val endpointUrlInput by viewModel.endpointUrlInput.collectAsStateWithLifecycle()
     val endpointUrlError by viewModel.endpointUrlError.collectAsStateWithLifecycle()
     val authTokenInput by viewModel.authTokenInput.collectAsStateWithLifecycle()
-    val isRunning = config.enabled
     var tokenVisible by rememberSaveable { mutableStateOf(false) }
     val clipboardManager = LocalClipboardManager.current
 
@@ -77,24 +78,12 @@ fun ChannelSettingsScreen(
             modifier = Modifier.padding(padding),
         ) {
             item {
-                ListItem(
-                    headlineContent = { Text("Event Channel") },
-                    trailingContent = {
-                        Switch(
-                            checked = isRunning,
-                            onCheckedChange = { viewModel.updateChannelEnabled(it) },
-                        )
-                    },
-                )
-            }
-            item {
                 OutlinedTextField(
                     value = endpointUrlInput,
                     onValueChange = { viewModel.updateEndpointUrl(it) },
                     label = { Text("Endpoint URL") },
                     isError = endpointUrlError != null,
                     supportingText = endpointUrlError?.let { { Text(it) } },
-                    enabled = !isRunning,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                     singleLine = true,
                 )
@@ -104,9 +93,13 @@ fun ChannelSettingsScreen(
                     value = authTokenInput,
                     onValueChange = { viewModel.updateAuthToken(it) },
                     label = { Text("Auth Token") },
-                    enabled = !isRunning,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                     singleLine = true,
+                    keyboardOptions =
+                        KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            autoCorrectEnabled = false,
+                        ),
                     visualTransformation =
                         if (tokenVisible) {
                             VisualTransformation.None
@@ -128,11 +121,22 @@ fun ChannelSettingsScreen(
                             }
                             IconButton(
                                 onClick = { viewModel.generateNewAuthToken() },
-                                enabled = !isRunning,
                             ) {
                                 Icon(Icons.Default.Refresh, contentDescription = "Generate new")
                             }
                         }
+                    },
+                )
+            }
+            item {
+                ListItem(
+                    headlineContent = { Text("Auto-start at boot") },
+                    supportingContent = { Text("Start event channel when device boots") },
+                    trailingContent = {
+                        Switch(
+                            checked = config.enabled,
+                            onCheckedChange = { viewModel.updateChannelEnabled(it) },
+                        )
                     },
                 )
             }

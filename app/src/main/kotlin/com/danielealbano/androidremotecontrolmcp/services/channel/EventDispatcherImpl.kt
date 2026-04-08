@@ -55,6 +55,10 @@ class EventDispatcherImpl
                     install(ContentNegotiation) {
                         json(Json { ignoreUnknownKeys = true })
                     }
+                    install(io.ktor.client.plugins.HttpTimeout) {
+                        requestTimeoutMillis = REQUEST_TIMEOUT_MS
+                        connectTimeoutMillis = CONNECT_TIMEOUT_MS
+                    }
                 }
             _connectionStatus.value = ChannelConnectionStatus.Idle
             Logger.i(TAG, "Event dispatcher started, endpoint=$endpointUrl")
@@ -128,5 +132,7 @@ class EventDispatcherImpl
 
         companion object {
             private const val TAG = "MCP:EventDispatcher"
+            private const val REQUEST_TIMEOUT_MS = 5_000L
+            private const val CONNECT_TIMEOUT_MS = 3_000L
         }
     }

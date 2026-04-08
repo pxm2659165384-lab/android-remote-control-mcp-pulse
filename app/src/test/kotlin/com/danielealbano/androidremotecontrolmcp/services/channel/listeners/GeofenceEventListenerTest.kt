@@ -16,6 +16,8 @@ import org.junit.jupiter.api.Test
 
 @DisplayName("GeofenceEventListener")
 class GeofenceEventListenerTest {
+    private val mockContext = mockk<android.content.Context>(relaxed = true)
+
     private val testZone =
         GeofenceZone(
             id = "z1",
@@ -46,7 +48,7 @@ class GeofenceEventListenerTest {
         fun `start syncs geofences with manager`() =
             runTest {
                 val manager = createMockGeofenceManager()
-                val listener = GeofenceEventListener(createMockDispatcher(), manager, this)
+                val listener = GeofenceEventListener(createMockDispatcher(), manager, this, mockContext)
                 val config = GeofenceChannelConfig(enabled = true, zones = listOf(testZone))
                 listener.start(config)
                 testScheduler.advanceUntilIdle()
@@ -57,7 +59,7 @@ class GeofenceEventListenerTest {
         fun `stop removes all geofences`() =
             runTest {
                 val manager = createMockGeofenceManager()
-                val listener = GeofenceEventListener(createMockDispatcher(), manager, this)
+                val listener = GeofenceEventListener(createMockDispatcher(), manager, this, mockContext)
                 listener.stop()
                 testScheduler.advanceUntilIdle()
                 coVerify { manager.removeAllGeofences() }
@@ -67,7 +69,7 @@ class GeofenceEventListenerTest {
         fun `updateConfig re-syncs geofences`() =
             runTest {
                 val manager = createMockGeofenceManager()
-                val listener = GeofenceEventListener(createMockDispatcher(), manager, this)
+                val listener = GeofenceEventListener(createMockDispatcher(), manager, this, mockContext)
                 val newZone = testZone.copy(id = "z2", name = "Home")
                 listener.updateConfig(GeofenceChannelConfig(enabled = true, zones = listOf(newZone)))
                 testScheduler.advanceUntilIdle()
@@ -82,7 +84,7 @@ class GeofenceEventListenerTest {
         fun `handleTransition dispatches event for known zone`() =
             runTest {
                 val dispatcher = createMockDispatcher()
-                val listener = GeofenceEventListener(dispatcher, createMockGeofenceManager(), this)
+                val listener = GeofenceEventListener(dispatcher, createMockGeofenceManager(), this, mockContext)
                 listener.start(GeofenceChannelConfig(enabled = true, zones = listOf(testZone)))
                 listener.handleTransition("z1", "enter")
                 coVerify { dispatcher.dispatch(match { it.type == "geofence" }) }
@@ -92,7 +94,7 @@ class GeofenceEventListenerTest {
         fun `handleTransition ignores unknown zone`() =
             runTest {
                 val dispatcher = createMockDispatcher()
-                val listener = GeofenceEventListener(dispatcher, createMockGeofenceManager(), this)
+                val listener = GeofenceEventListener(dispatcher, createMockGeofenceManager(), this, mockContext)
                 listener.start(GeofenceChannelConfig(enabled = true, zones = listOf(testZone)))
                 listener.handleTransition("unknown-zone", "enter")
                 coVerify(exactly = 0) { dispatcher.dispatch(any()) }

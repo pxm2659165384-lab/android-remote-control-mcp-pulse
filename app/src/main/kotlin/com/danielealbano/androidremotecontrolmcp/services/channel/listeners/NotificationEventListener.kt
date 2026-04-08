@@ -4,6 +4,7 @@ import com.danielealbano.androidremotecontrolmcp.data.model.ChannelEventFactory
 import com.danielealbano.androidremotecontrolmcp.data.model.NotificationChannelConfig
 import com.danielealbano.androidremotecontrolmcp.data.model.NotificationFilterMode
 import com.danielealbano.androidremotecontrolmcp.services.channel.EventDispatcher
+import com.danielealbano.androidremotecontrolmcp.utils.Logger
 import com.danielealbano.androidremotecontrolmcp.services.notifications.McpNotificationListenerService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -32,13 +33,19 @@ class NotificationEventListener(
             scope.launch {
                 McpNotificationListenerService.notificationChangeEvents.collect { event ->
                     val cfg = currentConfig
-                    if (shouldForward(event.notification.packageName, cfg)) {
+                    val forward = shouldForward(event.notification.packageName, cfg)
+                    Logger.d(
+                        TAG,
+                        "Event: ${event.notification.appName} - forward=$forward mode=${cfg.filterMode}",
+                    )
+                    if (forward) {
                         val channelEvent =
                             ChannelEventFactory.notification(
                                 event.notification,
                                 event.eventType.name.lowercase(),
                             )
-                        eventDispatcher.dispatch(channelEvent)
+                        val result = eventDispatcher.dispatch(channelEvent)
+                        Logger.d(TAG, "Dispatched: ${result.isSuccess}")
                     }
                 }
             }
@@ -62,4 +69,8 @@ class NotificationEventListener(
             NotificationFilterMode.WHITELIST -> packageName in config.filterApps
             NotificationFilterMode.BLACKLIST -> packageName !in config.filterApps
         }
+
+    companion object {
+        private const val TAG = "MCP:NotifEventListener"
+    }
 }

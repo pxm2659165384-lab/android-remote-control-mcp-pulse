@@ -72,6 +72,7 @@ object ChannelEventFactory {
     fun geofence(
         zone: GeofenceZone,
         transition: String,
+        address: String? = null,
     ): ChannelEvent =
         ChannelEvent(
             type = "geofence",
@@ -80,6 +81,7 @@ object ChannelEventFactory {
                 buildJsonObject {
                     put("zoneId", zone.id)
                     put("zoneName", zone.name)
+                    put("address", address?.let { JsonPrimitive(it) } ?: JsonNull)
                     put("transition", transition)
                     put("latitude", zone.latitude)
                     put("longitude", zone.longitude)

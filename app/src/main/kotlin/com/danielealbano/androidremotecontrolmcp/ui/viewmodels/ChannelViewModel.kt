@@ -69,7 +69,20 @@ class ChannelViewModel
             viewModelScope.launch(ioDispatcher) {
                 settingsRepository.updateEventChannelEnabled(enabled)
             }
-            if (enabled) startChannelService() else stopChannelService()
+        }
+
+        fun startChannel() {
+            viewModelScope.launch(ioDispatcher) {
+                settingsRepository.updateEventChannelEnabled(true)
+            }
+            startChannelService()
+        }
+
+        fun stopChannel() {
+            viewModelScope.launch(ioDispatcher) {
+                settingsRepository.updateEventChannelEnabled(false)
+            }
+            stopChannelService()
         }
 
         fun updateEndpointUrl(url: String) {

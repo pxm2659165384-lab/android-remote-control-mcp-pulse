@@ -112,10 +112,10 @@ fun ServerScreen(
                     if (channelConfig.endpointUrl.isBlank() || channelConfig.authToken.isBlank()) {
                         showChannelNotConfiguredDialog = true
                     } else {
-                        channelViewModel.updateChannelEnabled(true)
+                        channelViewModel.startChannel()
                     }
                 },
-                onChannelStopClick = { channelViewModel.updateChannelEnabled(false) },
+                onChannelStopClick = { channelViewModel.stopChannel() },
             )
 
             Spacer(Modifier.height(16.dp))

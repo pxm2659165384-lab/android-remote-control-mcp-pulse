@@ -29,6 +29,7 @@ try {
 }
 
 const LISTEN_PORT = parseInt(process.env.LISTEN_PORT || "9090", 10);
+const LISTEN_HOST = process.env.LISTEN_HOST || "127.0.0.1";
 const AUTH_TOKEN = process.env.AUTH_TOKEN || "";
 const PROMPT_TEMPLATE =
   process.env.PROMPT_TEMPLATE ||
@@ -65,7 +66,7 @@ await mcp.connect(new StdioServerTransport());
 // --- HTTP Server ---
 Bun.serve({
   port: LISTEN_PORT,
-  hostname: "127.0.0.1",
+  hostname: LISTEN_HOST,
   async fetch(req: Request): Promise<Response> {
     const url = new URL(req.url);
 

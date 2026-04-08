@@ -11,8 +11,15 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import java.util.concurrent.ConcurrentHashMap
 
 class McpNotificationListenerService : NotificationListenerService() {
+    private val lastSeenContentHash = ConcurrentHashMap<String, ContentHashEntry>()
+
+    private data class ContentHashEntry(
+        val hash: Int,
+        val timestamp: Long = System.currentTimeMillis(),
+    )
     override fun onListenerConnected() {
         super.onListenerConnected()
         instance = this
@@ -37,21 +44,56 @@ class McpNotificationListenerService : NotificationListenerService() {
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
+        if (sbn.packageName == applicationContext.packageName) return
         val data = NotificationDataExtractor.extract(sbn, applicationContext)
         if (isEmptyNotification(data)) return
+
+        // Deduplicate: skip if content hasn't changed since last time
+        val contentHash = computeContentHash(data)
+        val now = System.currentTimeMillis()
+        val previous = lastSeenContentHash.put(sbn.key, ContentHashEntry(contentHash, now))
+        if (previous != null && previous.hash == contentHash) return
+
+        // Evict expired entries periodically
+        if (lastSeenContentHash.size > CACHE_EVICTION_THRESHOLD) {
+            evictExpiredEntries(now)
+        }
+
         _notificationChangeEvents.tryEmit(
             NotificationChangeEvent(NotificationChangeType.POSTED, data),
         )
+        Logger.d(TAG, "Notification posted: ${data.appName} - ${data.title}")
     }
 
     private fun isEmptyNotification(data: NotificationData): Boolean =
         data.title == null && data.text == null && data.bigText == null && data.actions.isEmpty()
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
+        if (sbn.packageName == applicationContext.packageName) return
+        lastSeenContentHash.remove(sbn.key)
         val data = NotificationDataExtractor.extract(sbn, applicationContext)
         _notificationChangeEvents.tryEmit(
             NotificationChangeEvent(NotificationChangeType.REMOVED, data),
         )
+    }
+
+    private fun computeContentHash(data: NotificationData): Int {
+        var hash = data.title?.hashCode() ?: 0
+        hash = 31 * hash + (data.text?.hashCode() ?: 0)
+        hash = 31 * hash + (data.bigText?.hashCode() ?: 0)
+        hash = 31 * hash + (data.subText?.hashCode() ?: 0)
+        hash = 31 * hash + data.actions.size
+        return hash
+    }
+
+    private fun evictExpiredEntries(now: Long) {
+        val iterator = lastSeenContentHash.entries.iterator()
+        while (iterator.hasNext()) {
+            val entry = iterator.next()
+            if (now - entry.value.timestamp > CACHE_TTL_MS) {
+                iterator.remove()
+            }
+        }
     }
 
     @Suppress("DEPRECATION")
@@ -75,6 +117,8 @@ class McpNotificationListenerService : NotificationListenerService() {
 
     companion object {
         private const val TAG = "MCP:NotificationListener"
+        private const val CACHE_TTL_MS = 24 * 60 * 60 * 1000L // 1 day
+        private const val CACHE_EVICTION_THRESHOLD = 100
 
         @Volatile
         var instance: McpNotificationListenerService? = null

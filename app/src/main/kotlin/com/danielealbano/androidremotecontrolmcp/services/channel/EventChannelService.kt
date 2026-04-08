@@ -131,7 +131,7 @@ class EventChannelService : Service() {
             wifiEventListener?.start(config.wifi, applicationContext)
         }
         if (config.geofence.enabled) {
-            geofenceEventListener = GeofenceEventListener(eventDispatcher, geofenceManager, serviceScope)
+            geofenceEventListener = GeofenceEventListener(eventDispatcher, geofenceManager, serviceScope, applicationContext)
             geofenceEventListener?.start(config.geofence)
         }
     }
@@ -159,7 +159,7 @@ class EventChannelService : Service() {
         }
         // Geofence listener
         if (config.geofence.enabled && geofenceEventListener == null) {
-            geofenceEventListener = GeofenceEventListener(eventDispatcher, geofenceManager, serviceScope)
+            geofenceEventListener = GeofenceEventListener(eventDispatcher, geofenceManager, serviceScope, applicationContext)
             geofenceEventListener?.start(config.geofence)
         } else if (!config.geofence.enabled) {
             geofenceEventListener?.stop()
