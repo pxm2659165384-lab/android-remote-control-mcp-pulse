@@ -8,7 +8,10 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
 object ChannelEventFactory {
-    private fun nowIso8601(): String = java.time.Instant.now().toString()
+    private fun nowIso8601(): String =
+        java.time.Instant
+            .now()
+            .toString()
 
     fun notification(
         notification: NotificationData,

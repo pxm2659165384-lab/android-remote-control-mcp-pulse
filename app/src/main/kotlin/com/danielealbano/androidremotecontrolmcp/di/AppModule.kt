@@ -18,6 +18,10 @@ import com.danielealbano.androidremotecontrolmcp.services.apps.AppManager
 import com.danielealbano.androidremotecontrolmcp.services.apps.AppManagerImpl
 import com.danielealbano.androidremotecontrolmcp.services.camera.CameraProvider
 import com.danielealbano.androidremotecontrolmcp.services.camera.CameraProviderImpl
+import com.danielealbano.androidremotecontrolmcp.services.channel.EventDispatcher
+import com.danielealbano.androidremotecontrolmcp.services.channel.EventDispatcherImpl
+import com.danielealbano.androidremotecontrolmcp.services.channel.geofence.GeofenceManager
+import com.danielealbano.androidremotecontrolmcp.services.channel.geofence.GeofenceManagerImpl
 import com.danielealbano.androidremotecontrolmcp.services.intents.IntentDispatcher
 import com.danielealbano.androidremotecontrolmcp.services.intents.IntentDispatcherImpl
 import com.danielealbano.androidremotecontrolmcp.services.location.LocationProvider
@@ -36,10 +40,6 @@ import com.danielealbano.androidremotecontrolmcp.services.storage.PermissionChec
 import com.danielealbano.androidremotecontrolmcp.services.storage.PermissionCheckerImpl
 import com.danielealbano.androidremotecontrolmcp.services.storage.StorageLocationProvider
 import com.danielealbano.androidremotecontrolmcp.services.storage.StorageLocationProviderImpl
-import com.danielealbano.androidremotecontrolmcp.services.channel.EventDispatcher
-import com.danielealbano.androidremotecontrolmcp.services.channel.EventDispatcherImpl
-import com.danielealbano.androidremotecontrolmcp.services.channel.geofence.GeofenceManager
-import com.danielealbano.androidremotecontrolmcp.services.channel.geofence.GeofenceManagerImpl
 import com.danielealbano.androidremotecontrolmcp.services.tunnel.AndroidCloudflareBinaryResolver
 import com.danielealbano.androidremotecontrolmcp.services.tunnel.CloudflaredBinaryResolver
 import dagger.Binds

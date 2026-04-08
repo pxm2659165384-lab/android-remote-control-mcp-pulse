@@ -209,11 +209,12 @@ fun PermissionsSettingsScreen(
                 onAction = {
                     // Background location cannot be requested via dialog — open app settings
                     val intent =
-                        android.content.Intent(
-                            android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                        ).apply {
-                            data = android.net.Uri.fromParts("package", context.packageName, null)
-                        }
+                        android.content
+                            .Intent(
+                                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            ).apply {
+                                data = android.net.Uri.fromParts("package", context.packageName, null)
+                            }
                     context.startActivity(intent)
                 },
                 actionEnabled = !isBackgroundLocationGranted,

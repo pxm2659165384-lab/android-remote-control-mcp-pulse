@@ -1027,12 +1027,18 @@ class MainViewModelTest {
                 every { PermissionUtils.isLocationPermissionGranted(context) } returns false
                 every { PermissionUtils.isNotificationListenerEnabled(context, any()) } returns true
                 coEvery { storageLocationProvider.getAllLocations() } returns emptyList()
+                mockkStatic(androidx.core.content.ContextCompat::class)
+                every {
+                    androidx.core.content.ContextCompat
+                        .checkSelfPermission(context, any())
+                } returns android.content.pm.PackageManager.PERMISSION_DENIED
 
                 viewModel.refreshPermissionStatus(context)
                 advanceUntilIdle()
 
                 assertEquals(true, viewModel.isNotificationListenerEnabled.value)
             } finally {
+                unmockkStatic(androidx.core.content.ContextCompat::class)
                 unmockkObject(PermissionUtils)
             }
         }
@@ -1052,12 +1058,18 @@ class MainViewModelTest {
                 every { PermissionUtils.isLocationPermissionGranted(context) } returns false
                 every { PermissionUtils.isNotificationListenerEnabled(context, any()) } returns false
                 coEvery { storageLocationProvider.getAllLocations() } returns emptyList()
+                mockkStatic(androidx.core.content.ContextCompat::class)
+                every {
+                    androidx.core.content.ContextCompat
+                        .checkSelfPermission(context, any())
+                } returns android.content.pm.PackageManager.PERMISSION_DENIED
 
                 viewModel.refreshPermissionStatus(context)
                 advanceUntilIdle()
 
                 assertEquals(false, viewModel.isNotificationListenerEnabled.value)
             } finally {
+                unmockkStatic(androidx.core.content.ContextCompat::class)
                 unmockkObject(PermissionUtils)
             }
         }

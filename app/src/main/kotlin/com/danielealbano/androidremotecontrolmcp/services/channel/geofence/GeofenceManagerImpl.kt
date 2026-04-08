@@ -8,12 +8,15 @@ import com.danielealbano.androidremotecontrolmcp.utils.Logger
 import com.google.android.gms.location.Geofence
 import com.google.android.gms.location.GeofencingRequest
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.tasks.Task
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 @Singleton
 class GeofenceManagerImpl
@@ -66,7 +69,7 @@ class GeofenceManagerImpl
                             ).addGeofence(geofence)
                             .build()
 
-                    geofencingClient.addGeofences(request, pendingIntent).await()
+                    geofencingClient.addGeofences(request, pendingIntent).awaitResult()
                     Result.success(Unit)
                 } catch (e: Exception) {
                     Logger.e(TAG, "Failed to add geofence ${zone.id}: ${e.message}")
@@ -77,7 +80,7 @@ class GeofenceManagerImpl
         override suspend fun removeGeofence(zoneId: String): Result<Unit> =
             withContext(Dispatchers.IO) {
                 try {
-                    geofencingClient.removeGeofences(listOf(zoneId)).await()
+                    geofencingClient.removeGeofences(listOf(zoneId)).awaitResult()
                     Result.success(Unit)
                 } catch (e: Exception) {
                     Logger.e(TAG, "Failed to remove geofence $zoneId: ${e.message}")
@@ -88,7 +91,7 @@ class GeofenceManagerImpl
         override suspend fun removeAllGeofences(): Result<Unit> =
             withContext(Dispatchers.IO) {
                 try {
-                    geofencingClient.removeGeofences(pendingIntent).await()
+                    geofencingClient.removeGeofences(pendingIntent).awaitResult()
                     Result.success(Unit)
                 } catch (e: Exception) {
                     Logger.e(TAG, "Failed to remove all geofences: ${e.message}")
@@ -104,6 +107,12 @@ class GeofenceManagerImpl
             }
             return Result.success(Unit)
         }
+
+        private suspend fun <T> Task<T>.awaitResult(): T =
+            suspendCancellableCoroutine { cont ->
+                addOnSuccessListener { cont.resume(it) }
+                addOnFailureListener { cont.resumeWithException(it) }
+            }
 
         companion object {
             private const val TAG = "MCP:GeofenceManager"

@@ -3,10 +3,10 @@ package com.danielealbano.androidremotecontrolmcp.services.channel
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.IBinder
-import androidx.lifecycle.LifecycleService
 import com.danielealbano.androidremotecontrolmcp.R
 import com.danielealbano.androidremotecontrolmcp.data.model.ChannelConnectionStatus
 import com.danielealbano.androidremotecontrolmcp.data.model.EventChannelConfig
@@ -28,7 +28,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class EventChannelService : LifecycleService() {
+class EventChannelService : Service() {
     @Inject
     lateinit var settingsRepository: SettingsRepository
 
@@ -43,17 +43,13 @@ class EventChannelService : LifecycleService() {
     private var geofenceEventListener: GeofenceEventListener? = null
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
-    override fun onBind(intent: Intent): IBinder? {
-        super.onBind(intent)
-        return null
-    }
+    override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(
         intent: Intent?,
         flags: Int,
         startId: Int,
     ): Int {
-        super.onStartCommand(intent, flags, startId)
         when (intent?.action) {
             ACTION_START -> handleStart()
             ACTION_STOP -> handleStop()

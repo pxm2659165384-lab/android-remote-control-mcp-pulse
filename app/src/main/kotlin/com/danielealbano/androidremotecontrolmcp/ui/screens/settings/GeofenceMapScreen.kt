@@ -97,7 +97,10 @@ fun GeofenceMapScreen(
                             val pos = markerPosition ?: return@TextButton
                             val zone =
                                 GeofenceZone(
-                                    id = zoneId ?: java.util.UUID.randomUUID().toString(),
+                                    id =
+                                        zoneId ?: java.util.UUID
+                                            .randomUUID()
+                                            .toString(),
                                     name = name,
                                     latitude = pos.latitude,
                                     longitude = pos.longitude,

@@ -142,8 +142,7 @@ class NotificationProviderImpl
             McpNotificationListenerService.instance
                 ?: error("Notification listener service not available")
 
-        private fun toNotificationData(sbn: StatusBarNotification): NotificationData =
-            NotificationDataExtractor.extract(sbn, context)
+        private fun toNotificationData(sbn: StatusBarNotification): NotificationData = NotificationDataExtractor.extract(sbn, context)
 
         private fun findActionByHash(actionId: String): Pair<StatusBarNotification, Notification.Action>? {
             val service = requireService()

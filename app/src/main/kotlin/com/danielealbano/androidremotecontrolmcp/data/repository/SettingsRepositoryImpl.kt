@@ -16,7 +16,6 @@ import com.danielealbano.androidremotecontrolmcp.data.model.NotificationFilterMo
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerConfig
 import com.danielealbano.androidremotecontrolmcp.data.model.ToolPermissionsConfig
 import com.danielealbano.androidremotecontrolmcp.data.model.TunnelProviderType
-import java.net.URL
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -29,6 +28,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import java.net.URL
 import java.util.UUID
 import javax.inject.Inject
 
@@ -567,14 +567,11 @@ class SettingsRepositoryImpl
             }
         }
 
-        override suspend fun updateEventChannelEnabled(enabled: Boolean) =
-            updateEventChannelConfig { it.copy(enabled = enabled) }
+        override suspend fun updateEventChannelEnabled(enabled: Boolean) = updateEventChannelConfig { it.copy(enabled = enabled) }
 
-        override suspend fun updateEventChannelEndpointUrl(url: String) =
-            updateEventChannelConfig { it.copy(endpointUrl = url) }
+        override suspend fun updateEventChannelEndpointUrl(url: String) = updateEventChannelConfig { it.copy(endpointUrl = url) }
 
-        override suspend fun updateEventChannelAuthToken(token: String) =
-            updateEventChannelConfig { it.copy(authToken = token) }
+        override suspend fun updateEventChannelAuthToken(token: String) = updateEventChannelConfig { it.copy(authToken = token) }
 
         override suspend fun generateNewEventChannelAuthToken(): String {
             val token = generateTokenString()
@@ -610,8 +607,7 @@ class SettingsRepositoryImpl
         override suspend fun updateWifiChannelEnabled(enabled: Boolean) =
             updateEventChannelConfig { it.copy(wifi = it.wifi.copy(enabled = enabled)) }
 
-        override suspend fun updateWifiSsids(ssids: Set<String>) =
-            updateEventChannelConfig { it.copy(wifi = it.wifi.copy(ssids = ssids)) }
+        override suspend fun updateWifiSsids(ssids: Set<String>) = updateEventChannelConfig { it.copy(wifi = it.wifi.copy(ssids = ssids)) }
 
         override suspend fun updateWifiNotifyOnDiscovered(enabled: Boolean) =
             updateEventChannelConfig { it.copy(wifi = it.wifi.copy(notifyOnDiscovered = enabled)) }

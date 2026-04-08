@@ -49,6 +49,7 @@ class GeofenceEventListenerTest {
                 val listener = GeofenceEventListener(createMockDispatcher(), manager, this)
                 val config = GeofenceChannelConfig(enabled = true, zones = listOf(testZone))
                 listener.start(config)
+                testScheduler.advanceUntilIdle()
                 coVerify { manager.syncGeofences(listOf(testZone)) }
             }
 
@@ -58,6 +59,7 @@ class GeofenceEventListenerTest {
                 val manager = createMockGeofenceManager()
                 val listener = GeofenceEventListener(createMockDispatcher(), manager, this)
                 listener.stop()
+                testScheduler.advanceUntilIdle()
                 coVerify { manager.removeAllGeofences() }
             }
 
@@ -68,6 +70,7 @@ class GeofenceEventListenerTest {
                 val listener = GeofenceEventListener(createMockDispatcher(), manager, this)
                 val newZone = testZone.copy(id = "z2", name = "Home")
                 listener.updateConfig(GeofenceChannelConfig(enabled = true, zones = listOf(newZone)))
+                testScheduler.advanceUntilIdle()
                 coVerify { manager.syncGeofences(listOf(newZone)) }
             }
     }

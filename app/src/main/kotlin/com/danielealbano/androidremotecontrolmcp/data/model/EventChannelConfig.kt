@@ -17,8 +17,7 @@ data class EventChannelConfig(
     companion object {
         const val DEFAULT_ENDPOINT_URL = "http://localhost:9090"
 
-        fun fromJson(json: String): EventChannelConfig =
-            eventChannelJson.decodeFromString(serializer(), json)
+        fun fromJson(json: String): EventChannelConfig = eventChannelJson.decodeFromString(serializer(), json)
 
         fun fromJsonOrDefault(json: String): EventChannelConfig =
             try {
