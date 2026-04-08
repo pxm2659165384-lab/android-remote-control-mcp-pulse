@@ -607,11 +607,11 @@ Extend `SettingsRepository` to persist event channel configuration.
 
 ### Acceptance Criteria
 
-- [ ] `EventChannelConfig` persisted as JSON string in DataStore
-- [ ] `eventChannelConfig: Flow<EventChannelConfig>` emits on changes
-- [ ] Individual update methods for each setting (following existing pattern)
-- [ ] Validation for endpoint URL format
-- [ ] Validation rejects starting the channel with empty endpoint URL or auth token
+- [x] `EventChannelConfig` persisted as JSON string in DataStore
+- [x] `eventChannelConfig: Flow<EventChannelConfig>` emits on changes
+- [x] Individual update methods for each setting (following existing pattern)
+- [x] Validation for endpoint URL format
+- [x] Validation rejects starting the channel with empty endpoint URL or auth token
 
 ### Task 4.1: SettingsRepository interface extensions
 
@@ -649,7 +649,7 @@ suspend fun updateGeofenceZone(zone: GeofenceZone)
 ```
 
 **Definition of Done**:
-- [ ] Interface compiles with all new methods
+- [x] Interface compiles with all new methods
 
 ### Task 4.2: SettingsRepositoryImpl extensions
 
@@ -671,9 +671,9 @@ Implement all interface methods following the existing `ToolPermissionsConfig` J
 - `updateGeofenceZone()`: reads config, replaces zone with matching ID, writes back
 
 **Definition of Done**:
-- [ ] All settings persist across app restarts
-- [ ] Flow emits updates when config changes
-- [ ] URL validation rejects invalid formats and empty strings
+- [x] All settings persist across app restarts
+- [x] Flow emits updates when config changes
+- [x] URL validation rejects invalid formats and empty strings
 
 ---
 

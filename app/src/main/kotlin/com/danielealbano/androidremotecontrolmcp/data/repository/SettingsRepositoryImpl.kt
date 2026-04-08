@@ -10,9 +10,13 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import com.danielealbano.androidremotecontrolmcp.data.model.BindingAddress
 import com.danielealbano.androidremotecontrolmcp.data.model.BuiltinPermissions
 import com.danielealbano.androidremotecontrolmcp.data.model.CertificateSource
+import com.danielealbano.androidremotecontrolmcp.data.model.EventChannelConfig
+import com.danielealbano.androidremotecontrolmcp.data.model.GeofenceZone
+import com.danielealbano.androidremotecontrolmcp.data.model.NotificationFilterMode
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerConfig
 import com.danielealbano.androidremotecontrolmcp.data.model.ToolPermissionsConfig
 import com.danielealbano.androidremotecontrolmcp.data.model.TunnelProviderType
+import java.net.URL
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -545,6 +549,103 @@ class SettingsRepositoryImpl
                 },
             )
 
+        // --- Event Channel ---
+
+        override val eventChannelConfig: Flow<EventChannelConfig> =
+            dataStore.data.map { prefs ->
+                val json = prefs[EVENT_CHANNEL_CONFIG_KEY] ?: return@map EventChannelConfig()
+                EventChannelConfig.fromJsonOrDefault(json)
+            }
+
+        override suspend fun getEventChannelConfig(): EventChannelConfig = eventChannelConfig.first()
+
+        private suspend fun updateEventChannelConfig(transform: (EventChannelConfig) -> EventChannelConfig) {
+            val current = getEventChannelConfig()
+            val updated = transform(current)
+            dataStore.edit { prefs ->
+                prefs[EVENT_CHANNEL_CONFIG_KEY] = updated.toJson()
+            }
+        }
+
+        override suspend fun updateEventChannelEnabled(enabled: Boolean) =
+            updateEventChannelConfig { it.copy(enabled = enabled) }
+
+        override suspend fun updateEventChannelEndpointUrl(url: String) =
+            updateEventChannelConfig { it.copy(endpointUrl = url) }
+
+        override suspend fun updateEventChannelAuthToken(token: String) =
+            updateEventChannelConfig { it.copy(authToken = token) }
+
+        override suspend fun generateNewEventChannelAuthToken(): String {
+            val token = generateTokenString()
+            updateEventChannelAuthToken(token)
+            return token
+        }
+
+        override fun validateEndpointUrl(url: String): Result<String> {
+            if (url.isBlank()) {
+                return Result.failure(IllegalArgumentException("Endpoint URL cannot be empty"))
+            }
+            return try {
+                val parsed = URL(url)
+                if (parsed.protocol != "http" && parsed.protocol != "https") {
+                    Result.failure(IllegalArgumentException("URL must use http or https protocol"))
+                } else {
+                    Result.success(url)
+                }
+            } catch (e: Exception) {
+                Result.failure(IllegalArgumentException("Invalid URL format: ${e.message}"))
+            }
+        }
+
+        override suspend fun updateNotificationChannelEnabled(enabled: Boolean) =
+            updateEventChannelConfig { it.copy(notifications = it.notifications.copy(enabled = enabled)) }
+
+        override suspend fun updateNotificationFilterMode(mode: NotificationFilterMode) =
+            updateEventChannelConfig { it.copy(notifications = it.notifications.copy(filterMode = mode)) }
+
+        override suspend fun updateNotificationFilterApps(apps: Set<String>) =
+            updateEventChannelConfig { it.copy(notifications = it.notifications.copy(filterApps = apps)) }
+
+        override suspend fun updateWifiChannelEnabled(enabled: Boolean) =
+            updateEventChannelConfig { it.copy(wifi = it.wifi.copy(enabled = enabled)) }
+
+        override suspend fun updateWifiSsids(ssids: Set<String>) =
+            updateEventChannelConfig { it.copy(wifi = it.wifi.copy(ssids = ssids)) }
+
+        override suspend fun updateWifiNotifyOnDiscovered(enabled: Boolean) =
+            updateEventChannelConfig { it.copy(wifi = it.wifi.copy(notifyOnDiscovered = enabled)) }
+
+        override suspend fun updateWifiNotifyOnLost(enabled: Boolean) =
+            updateEventChannelConfig { it.copy(wifi = it.wifi.copy(notifyOnLost = enabled)) }
+
+        override suspend fun updateWifiNotifyOnConnected(enabled: Boolean) =
+            updateEventChannelConfig { it.copy(wifi = it.wifi.copy(notifyOnConnected = enabled)) }
+
+        override suspend fun updateWifiNotifyOnDisconnected(enabled: Boolean) =
+            updateEventChannelConfig { it.copy(wifi = it.wifi.copy(notifyOnDisconnected = enabled)) }
+
+        override suspend fun updateGeofenceChannelEnabled(enabled: Boolean) =
+            updateEventChannelConfig { it.copy(geofence = it.geofence.copy(enabled = enabled)) }
+
+        override suspend fun addGeofenceZone(zone: GeofenceZone) =
+            updateEventChannelConfig { it.copy(geofence = it.geofence.copy(zones = it.geofence.zones + zone)) }
+
+        override suspend fun removeGeofenceZone(zoneId: String) =
+            updateEventChannelConfig {
+                it.copy(geofence = it.geofence.copy(zones = it.geofence.zones.filter { z -> z.id != zoneId }))
+            }
+
+        override suspend fun updateGeofenceZone(zone: GeofenceZone) =
+            updateEventChannelConfig {
+                it.copy(
+                    geofence =
+                        it.geofence.copy(
+                            zones = it.geofence.zones.map { z -> if (z.id == zone.id) zone else z },
+                        ),
+                )
+            }
+
         companion object {
             private const val TAG = "MCP:SettingsRepo"
             private const val MAX_LOCATION_ID_LOG_LENGTH = 200
@@ -572,6 +673,7 @@ class SettingsRepositoryImpl
             private val TOOL_PERMISSIONS_KEY = stringPreferencesKey("tool_permissions")
             private val AUTHORIZED_LOCATIONS_KEY = stringPreferencesKey("authorized_storage_locations")
             private val BUILTIN_LOCATION_PERMISSIONS_KEY = stringPreferencesKey("builtin_location_permissions")
+            private val EVENT_CHANNEL_CONFIG_KEY = stringPreferencesKey("event_channel_config")
 
             /**
              * Regex pattern for valid hostnames.
