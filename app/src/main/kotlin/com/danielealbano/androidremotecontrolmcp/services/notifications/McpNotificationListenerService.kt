@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions")
+
 package com.danielealbano.androidremotecontrolmcp.services.notifications
 
 import android.service.notification.NotificationListenerService
@@ -36,13 +38,14 @@ class McpNotificationListenerService : NotificationListenerService() {
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         val data = NotificationDataExtractor.extract(sbn, applicationContext)
-        if (data.title == null && data.text == null && data.bigText == null && data.actions.isEmpty()) {
-            return
-        }
+        if (isEmptyNotification(data)) return
         _notificationChangeEvents.tryEmit(
             NotificationChangeEvent(NotificationChangeType.POSTED, data),
         )
     }
+
+    private fun isEmptyNotification(data: NotificationData): Boolean =
+        data.title == null && data.text == null && data.bigText == null && data.actions.isEmpty()
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
         val data = NotificationDataExtractor.extract(sbn, applicationContext)

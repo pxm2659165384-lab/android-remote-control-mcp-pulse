@@ -142,6 +142,7 @@ class NotificationProviderImpl
             McpNotificationListenerService.instance
                 ?: error("Notification listener service not available")
 
+        @Suppress("MaxLineLength")
         private fun toNotificationData(sbn: StatusBarNotification): NotificationData = NotificationDataExtractor.extract(sbn, context)
 
         private fun findActionByHash(actionId: String): Pair<StatusBarNotification, Notification.Action>? {
@@ -158,7 +159,6 @@ class NotificationProviderImpl
         }
 
         companion object {
-            private const val TAG = "MCP:NotificationProvider"
             const val HASH_HEX_LENGTH = 8
 
             fun computeNotificationHash(key: String): String = "%08x".format(key.hashCode())

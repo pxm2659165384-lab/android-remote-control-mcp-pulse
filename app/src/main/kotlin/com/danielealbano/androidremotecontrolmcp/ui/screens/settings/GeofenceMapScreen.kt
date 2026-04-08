@@ -1,3 +1,5 @@
+@file:Suppress("FunctionNaming", "LongMethod", "CyclomaticComplexMethod")
+
 package com.danielealbano.androidremotecontrolmcp.ui.screens.settings
 
 import android.location.Geocoder

@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions")
+
 package com.danielealbano.androidremotecontrolmcp.ui.viewmodels
 
 import android.content.Context

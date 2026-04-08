@@ -567,11 +567,17 @@ class SettingsRepositoryImpl
             }
         }
 
-        override suspend fun updateEventChannelEnabled(enabled: Boolean) = updateEventChannelConfig { it.copy(enabled = enabled) }
+        override suspend fun updateEventChannelEnabled(enabled: Boolean) {
+            updateEventChannelConfig { it.copy(enabled = enabled) }
+        }
 
-        override suspend fun updateEventChannelEndpointUrl(url: String) = updateEventChannelConfig { it.copy(endpointUrl = url) }
+        override suspend fun updateEventChannelEndpointUrl(url: String) {
+            updateEventChannelConfig { it.copy(endpointUrl = url) }
+        }
 
-        override suspend fun updateEventChannelAuthToken(token: String) = updateEventChannelConfig { it.copy(authToken = token) }
+        override suspend fun updateEventChannelAuthToken(token: String) {
+            updateEventChannelConfig { it.copy(authToken = token) }
+        }
 
         override suspend fun generateNewEventChannelAuthToken(): String {
             val token = generateTokenString()
@@ -590,7 +596,9 @@ class SettingsRepositoryImpl
                 } else {
                     Result.success(url)
                 }
-            } catch (e: Exception) {
+            } catch (
+                @Suppress("TooGenericExceptionCaught") e: Exception,
+            ) {
                 Result.failure(IllegalArgumentException("Invalid URL format: ${e.message}"))
             }
         }
@@ -607,7 +615,9 @@ class SettingsRepositoryImpl
         override suspend fun updateWifiChannelEnabled(enabled: Boolean) =
             updateEventChannelConfig { it.copy(wifi = it.wifi.copy(enabled = enabled)) }
 
-        override suspend fun updateWifiSsids(ssids: Set<String>) = updateEventChannelConfig { it.copy(wifi = it.wifi.copy(ssids = ssids)) }
+        override suspend fun updateWifiSsids(ssids: Set<String>) {
+            updateEventChannelConfig { it.copy(wifi = it.wifi.copy(ssids = ssids)) }
+        }
 
         override suspend fun updateWifiNotifyOnDiscovered(enabled: Boolean) =
             updateEventChannelConfig { it.copy(wifi = it.wifi.copy(notifyOnDiscovered = enabled)) }

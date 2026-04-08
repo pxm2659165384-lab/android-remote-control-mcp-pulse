@@ -177,11 +177,12 @@ class EventChannelService : Service() {
             .build()
 
     override fun onDestroy() {
-        serviceScope.cancel()
+        // Stop listeners BEFORE cancelling scope — listeners may launch cleanup coroutines
         notificationEventListener?.stop()
         wifiEventListener?.stop()
         geofenceEventListener?.stop()
         eventDispatcher.stop()
+        serviceScope.cancel()
         _serviceStatus.value = ChannelConnectionStatus.Idle
         Logger.i(TAG, "Event channel service destroyed")
         super.onDestroy()

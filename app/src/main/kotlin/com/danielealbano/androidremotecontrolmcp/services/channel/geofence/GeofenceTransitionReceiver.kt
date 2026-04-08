@@ -16,6 +16,7 @@ import com.google.android.gms.location.GeofencingEvent
  * via intent. The service performs the zone lookup and event dispatch.
  */
 class GeofenceTransitionReceiver : BroadcastReceiver() {
+    @Suppress("ReturnCount")
     override fun onReceive(
         context: Context,
         intent: Intent,

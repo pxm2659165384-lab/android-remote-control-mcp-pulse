@@ -35,6 +35,7 @@ fun SettingsScreen(
     onPendingRouteConsumed: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: MainViewModel = hiltViewModel(),
+    channelViewModel: ChannelViewModel = hiltViewModel(),
 ) {
     val navController = rememberNavController()
 
@@ -81,7 +82,6 @@ fun SettingsScreen(
             StorageSettingsScreen(onBack = { navController.popBackStack() }, viewModel = viewModel)
         }
         composable(SettingsRoute.ChannelSettings.route) {
-            val channelViewModel: ChannelViewModel = hiltViewModel()
             ChannelSettingsScreen(
                 viewModel = channelViewModel,
                 onNavigateToNotificationFilter = {
@@ -97,21 +97,18 @@ fun SettingsScreen(
             )
         }
         composable(SettingsRoute.NotificationFilter.route) {
-            val channelViewModel: ChannelViewModel = hiltViewModel()
             NotificationFilterScreen(
                 viewModel = channelViewModel,
                 onNavigateBack = { navController.popBackStack() },
             )
         }
         composable(SettingsRoute.WifiMonitor.route) {
-            val channelViewModel: ChannelViewModel = hiltViewModel()
             WifiMonitorScreen(
                 viewModel = channelViewModel,
                 onNavigateBack = { navController.popBackStack() },
             )
         }
         composable(SettingsRoute.GeofenceList.route) {
-            val channelViewModel: ChannelViewModel = hiltViewModel()
             GeofenceListScreen(
                 viewModel = channelViewModel,
                 onNavigateToMap = { zoneId ->
@@ -121,7 +118,6 @@ fun SettingsScreen(
             )
         }
         composable(SettingsRoute.GeofenceMap.route) { backStackEntry ->
-            val channelViewModel: ChannelViewModel = hiltViewModel()
             val zoneId = backStackEntry.arguments?.getString("zoneId")?.ifEmpty { null }
             GeofenceMapScreen(
                 viewModel = channelViewModel,

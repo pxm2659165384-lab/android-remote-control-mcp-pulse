@@ -71,7 +71,9 @@ class GeofenceManagerImpl
 
                     geofencingClient.addGeofences(request, pendingIntent).awaitResult()
                     Result.success(Unit)
-                } catch (e: Exception) {
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") e: Exception,
+                ) {
                     Logger.e(TAG, "Failed to add geofence ${zone.id}: ${e.message}")
                     Result.failure(e)
                 }
@@ -82,7 +84,9 @@ class GeofenceManagerImpl
                 try {
                     geofencingClient.removeGeofences(listOf(zoneId)).awaitResult()
                     Result.success(Unit)
-                } catch (e: Exception) {
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") e: Exception,
+                ) {
                     Logger.e(TAG, "Failed to remove geofence $zoneId: ${e.message}")
                     Result.failure(e)
                 }
@@ -93,7 +97,9 @@ class GeofenceManagerImpl
                 try {
                     geofencingClient.removeGeofences(pendingIntent).awaitResult()
                     Result.success(Unit)
-                } catch (e: Exception) {
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") e: Exception,
+                ) {
                     Logger.e(TAG, "Failed to remove all geofences: ${e.message}")
                     Result.failure(e)
                 }

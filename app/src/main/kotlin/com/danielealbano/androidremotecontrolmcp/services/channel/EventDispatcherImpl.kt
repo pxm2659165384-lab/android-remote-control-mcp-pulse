@@ -89,7 +89,9 @@ class EventDispatcherImpl
                         Logger.w(TAG, "Dispatch failed: $msg")
                         Result.failure(IOException(msg))
                     }
-                } catch (e: Exception) {
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") e: Exception,
+                ) {
                     val msg = e.message ?: "Unknown error"
                     _connectionStatus.value = ChannelConnectionStatus.Error(msg)
                     Logger.w(TAG, "Dispatch error: $msg")
