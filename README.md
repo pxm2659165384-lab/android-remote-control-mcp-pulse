@@ -150,32 +150,51 @@ Test the connection:
 curl -X POST http://localhost:8080/mcp \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
   -d '{"jsonrpc":"2.0","id":1,"method":"ping"}'
 ```
 
 ### 6. Make MCP Tool Calls
 
-All requests are sent as JSON-RPC 2.0 via `POST /mcp` (Streamable HTTP transport):
+All requests are sent as JSON-RPC 2.0 via `POST /mcp` (Streamable HTTP transport). The server requires a session initialization handshake before tool calls:
 
 ```bash
+# Initialize a session (required before any tool call)
+# Capture the mcp-session-id from the response headers
+curl -s -D- -X POST http://localhost:8080/mcp \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"curl-client","version":"1.0.0"}}}'
+
+# Use the mcp-session-id from the response headers in all subsequent requests
+
 # List available tools
 curl -X POST http://localhost:8080/mcp \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+  -H "Accept: application/json, text/event-stream" \
+  -H "mcp-session-id: SESSION_ID" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
 
 # Get the current screen state (UI nodes + optional screenshot)
 curl -X POST http://localhost:8080/mcp \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"android_get_screen_state","arguments":{}}}'
+  -H "Accept: application/json, text/event-stream" \
+  -H "mcp-session-id: SESSION_ID" \
+  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"android_get_screen_state","arguments":{}}}'
 
 # Tap at coordinates
 curl -X POST http://localhost:8080/mcp \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"android_tap","arguments":{"x":540,"y":1200}}}'
+  -H "Accept: application/json, text/event-stream" \
+  -H "mcp-session-id: SESSION_ID" \
+  -d '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"android_tap","arguments":{"x":540,"y":1200}}}'
 ```
+
+Replace `SESSION_ID` with the `mcp-session-id` value from the initialize response headers.
 
 The bearer token is displayed in the app's connection info section. You can copy it directly from the app.
 
@@ -448,6 +467,7 @@ adb forward tcp:8080 tcp:8080
 curl -X POST http://localhost:8080/mcp \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
   -d '{"jsonrpc":"2.0","id":1,"method":"ping"}'
 ```
 
