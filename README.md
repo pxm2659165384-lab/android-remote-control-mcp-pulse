@@ -109,6 +109,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full build requirements and instructi
 
 The server starts on `http://127.0.0.1:8080` by default. The connection info (IP, port, token, URL) is displayed on the Server tab.
 
+> **Note**: `127.0.0.1` refers to the phone's localhost, not your computer. To connect from your computer, use [adb port forwarding](#using-with-adb-port-forwarding), bind to `0.0.0.0` (network mode), or enable a [remote access tunnel](#using-remote-access-tunnels).
+
 ---
 
 ## Connect
