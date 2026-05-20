@@ -4,8 +4,8 @@ import com.danielealbano.androidremotecontrolmcp.data.model.ChannelEventFactory
 import com.danielealbano.androidremotecontrolmcp.data.model.NotificationChannelConfig
 import com.danielealbano.androidremotecontrolmcp.data.model.NotificationFilterMode
 import com.danielealbano.androidremotecontrolmcp.services.channel.EventDispatcher
-import com.danielealbano.androidremotecontrolmcp.utils.Logger
 import com.danielealbano.androidremotecontrolmcp.services.notifications.McpNotificationListenerService
+import com.danielealbano.androidremotecontrolmcp.utils.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch

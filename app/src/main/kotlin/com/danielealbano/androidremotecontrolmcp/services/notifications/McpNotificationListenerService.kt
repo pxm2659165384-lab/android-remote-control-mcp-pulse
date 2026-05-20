@@ -20,6 +20,7 @@ class McpNotificationListenerService : NotificationListenerService() {
         val hash: Int,
         val timestamp: Long = System.currentTimeMillis(),
     )
+
     override fun onListenerConnected() {
         super.onListenerConnected()
         instance = this
