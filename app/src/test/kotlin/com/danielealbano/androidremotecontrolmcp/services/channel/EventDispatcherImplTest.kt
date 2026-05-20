@@ -129,6 +129,41 @@ class EventDispatcherImplTest {
             }
 
         @Test
+        fun `dispatch with empty auth token sends no Authorization header`() =
+            runTest {
+                val receivedAuth = AtomicReference<String?>(null)
+
+                val server =
+                    embeddedServer(Netty, port = 0) {
+                        routing {
+                            post("/event") {
+                                receivedAuth.set(call.request.header("Authorization"))
+                                call.respond(HttpStatusCode.OK, """{"status":"ok"}""")
+                            }
+                        }
+                    }
+                server.start(wait = false)
+                val port =
+                    server.engine
+                        .resolvedConnectors()
+                        .first()
+                        .port
+
+                try {
+                    val dispatcher = EventDispatcherImpl()
+                    dispatcher.start("http://localhost:$port", "")
+                    val result = dispatcher.dispatch(testEvent)
+
+                    assertTrue(result.isSuccess)
+                    assertEquals(null, receivedAuth.get())
+
+                    dispatcher.stop()
+                } finally {
+                    server.stop(0, 0)
+                }
+            }
+
+        @Test
         fun `dispatch updates status to Active on success`() =
             runTest {
                 val server =

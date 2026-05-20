@@ -171,4 +171,9 @@
     <string name="storage_allow_http_downloads_description">Allow downloading files from unencrypted HTTP URLs (less secure)</string>
     <string name="storage_allow_unverified_https_label">Allow Unverified HTTPS</string>
     <string name="storage_allow_unverified_https_description">Accept unverified HTTPS certificates for downloads (less secure)</string>
+
+    <!-- Event Channel — start/stop dialogs -->
+    <string name="channel_not_configured_dialog_title">Endpoint URL not set</string>
+    <string name="channel_not_configured_dialog_body">Configure the event channel endpoint URL in Settings → Event Channel before starting the service. The auth token is optional and can be left empty if your endpoint does not require it.</string>
+    <string name="channel_not_configured_dialog_ok">OK</string>
 </resources>

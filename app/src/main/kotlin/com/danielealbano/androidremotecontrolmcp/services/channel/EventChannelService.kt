@@ -65,8 +65,8 @@ class EventChannelService : Service() {
 
         serviceScope.launch {
             val config = settingsRepository.getEventChannelConfig()
-            if (config.endpointUrl.isBlank() || config.authToken.isBlank()) {
-                Logger.e(TAG, "Cannot start: endpoint URL or auth token is empty")
+            if (config.endpointUrl.isBlank()) {
+                Logger.e(TAG, "Cannot start: endpoint URL is empty")
                 stopSelf()
                 return@launch
             }

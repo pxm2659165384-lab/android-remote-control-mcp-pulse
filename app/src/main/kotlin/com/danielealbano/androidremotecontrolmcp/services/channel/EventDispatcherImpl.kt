@@ -82,7 +82,9 @@ class EventDispatcherImpl
                     val response: HttpResponse =
                         httpClient.post("$endpointUrl/event") {
                             contentType(ContentType.Application.Json)
-                            header("Authorization", "Bearer $authToken")
+                            if (authToken.isNotEmpty()) {
+                                header("Authorization", "Bearer $authToken")
+                            }
                             setBody(event)
                         }
                     if (response.status.isSuccess()) {

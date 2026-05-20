@@ -109,7 +109,7 @@ fun ServerScreen(
                 onMcpStartClick = { viewModel.startServer(context) },
                 onMcpStopClick = { viewModel.stopServer(context) },
                 onChannelStartClick = {
-                    if (channelConfig.endpointUrl.isBlank() || channelConfig.authToken.isBlank()) {
+                    if (channelConfig.endpointUrl.isBlank()) {
                         showChannelNotConfiguredDialog = true
                     } else {
                         channelViewModel.startChannel()
@@ -152,16 +152,11 @@ fun ServerScreen(
     if (showChannelNotConfiguredDialog) {
         AlertDialog(
             onDismissRequest = { showChannelNotConfiguredDialog = false },
-            title = { Text("Event Channel not configured") },
-            text = {
-                Text(
-                    "Please configure the endpoint URL and auth token in " +
-                        "Settings → Event Channel before starting the service.",
-                )
-            },
+            title = { Text(stringResource(R.string.channel_not_configured_dialog_title)) },
+            text = { Text(stringResource(R.string.channel_not_configured_dialog_body)) },
             confirmButton = {
                 TextButton(onClick = { showChannelNotConfiguredDialog = false }) {
-                    Text("OK")
+                    Text(stringResource(R.string.channel_not_configured_dialog_ok))
                 }
             },
         )

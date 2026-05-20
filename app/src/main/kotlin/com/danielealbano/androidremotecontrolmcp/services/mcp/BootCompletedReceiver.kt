@@ -56,10 +56,7 @@ class BootCompletedReceiver : BroadcastReceiver() {
 
                     // Event Channel auto-start
                     val channelConfig = settingsRepository.getEventChannelConfig()
-                    if (channelConfig.enabled &&
-                        channelConfig.endpointUrl.isNotBlank() &&
-                        channelConfig.authToken.isNotBlank()
-                    ) {
+                    if (channelConfig.enabled && channelConfig.endpointUrl.isNotBlank()) {
                         val channelIntent =
                             Intent(context, EventChannelService::class.java).apply {
                                 action = EventChannelService.ACTION_START

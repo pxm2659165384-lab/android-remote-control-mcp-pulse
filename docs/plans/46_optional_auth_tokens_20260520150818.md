@@ -380,8 +380,8 @@ Out of scope:
 ### Task 2.1 — Update dialog string resources
 
 **Definition of Done**:
-- [ ] New string resources exist in `strings.xml` and will be referenced from `ServerScreen.kt` in Task 2.3.
-- [ ] The existing dialog literals in `ServerScreen.kt` (lines 155-165) were NOT previously string resources, so no orphan keys are introduced.
+- [x] New string resources exist in `strings.xml` and will be referenced from `ServerScreen.kt` in Task 2.3.
+- [x] The existing dialog literals in `ServerScreen.kt` (lines 155-165) were NOT previously string resources, so no orphan keys are introduced.
 
 **Actions**:
 
@@ -397,8 +397,8 @@ Out of scope:
 ### Task 2.2 — Remove `authToken` gate in `EventChannelService.handleStart()`
 
 **Definition of Done**:
-- [ ] The `if` condition that previously gated service start on `endpointUrl.isBlank() || authToken.isBlank()` now only checks `endpointUrl.isBlank()`.
-- [ ] Log message is updated to reflect the new gate ("endpoint URL is empty" only).
+- [x] The `if` condition that previously gated service start on `endpointUrl.isBlank() || authToken.isBlank()` now only checks `endpointUrl.isBlank()`.
+- [x] Log message is updated to reflect the new gate ("endpoint URL is empty" only).
 
 **Actions**:
 
@@ -415,9 +415,9 @@ Out of scope:
 ### Task 2.3 — Remove `authToken` gate in `ServerScreen` start handler + update dialog
 
 **Definition of Done**:
-- [ ] `onChannelStartClick` only opens the dialog when `endpointUrl.isBlank()`.
-- [ ] Dialog `title` and `text` use the string resources from Task 2.1.
-- [ ] Dialog `confirmButton` text uses `R.string.channel_not_configured_dialog_ok`.
+- [x] `onChannelStartClick` only opens the dialog when `endpointUrl.isBlank()`.
+- [x] Dialog `title` and `text` use the string resources from Task 2.1.
+- [x] Dialog `confirmButton` text uses `R.string.channel_not_configured_dialog_ok`.
 
 **Actions**:
 
@@ -453,8 +453,8 @@ Out of scope:
 ### Task 2.4 — Remove `authToken` gate in `BootCompletedReceiver`
 
 **Definition of Done**:
-- [ ] The `if` condition that auto-starts the channel on boot only checks `enabled` and `endpointUrl.isNotBlank()` (the `authToken.isNotBlank()` clause is removed).
-- [ ] The change is verified manually in Story 4 (Task 4.4) — broadcast receivers in this project are not currently unit-tested (no precedent for Robolectric or instrumented receiver tests), so introducing a test infrastructure for them is out of scope for this plan.
+- [x] The `if` condition that auto-starts the channel on boot only checks `enabled` and `endpointUrl.isNotBlank()` (the `authToken.isNotBlank()` clause is removed).
+- [x] The change is verified manually in Story 4 (Task 4.4) — broadcast receivers in this project are not currently unit-tested (no precedent for Robolectric or instrumented receiver tests), so introducing a test infrastructure for them is out of scope for this plan.
 
 **Actions**:
 
@@ -475,8 +475,8 @@ Out of scope:
 ### Task 2.5 — Conditional `Authorization` header in `EventDispatcherImpl.dispatch()`
 
 **Definition of Done**:
-- [ ] The `Authorization` header is only set when `authToken.isNotEmpty()`.
-- [ ] `EventDispatcherImpl.healthCheck()` is unchanged (already attaches no auth header — verified at [EventDispatcherImpl.kt:107-131](app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/services/channel/EventDispatcherImpl.kt#L107-L131)).
+- [x] The `Authorization` header is only set when `authToken.isNotEmpty()`.
+- [x] `EventDispatcherImpl.healthCheck()` is unchanged (already attaches no auth header — verified at [EventDispatcherImpl.kt:107-131](app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/services/channel/EventDispatcherImpl.kt#L107-L131)).
 
 **Actions**:
 
@@ -508,10 +508,10 @@ Out of scope:
 | `config with non-blank endpoint and empty authToken is a startable shape` | NEW test. An `EventChannelConfig(endpointUrl = "https://example", authToken = "", enabled = true)` satisfies the new shape: `endpointUrl.isNotBlank() == true`, `authToken.isBlank() == true`. The shape itself does not block start (the live `handleStart()` gate is covered manually in Story 4). | **ADD** as a new test. |
 
 **Definition of Done**:
-- [ ] The existing `empty auth token is blank` test (around line 30-39) is kept unchanged.
-- [ ] The existing `valid config has non-blank endpoint and token` test (around line 41-51) is replaced with `config with blank endpoint is an unstartable shape regardless of token`.
-- [ ] A new test `config with non-blank endpoint and empty authToken is a startable shape` is added.
-- [ ] Test names reflect that they verify config shape, not the live `handleStart()` gate (which is covered by manual review in Story 4).
+- [x] The existing `empty auth token is blank` test (around line 30-39) is kept unchanged.
+- [x] The existing `valid config has non-blank endpoint and token` test (around line 41-51) is replaced with `config with blank endpoint is an unstartable shape regardless of token`.
+- [x] A new test `config with non-blank endpoint and empty authToken is a startable shape` is added.
+- [x] Test names reflect that they verify config shape, not the live `handleStart()` gate (which is covered by manual review in Story 4).
 
 ### Task 2.7 — Unit test for `EventDispatcherImpl` dispatch header
 
@@ -525,18 +525,18 @@ Out of scope:
 | `dispatch with non-empty auth token sends Bearer header` | Existing test `dispatch sends POST with correct headers and body` (around line 84-129) — keep unchanged. |
 
 **Definition of Done**:
-- [ ] New test added using the embedded-Netty + `AtomicReference` pattern from the existing test.
-- [ ] The existing positive-path test is not altered.
+- [x] New test added using the embedded-Netty + `AtomicReference` pattern from the existing test.
+- [x] The existing positive-path test is not altered.
 
 ### Task 2.8 — `ChannelViewModel` source and test review (no expected changes)
 
 **File**: [app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/ui/viewmodels/ChannelViewModel.kt](app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/ui/viewmodels/ChannelViewModel.kt) and [app/src/test/kotlin/com/danielealbano/androidremotecontrolmcp/ui/viewmodels/ChannelViewModelTest.kt](app/src/test/kotlin/com/danielealbano/androidremotecontrolmcp/ui/viewmodels/ChannelViewModelTest.kt)
 
 **Definition of Done**:
-- [ ] Open `ChannelViewModel.kt` and confirm that `startChannel()` (around lines 74-79) contains NO early-exit / gate on `authToken.isBlank()` or `authToken.isEmpty()`. The current implementation simply sets `updateEventChannelEnabled(true)` and calls `startChannelService()` — already authToken-agnostic. **This verification has already been performed during plan authoring; this DoD bullet is a defensive re-check during implementation.**
-- [ ] If — contrary to the previous bullet — an `authToken` gate is discovered, escalate to the user before modifying `ChannelViewModel.kt`. `ChannelViewModel.kt` is NOT in the Files in scope list; modifying it requires user approval.
-- [ ] No source changes for `ChannelViewModel` are otherwise required by this plan (the VM already accepts empty `authToken` via `updateAuthToken`).
-- [ ] No test changes required. The existing tests are re-run as part of Task 4.2 to confirm they still pass after Story 2 changes.
+- [x] Open `ChannelViewModel.kt` and confirm that `startChannel()` (around lines 74-79) contains NO early-exit / gate on `authToken.isBlank()` or `authToken.isEmpty()`. The current implementation simply sets `updateEventChannelEnabled(true)` and calls `startChannelService()` — already authToken-agnostic. **This verification has already been performed during plan authoring; this DoD bullet is a defensive re-check during implementation.** (Confirmed: lines 74-79 only call `settingsRepository.updateEventChannelEnabled(true)` inside `viewModelScope.launch(ioDispatcher)` and then `startChannelService()` — no authToken gate.)
+- [x] If — contrary to the previous bullet — an `authToken` gate is discovered, escalate to the user before modifying `ChannelViewModel.kt`. `ChannelViewModel.kt` is NOT in the Files in scope list; modifying it requires user approval. (N/A — no gate found; no escalation needed.)
+- [x] No source changes for `ChannelViewModel` are otherwise required by this plan (the VM already accepts empty `authToken` via `updateAuthToken`).
+- [x] No test changes required. The existing tests are re-run as part of Task 4.2 to confirm they still pass after Story 2 changes.
 
 ---
 

@@ -39,15 +39,29 @@ class EventChannelServiceTest {
         }
 
         @Test
-        fun `valid config has non-blank endpoint and token`() {
+        fun `config with blank endpoint is an unstartable shape regardless of token`() {
+            // Live handleStart() gate (verified manually in Story 4) blocks on
+            // endpointUrl.isBlank() alone; authToken is independent.
+            val configBlankBoth =
+                EventChannelConfig(enabled = true, endpointUrl = "", authToken = "")
+            val configBlankEndpointWithToken =
+                EventChannelConfig(enabled = true, endpointUrl = "", authToken = "x")
+            assertTrue(configBlankBoth.endpointUrl.isBlank())
+            assertTrue(configBlankEndpointWithToken.endpointUrl.isBlank())
+        }
+
+        @Test
+        fun `config with non-blank endpoint and empty authToken is a startable shape`() {
+            // Verifies the shape contract only — the live handleStart() gate is
+            // covered by manual verification in Story 4 (Task 4.4).
             val config =
                 EventChannelConfig(
                     enabled = true,
                     endpointUrl = "http://localhost:9090",
-                    authToken = "test-token",
+                    authToken = "",
                 )
             assertFalse(config.endpointUrl.isBlank())
-            assertFalse(config.authToken.isBlank())
+            assertTrue(config.authToken.isBlank())
         }
 
         @Test
