@@ -11,7 +11,9 @@ import com.danielealbano.androidremotecontrolmcp.services.accessibility.Accessib
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.AccessibilityTreeParser
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.BoundsData
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.CompactTreeFormatter
+import com.danielealbano.androidremotecontrolmcp.services.accessibility.PaginationTestTrees
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.ScreenInfo
+import com.danielealbano.androidremotecontrolmcp.services.accessibility.ScreenStateSnapshotCacheImpl
 import com.danielealbano.androidremotecontrolmcp.services.screencapture.ScreenCaptureProvider
 import com.danielealbano.androidremotecontrolmcp.services.screencapture.ScreenshotAnnotator
 import com.danielealbano.androidremotecontrolmcp.services.screencapture.ScreenshotEncoder
@@ -26,8 +28,12 @@ import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonObject
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -58,6 +64,10 @@ class ScreenIntrospectionToolsTest {
         mockNodeCache = mockk<AccessibilityNodeCache>(relaxed = true)
         mockRootNode = mockk<AccessibilityNodeInfo>(relaxed = true)
         mockWindowInfo = mockk<AccessibilityWindowInfo>(relaxed = true)
+        // countKeptNodes (an extension fn) walks the tree via shouldKeepNode; stub it on the strict
+        // formatter mock so every existing test's small tree counts as <=200 nodes and stays on the
+        // single-page (formatMultiWindow) path. Pagination tests below use a real CompactTreeFormatter.
+        every { mockCompactTreeFormatter.shouldKeepNode(any()) } returns true
     }
 
     @AfterEach
@@ -153,6 +163,7 @@ class ScreenIntrospectionToolsTest {
                     mockScreenshotAnnotator,
                     mockScreenshotEncoder,
                     mockNodeCache,
+                    ScreenStateSnapshotCacheImpl(),
                 )
         }
 
@@ -406,6 +417,200 @@ class ScreenIntrospectionToolsTest {
                         handler.execute(null)
                     }
                 assertTrue(exception.message!!.contains("No windows available"))
+            }
+    }
+
+    @Nested
+    @DisplayName("get_screen_state pagination")
+    inner class PaginationTests {
+        private val realFormatter = CompactTreeFormatter()
+        private lateinit var realCache: ScreenStateSnapshotCacheImpl
+        private lateinit var handler: GetScreenStateHandler
+
+        @BeforeEach
+        fun setUp() {
+            realCache = ScreenStateSnapshotCacheImpl()
+            handler =
+                GetScreenStateHandler(
+                    mockTreeParser,
+                    mockAccessibilityServiceProvider,
+                    mockScreenCaptureProvider,
+                    realFormatter,
+                    mockScreenshotAnnotator,
+                    mockScreenshotEncoder,
+                    mockNodeCache,
+                    realCache,
+                )
+        }
+
+        // 252 kept (anc 2 + 250 leaves) -> 2 pages; 12 kept -> single page.
+        private fun largeTree() = PaginationTestTrees.keptNodeWindow(250).tree
+
+        private fun smallTree() = PaginationTestTrees.keptNodeWindow(10).tree
+
+        private fun stubCaptureWithTree(tree: AccessibilityNodeData) {
+            every { mockAccessibilityServiceProvider.isReady() } returns true
+            every { mockWindowInfo.id } returns 0
+            every { mockWindowInfo.root } returns mockRootNode
+            every { mockWindowInfo.type } returns AccessibilityWindowInfo.TYPE_APPLICATION
+            every { mockWindowInfo.title } returns "Test"
+            every { mockWindowInfo.layer } returns 0
+            every { mockWindowInfo.isFocused } returns true
+            every { mockRootNode.refresh() } returns true
+            every { mockRootNode.packageName } returns "com.example"
+            every {
+                mockAccessibilityServiceProvider.getAccessibilityWindows()
+            } returns listOf(mockWindowInfo)
+            every { mockAccessibilityServiceProvider.getCurrentPackageName() } returns "com.example"
+            every { mockAccessibilityServiceProvider.getCurrentActivityName() } returns ".Main"
+            every { mockAccessibilityServiceProvider.getScreenInfo() } returns sampleScreenInfo
+            every { mockTreeParser.parseTree(mockRootNode, "root_w0", any()) } returns tree
+        }
+
+        private suspend fun freshText(): String = (handler.execute(null).content[0] as TextContent).text
+
+        private suspend fun pagedText(cursor: String): String {
+            val params = buildJsonObject { put("cursor", cursor) }
+            return (handler.execute(params).content[0] as TextContent).text
+        }
+
+        private fun snapshotId(text: String): String = Regex("snapshot:(\\S+)").find(text)!!.groupValues[1]
+
+        @Test
+        @DisplayName("cursorless small screen returns single page no cursor and clears cache")
+        fun cursorlessSmallScreenReturnsSinglePageNoCursorAndClearsCache() =
+            runTest {
+                stubCaptureWithTree(largeTree())
+                val id = snapshotId(freshText())
+                assertNotNull(realCache.get(id))
+
+                stubCaptureWithTree(smallTree())
+                val text = freshText()
+                assertFalse(text.contains("page:"))
+                assertNull(realCache.get(id))
+            }
+
+        @Test
+        @DisplayName("cursorless large screen returns page 1 and stores snapshot")
+        fun cursorlessLargeScreenReturnsPage1AndStoresSnapshot() =
+            runTest {
+                stubCaptureWithTree(largeTree())
+                val text = freshText()
+                assertTrue(text.contains("page:1/2"))
+                assertNotNull(realCache.get(snapshotId(text)))
+            }
+
+        @Test
+        @DisplayName("cursor returns requested page without re-capturing")
+        fun cursorReturnsRequestedPageWithoutRecapturing() =
+            runTest {
+                stubCaptureWithTree(largeTree())
+                val id = snapshotId(freshText())
+
+                val text = pagedText("$id.2")
+                assertTrue(text.contains("page:2/2"))
+                // cursor path must NOT re-capture: getAccessibilityWindows called only by the fresh call
+                verify(exactly = 1) { mockAccessibilityServiceProvider.getAccessibilityWindows() }
+            }
+
+        @Test
+        @DisplayName("malformed cursor returns invalid-cursor guidance")
+        fun malformedCursorReturnsInvalidCursorGuidance() =
+            runTest {
+                val text = pagedText("garbage")
+                assertTrue(text.contains("invalid cursor"))
+            }
+
+        @Test
+        @DisplayName("non-primitive cursor returns invalid-cursor guidance")
+        fun nonPrimitiveCursorReturnsInvalidCursorGuidance() =
+            runTest {
+                val params = buildJsonObject { putJsonObject("cursor") { put("nested", "x") } }
+                val result = handler.execute(params)
+                assertEquals(1, result.content.size)
+                assertTrue((result.content[0] as TextContent).text.contains("invalid cursor"))
+            }
+
+        @Test
+        @DisplayName("stale snapshot id returns snapshot-gone guidance")
+        fun staleSnapshotIdReturnsSnapshotGoneGuidance() =
+            runTest {
+                assertTrue(pagedText("nonexistent.1").contains("no longer available"))
+            }
+
+        @Test
+        @DisplayName("out of range page returns no-such-page guidance")
+        fun outOfRangePageReturnsNoSuchPageGuidance() =
+            runTest {
+                stubCaptureWithTree(largeTree())
+                val id = snapshotId(freshText())
+
+                val tooHigh = pagedText("$id.999")
+                assertTrue(tooHigh.contains("does not exist"))
+                assertTrue(tooHigh.contains("2 page(s)"))
+                assertTrue(pagedText("$id.0").contains("does not exist"))
+            }
+
+        @Test
+        @DisplayName("screenshot honored on cursorless page 1")
+        fun screenshotHonoredOnCursorlessPage1() =
+            runTest {
+                stubCaptureWithTree(largeTree())
+                every { mockScreenCaptureProvider.isScreenCaptureAvailable() } returns true
+                val mockBitmap = mockk<Bitmap>(relaxed = true)
+                coEvery {
+                    mockScreenCaptureProvider.captureScreenshotBitmap(any(), any())
+                } returns Result.success(mockBitmap)
+                every {
+                    mockScreenshotAnnotator.annotate(any(), any(), any(), any())
+                } returns mockBitmap
+                every {
+                    mockScreenshotEncoder.bitmapToScreenshotData(any(), any())
+                } returns ScreenshotData(data = "imgdata", width = 700, height = 500)
+
+                val params = buildJsonObject { put("include_screenshot", true) }
+                val result = handler.execute(params)
+
+                assertEquals(2, result.content.size)
+                assertTrue(result.content[1] is ImageContent)
+                assertTrue((result.content[0] as TextContent).text.contains("page:1/2"))
+            }
+
+        @Test
+        @DisplayName("screenshot ignored with cursor and note appended")
+        fun screenshotIgnoredWithCursorAndNoteAppended() =
+            runTest {
+                stubCaptureWithTree(largeTree())
+                val id = snapshotId(freshText())
+
+                val params =
+                    buildJsonObject {
+                        put("cursor", "$id.2")
+                        put("include_screenshot", true)
+                    }
+                val result = handler.execute(params)
+
+                assertEquals(1, result.content.size)
+                val text = (result.content[0] as TextContent).text
+                assertTrue(text.contains("page:2/2"))
+                assertTrue(text.contains("screenshot can only be requested on page 1"))
+            }
+
+        @Test
+        @DisplayName("screenshot note appended on cursor guidance paths")
+        fun screenshotNoteAppendedOnCursorGuidancePaths() =
+            runTest {
+                val params =
+                    buildJsonObject {
+                        put("cursor", "garbage")
+                        put("include_screenshot", true)
+                    }
+                val result = handler.execute(params)
+
+                assertEquals(1, result.content.size)
+                val text = (result.content[0] as TextContent).text
+                assertTrue(text.contains("invalid cursor"))
+                assertTrue(text.contains("screenshot can only be requested on page 1"))
             }
     }
 }

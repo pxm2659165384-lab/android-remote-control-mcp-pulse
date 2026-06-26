@@ -8,6 +8,7 @@ import android.view.accessibility.AccessibilityWindowInfo
 import com.danielealbano.androidremotecontrolmcp.data.model.ScreenshotData
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.AccessibilityNodeData
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.BoundsData
+import com.danielealbano.androidremotecontrolmcp.services.accessibility.PaginationTestTrees
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.ScreenInfo
 import com.danielealbano.androidremotecontrolmcp.services.screencapture.ScreenCaptureProvider
 import io.mockk.coEvery
@@ -400,6 +401,65 @@ class ScreenIntrospectionIntegrationTest {
                     assertTrue(text.contains("--- window:0"))
                     // Elements still present
                     assertTrue(text.contains("node_btn"))
+                }
+            }
+    }
+
+    @Nested
+    @DisplayName("Pagination")
+    inner class Pagination {
+        private fun MockDependencies.setupTree(tree: AccessibilityNodeData) {
+            McpIntegrationTestHelper.setupMultiWindowMock(
+                deps = this,
+                tree = tree,
+                screenInfo = sampleScreenInfo,
+                packageName = "com.example.app",
+                activityName = ".MainActivity",
+            )
+        }
+
+        private fun snapshotId(text: String): String = Regex("snapshot:(\\S+)").find(text)!!.groupValues[1]
+
+        @Test
+        fun `get_screen_state paginates over streamable http`() =
+            runTest {
+                val deps = McpIntegrationTestHelper.createMockDependencies()
+                // 252 kept nodes -> 2 pages
+                deps.setupTree(PaginationTestTrees.keptNodeWindow(250).tree)
+
+                McpIntegrationTestHelper.withTestApplication(deps) { client, _ ->
+                    val page1Result = client.callTool(name = "android_get_screen_state", arguments = emptyMap())
+                    val page1 = (page1Result.content[0] as TextContent).text
+                    assertTrue(page1.contains("page:1/2"))
+                    val id = snapshotId(page1)
+
+                    val page2Result =
+                        client.callTool(
+                            name = "android_get_screen_state",
+                            arguments = mapOf("cursor" to "$id.2"),
+                        )
+                    assertTrue((page2Result.content[0] as TextContent).text.contains("page:2/2"))
+
+                    val badResult =
+                        client.callTool(
+                            name = "android_get_screen_state",
+                            arguments = mapOf("cursor" to "$id.999"),
+                        )
+                    assertTrue((badResult.content[0] as TextContent).text.contains("does not exist"))
+                }
+            }
+
+        @Test
+        fun `get_screen_state small screen returns no cursor`() =
+            runTest {
+                val deps = McpIntegrationTestHelper.createMockDependencies()
+                // 12 kept nodes -> single page, no pagination metadata
+                deps.setupTree(PaginationTestTrees.keptNodeWindow(10).tree)
+
+                McpIntegrationTestHelper.withTestApplication(deps) { client, _ ->
+                    val result = client.callTool(name = "android_get_screen_state", arguments = emptyMap())
+                    val text = (result.content[0] as TextContent).text
+                    assertFalse(text.contains("page:"))
                 }
             }
     }
