@@ -137,6 +137,18 @@ Replace `DEVICE_IP`, `PORT`, and `YOUR_TOKEN` with the values shown in the app's
 
 > **Note for clients without custom-header support (e.g. Claude Desktop):** if your MCP client cannot send an `Authorization` header, you can clear the bearer token in the app (Settings → General → Bearer Token → Clear). When the token is empty, the server skips authentication entirely. Only do this on a network you trust — anyone who can reach the server will be able to use it.
 
+### Claude.ai & Claude Desktop (Custom Connector)
+
+Claude.ai (web) and Claude Desktop can connect to the server as a **custom connector** (remote MCP). This requires the server to be reachable over a **public HTTPS URL**, so you must first enable a [remote access tunnel](#using-remote-access-tunnels) — a `localhost`/LAN address or `adb` port-forward will **not** work.
+
+1. In the app, open **Settings → Tunnel**, enable **Remote Access** (Cloudflare Quick Tunnels needs no account), and start the server. Copy the public `https://…` URL from the connection info on the Server tab and append `/mcp` (e.g. `https://your-tunnel.trycloudflare.com/mcp`).
+2. Custom connectors authenticate via OAuth and cannot send a bearer token, so **clear the bearer token** in the app (**Settings → General → Bearer Token → Clear**). With an empty token the server accepts unauthenticated requests.
+3. In Claude, open **[Customize → Connectors → Add custom connector](https://claude.ai/customize/connectors?modal=add-custom-connector)**, paste the `https://…/mcp` URL, and click **Add**.
+
+Custom connectors are available on the Free (1 connector), Pro, Max, Team, and Enterprise plans (currently in beta).
+
+> ⚠️ **Security:** an empty token means **anyone who knows the public tunnel URL can fully control your device** — and any apps or accounts signed in on it. Use this only on a tunnel you control, treat the URL as a secret, stop the tunnel and server when you are done, and never point it at a device holding sensitive data. The server currently supports only bearer-token auth, not OAuth.
+
 ### Other MCP Clients
 
 The MCP server exposes a standard Streamable HTTP endpoint at `/mcp` with bearer token authentication. Any MCP-compatible client can connect to it — refer to your client's documentation for the specific configuration format.
