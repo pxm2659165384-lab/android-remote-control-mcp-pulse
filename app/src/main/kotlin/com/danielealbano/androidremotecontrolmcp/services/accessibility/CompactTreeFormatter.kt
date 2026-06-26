@@ -105,7 +105,7 @@ class CompactTreeFormatter
             }
         }
 
-        private fun appendElementRow(
+        internal fun appendElementRow(
             sb: StringBuilder,
             node: AccessibilityNodeData,
         ) {
@@ -174,152 +174,6 @@ class CompactTreeFormatter
 
             return sb.toString().trimEnd('\n')
         }
-
-        /** Total number of kept nodes across all windows (equals the number of TSV rows emitted). */
-        fun countKeptNodes(result: MultiWindowResult): Int =
-            result.windows.sumOf { countKeptInTree(it.tree) }
-
-        private fun countKeptInTree(node: AccessibilityNodeData): Int {
-            var count = if (shouldKeepNode(node)) 1 else 0
-            for (child in node.children) {
-                count += countKeptInTree(child)
-            }
-            return count
-        }
-
-        /**
-         * Formats a single page (1-based [page]) of [snapshot] as a compact string.
-         *
-         * The header/notes/window-header/TSV-row/hierarchy formats are IDENTICAL to
-         * [formatMultiWindow]; the only additions are the `page:` line and the trailing cursor note.
-         * A window section is emitted only when it contributes at least one row to this page.
-         * Each window's `hierarchy:` block lists the page's rows for that window PLUS their
-         * kept-ancestors (kept-ancestor closure), preserving today's kept-depth indentation.
-         *
-         * [page] MUST be within 1..[ScreenStateSnapshot.totalPages] (validated by the caller).
-         */
-        fun formatMultiWindowPage(
-            snapshot: ScreenStateSnapshot,
-            page: Int,
-        ): String {
-            val result = snapshot.result
-            val screenInfo = snapshot.screenInfo
-            val snapshotId = snapshot.id
-            val totalKeptNodes = snapshot.totalKeptNodes
-            val totalPages = snapshot.totalPages
-            val startIndex = (page - 1) * PAGE_SIZE
-            val endIndexExclusive = minOf(page * PAGE_SIZE, totalKeptNodes)
-            val perWindowKept = result.windows.map { collectKeptNodes(it.tree) }
-
-            val sb = StringBuilder()
-            if (result.degraded) sb.appendLine(DEGRADATION_NOTE)
-            sb.appendLine(NOTE_LINE)
-            sb.appendLine(NOTE_LINE_CUSTOM_ELEMENTS)
-            sb.appendLine(NOTE_LINE_FLAGS_LEGEND)
-            sb.appendLine(NOTE_LINE_OFFSCREEN_HINT)
-            sb.appendLine(
-                "screen:${screenInfo.width}x${screenInfo.height} " +
-                    "density:${screenInfo.densityDpi} orientation:${screenInfo.orientation}",
-            )
-            sb.appendLine(
-                "page:$page/$totalPages snapshot:$snapshotId " +
-                    "nodes:${startIndex + 1}-$endIndexExclusive/$totalKeptNodes",
-            )
-
-            var windowGlobalStart = 0
-            for ((wIdx, windowData) in result.windows.withIndex()) {
-                val kept = perWindowKept[wIdx]
-                val windowEnd = windowGlobalStart + kept.size
-                val overlapStart = maxOf(startIndex, windowGlobalStart)
-                val overlapEnd = minOf(endIndexExclusive, windowEnd)
-                if (overlapStart < overlapEnd) {
-                    val pageNodes = kept.subList(overlapStart - windowGlobalStart, overlapEnd - windowGlobalStart)
-                    appendWindowPageSection(sb, windowData, pageNodes)
-                }
-                windowGlobalStart = windowEnd
-            }
-
-            sb.appendLine(buildPaginationNote(snapshotId, page, totalPages))
-            return sb.toString().trimEnd('\n')
-        }
-
-        private fun appendWindowPageSection(
-            sb: StringBuilder,
-            windowData: WindowData,
-            pageNodes: List<AccessibilityNodeData>,
-        ) {
-            val pageNodeIds = pageNodes.mapTo(HashSet()) { it.id }
-            sb.appendLine(buildWindowHeader(windowData))
-            sb.appendLine(HEADER)
-            for (node in pageNodes) appendElementRow(sb, node)
-            sb.appendLine(HIERARCHY_HEADER)
-            val closure = computeKeptAncestorClosure(windowData.tree, pageNodeIds)
-            appendPageHierarchy(sb, windowData.tree, 0, closure)
-        }
-
-        /** Pre-order list of kept nodes (same order/filter as walkTree's TSV emission). */
-        private fun collectKeptNodes(root: AccessibilityNodeData): List<AccessibilityNodeData> {
-            val out = ArrayList<AccessibilityNodeData>()
-            fun walk(node: AccessibilityNodeData) {
-                if (shouldKeepNode(node)) out.add(node)
-                for (child in node.children) walk(child)
-            }
-            walk(root)
-            return out
-        }
-
-        /** Ids of kept nodes that are a page row OR a kept-ancestor of a page row. */
-        private fun computeKeptAncestorClosure(
-            root: AccessibilityNodeData,
-            pageNodeIds: Set<String>,
-        ): Set<String> {
-            val closure = HashSet<String>()
-            fun covers(node: AccessibilityNodeData): Boolean {
-                var subtreeCovers = node.id in pageNodeIds
-                for (child in node.children) {
-                    if (covers(child)) subtreeCovers = true
-                }
-                if (subtreeCovers && shouldKeepNode(node)) closure.add(node.id)
-                return subtreeCovers
-            }
-            covers(root)
-            return closure
-        }
-
-        /**
-         * Emits the hierarchy lines for nodes in [closure], using the SAME kept-depth indentation
-         * as [walkTree]: depth increments for every kept node (whether or not it is emitted), so
-         * emitted closure nodes land at exactly the indentation they have in the full hierarchy.
-         */
-        private fun appendPageHierarchy(
-            sb: StringBuilder,
-            node: AccessibilityNodeData,
-            depth: Int,
-            closure: Set<String>,
-        ) {
-            val isKept = shouldKeepNode(node)
-            if (isKept && node.id in closure) {
-                repeat(depth) { sb.append(HIERARCHY_INDENT) }
-                sb.appendLine(node.id)
-            }
-            val childDepth = if (isKept) depth + 1 else depth
-            for (child in node.children) appendPageHierarchy(sb, child, childDepth, closure)
-        }
-
-        private fun buildPaginationNote(
-            snapshotId: String,
-            page: Int,
-            totalPages: Int,
-        ): String =
-            if (page < totalPages) {
-                "note:more nodes available — call get_screen_state with cursor " +
-                    "\"$snapshotId.${page + 1}\" to continue. You do NOT need to fetch every page; " +
-                    "stop once you have found what you need. This cursor is tied to this screen " +
-                    "snapshot; if the screen changed, call without a cursor for a fresh one."
-            } else {
-                "note:end of snapshot (page $page/$totalPages). You do NOT need to have fetched " +
-                    "every page; stop once you have found what you need."
-            }
 
         /**
          * Builds the window header line for a single window.
@@ -475,10 +329,154 @@ class CompactTreeFormatter
             const val FLAG_EDITABLE = "edt"
             const val FLAG_ENABLED = "ena"
             const val HIERARCHY_HEADER = "hierarchy:"
-            private const val HIERARCHY_INDENT = "  "
+            internal const val HIERARCHY_INDENT = "  "
             private const val FLAG_SEPARATOR = ","
             const val HEADER =
                 "node_id${COLUMN_SEPARATOR}class${COLUMN_SEPARATOR}text${COLUMN_SEPARATOR}" +
                     "desc${COLUMN_SEPARATOR}res_id${COLUMN_SEPARATOR}bounds${COLUMN_SEPARATOR}flags"
         }
     }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Pagination (Plan 47)
+//
+// Implemented as top-level/extension functions to keep CompactTreeFormatter within detekt's
+// per-class function-count threshold while reusing its internal rendering helpers
+// (shouldKeepNode, buildWindowHeader, appendElementRow) and companion constants.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Total number of kept nodes across all windows (equals the number of TSV rows emitted). */
+internal fun CompactTreeFormatter.countKeptNodes(result: MultiWindowResult): Int {
+    fun count(node: AccessibilityNodeData): Int {
+        var c = if (shouldKeepNode(node)) 1 else 0
+        for (child in node.children) c += count(child)
+        return c
+    }
+    return result.windows.sumOf { count(it.tree) }
+}
+
+/**
+ * Formats a single page (1-based [page]) of [snapshot] as a compact string.
+ *
+ * The header/notes/window-header/TSV-row/hierarchy formats are IDENTICAL to
+ * [CompactTreeFormatter.formatMultiWindow]; the only additions are the `page:` line and the
+ * trailing cursor note. A window section is emitted only when it contributes at least one row to
+ * this page. Each window's `hierarchy:` block lists the page's rows for that window PLUS their
+ * kept-ancestors (kept-ancestor closure), preserving today's kept-depth indentation.
+ *
+ * [page] MUST be within 1..[ScreenStateSnapshot.totalPages] (validated by the caller).
+ */
+internal fun CompactTreeFormatter.formatMultiWindowPage(
+    snapshot: ScreenStateSnapshot,
+    page: Int,
+): String {
+    val result = snapshot.result
+    val screenInfo = snapshot.screenInfo
+    val startIndex = (page - 1) * CompactTreeFormatter.PAGE_SIZE
+    val endIndexExclusive = minOf(page * CompactTreeFormatter.PAGE_SIZE, snapshot.totalKeptNodes)
+    val perWindowKept = result.windows.map { collectKeptNodes(this, it.tree) }
+
+    val sb = StringBuilder()
+    if (result.degraded) sb.appendLine(CompactTreeFormatter.DEGRADATION_NOTE)
+    sb.appendLine(CompactTreeFormatter.NOTE_LINE)
+    sb.appendLine(CompactTreeFormatter.NOTE_LINE_CUSTOM_ELEMENTS)
+    sb.appendLine(CompactTreeFormatter.NOTE_LINE_FLAGS_LEGEND)
+    sb.appendLine(CompactTreeFormatter.NOTE_LINE_OFFSCREEN_HINT)
+    sb.appendLine(
+        "screen:${screenInfo.width}x${screenInfo.height} " +
+            "density:${screenInfo.densityDpi} orientation:${screenInfo.orientation}",
+    )
+    sb.appendLine(
+        "page:$page/${snapshot.totalPages} snapshot:${snapshot.id} " +
+            "nodes:${startIndex + 1}-$endIndexExclusive/${snapshot.totalKeptNodes}",
+    )
+
+    var windowGlobalStart = 0
+    for ((wIdx, windowData) in result.windows.withIndex()) {
+        val kept = perWindowKept[wIdx]
+        val windowEnd = windowGlobalStart + kept.size
+        val overlapStart = maxOf(startIndex, windowGlobalStart)
+        val overlapEnd = minOf(endIndexExclusive, windowEnd)
+        if (overlapStart < overlapEnd) {
+            val pageNodes = kept.subList(overlapStart - windowGlobalStart, overlapEnd - windowGlobalStart)
+            appendWindowPageSection(this, sb, windowData, pageNodes)
+        }
+        windowGlobalStart = windowEnd
+    }
+
+    sb.appendLine(buildPaginationNote(snapshot, page))
+    return sb.toString().trimEnd('\n')
+}
+
+private fun buildPaginationNote(
+    snapshot: ScreenStateSnapshot,
+    page: Int,
+): String =
+    if (page < snapshot.totalPages) {
+        "note:more nodes available — call get_screen_state with cursor " +
+            "\"${snapshot.id}.${page + 1}\" to continue. You do NOT need to fetch every page; " +
+            "stop once you have found what you need. This cursor is tied to this screen " +
+            "snapshot; if the screen changed, call without a cursor for a fresh one."
+    } else {
+        "note:end of snapshot (page $page/${snapshot.totalPages}). You do NOT need to have " +
+            "fetched every page; stop once you have found what you need."
+    }
+
+/** Pre-order list of kept nodes (same order/filter as walkTree's TSV emission). */
+private fun collectKeptNodes(
+    formatter: CompactTreeFormatter,
+    root: AccessibilityNodeData,
+): List<AccessibilityNodeData> {
+    val out = ArrayList<AccessibilityNodeData>()
+
+    fun walk(node: AccessibilityNodeData) {
+        if (formatter.shouldKeepNode(node)) out.add(node)
+        for (child in node.children) walk(child)
+    }
+    walk(root)
+    return out
+}
+
+/**
+ * Emits a window section for [pageNodes]: window header, TSV rows, and a `hierarchy:` block holding
+ * those rows PLUS their kept-ancestors (kept-ancestor closure), at the same kept-depth indentation
+ * as [CompactTreeFormatter.formatMultiWindow].
+ */
+private fun appendWindowPageSection(
+    formatter: CompactTreeFormatter,
+    sb: StringBuilder,
+    windowData: WindowData,
+    pageNodes: List<AccessibilityNodeData>,
+) {
+    val pageNodeIds = pageNodes.mapTo(HashSet()) { it.id }
+    val closure = HashSet<String>()
+
+    fun covers(node: AccessibilityNodeData): Boolean {
+        var subtreeCovers = node.id in pageNodeIds
+        for (child in node.children) {
+            if (covers(child)) subtreeCovers = true
+        }
+        if (subtreeCovers && formatter.shouldKeepNode(node)) closure.add(node.id)
+        return subtreeCovers
+    }
+    covers(windowData.tree)
+
+    sb.appendLine(formatter.buildWindowHeader(windowData))
+    sb.appendLine(CompactTreeFormatter.HEADER)
+    for (node in pageNodes) formatter.appendElementRow(sb, node)
+    sb.appendLine(CompactTreeFormatter.HIERARCHY_HEADER)
+
+    fun appendHierarchy(
+        node: AccessibilityNodeData,
+        depth: Int,
+    ) {
+        val isKept = formatter.shouldKeepNode(node)
+        if (isKept && node.id in closure) {
+            repeat(depth) { sb.append(CompactTreeFormatter.HIERARCHY_INDENT) }
+            sb.appendLine(node.id)
+        }
+        val childDepth = if (isKept) depth + 1 else depth
+        for (child in node.children) appendHierarchy(child, childDepth)
+    }
+    appendHierarchy(windowData.tree, 0)
+}

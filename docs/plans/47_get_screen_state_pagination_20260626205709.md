@@ -725,9 +725,9 @@ object PaginationTestTrees {
 Run the full quality gates, then re-verify the entire implementation from scratch against this plan and the discussed behavior.
 
 ### Acceptance Criteria
-- [ ] `make lint` clean (ktlint + detekt), no new suppressions.
-- [ ] `./gradlew :app:test` green.
-- [ ] `./gradlew build` succeeds without warnings.
+- [x] `make lint` clean (ktlint + detekt), no new suppressions.
+- [x] `./gradlew :app:test` green.
+- [x] `./gradlew build` succeeds without warnings.
 - [ ] code-reviewer (plan-compliance mode) reports no issues.
 - [ ] Ground-up re-verification completed and documented.
 
@@ -736,21 +736,21 @@ Run the full quality gates, then re-verify the entire implementation from scratc
 **Action 5.1.1** — Run `make lint 2>&1 | tee /tmp/p47-lint.log | tail -40`; fix every violation at the root (no `@Suppress` beyond the carried-over screenshot ones).
 
 **Definition of Done**:
-- [ ] Zero ktlint/detekt violations.
+- [x] Zero ktlint/detekt violations.
 
 ### Task 5.2: Tests
 
 **Action 5.2.1** — Run `make test 2>&1 | tee /tmp/p47-test.log | tail -40`; fix any failure (including pre-existing breakage surfaced by the new parameters).
 
 **Definition of Done**:
-- [ ] Full suite green.
+- [x] Full suite green.
 
 ### Task 5.3: Build
 
 **Action 5.3.1** — Run `./gradlew build 2>&1 | tee /tmp/p47-build.log | tail -60`.
 
 **Definition of Done**:
-- [ ] Build succeeds, no warnings.
+- [x] Build succeeds, no warnings.
 
 ### Task 5.4: Plan-compliance review
 

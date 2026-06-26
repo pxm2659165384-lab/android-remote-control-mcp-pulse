@@ -895,8 +895,10 @@ class CompactTreeFormatterTest {
             return ScreenStateSnapshot(id, result, defaultScreenInfo, total, pages)
         }
 
-        private fun tsvRows(pageText: String): List<String> =
-            pageText.lines().filter { it.contains('\t') && !it.startsWith("node_id\t") }
+        private fun tsvRows(pageText: String): List<String> {
+            val rows = pageText.lines().filter { it.contains('\t') && !it.startsWith("node_id\t") }
+            return rows
+        }
 
         private fun hierarchyLines(pageText: String): List<String> {
             val lines = pageText.lines()

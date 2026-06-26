@@ -169,13 +169,7 @@ object McpIntegrationTestHelper {
             toolNamePrefix,
             perms,
         )
-        registerSystemActionTools(
-            server,
-            deps.actionExecutor,
-            deps.accessibilityServiceProvider,
-            toolNamePrefix,
-            perms,
-        )
+        registerSystemActionTools(server, deps.actionExecutor, deps.accessibilityServiceProvider, toolNamePrefix, perms)
         registerTouchActionTools(server, deps.actionExecutor, toolNamePrefix, perms)
         registerGestureTools(server, deps.actionExecutor, toolNamePrefix, perms)
         registerNodeActionTools(

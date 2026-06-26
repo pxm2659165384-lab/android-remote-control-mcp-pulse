@@ -64,10 +64,10 @@ class ScreenIntrospectionToolsTest {
         mockNodeCache = mockk<AccessibilityNodeCache>(relaxed = true)
         mockRootNode = mockk<AccessibilityNodeInfo>(relaxed = true)
         mockWindowInfo = mockk<AccessibilityWindowInfo>(relaxed = true)
-        // The handler counts kept nodes before formatting; stub it on the strict formatter mock so
-        // every existing test stays on the single-page (formatMultiWindow) path. Pagination tests
-        // below use a real CompactTreeFormatter instead.
-        every { mockCompactTreeFormatter.countKeptNodes(any()) } returns 0
+        // countKeptNodes (an extension fn) walks the tree via shouldKeepNode; stub it on the strict
+        // formatter mock so every existing test's small tree counts as <=200 nodes and stays on the
+        // single-page (formatMultiWindow) path. Pagination tests below use a real CompactTreeFormatter.
+        every { mockCompactTreeFormatter.shouldKeepNode(any()) } returns true
     }
 
     @AfterEach
@@ -467,16 +467,14 @@ class ScreenIntrospectionToolsTest {
             every { mockTreeParser.parseTree(mockRootNode, "root_w0", any()) } returns tree
         }
 
-        private suspend fun freshText(): String =
-            (handler.execute(null).content[0] as TextContent).text
+        private suspend fun freshText(): String = (handler.execute(null).content[0] as TextContent).text
 
         private suspend fun pagedText(cursor: String): String {
             val params = buildJsonObject { put("cursor", cursor) }
             return (handler.execute(params).content[0] as TextContent).text
         }
 
-        private fun snapshotId(text: String): String =
-            Regex("snapshot:(\\S+)").find(text)!!.groupValues[1]
+        private fun snapshotId(text: String): String = Regex("snapshot:(\\S+)").find(text)!!.groupValues[1]
 
         @Test
         @DisplayName("cursorless small screen returns single page no cursor and clears cache")

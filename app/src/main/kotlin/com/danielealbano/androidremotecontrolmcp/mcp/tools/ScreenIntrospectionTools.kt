@@ -16,6 +16,8 @@ import com.danielealbano.androidremotecontrolmcp.services.accessibility.ScreenIn
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.ScreenStateSnapshot
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.ScreenStateSnapshotCache
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.WindowData
+import com.danielealbano.androidremotecontrolmcp.services.accessibility.countKeptNodes
+import com.danielealbano.androidremotecontrolmcp.services.accessibility.formatMultiWindowPage
 import com.danielealbano.androidremotecontrolmcp.services.screencapture.ScreenCaptureProvider
 import com.danielealbano.androidremotecontrolmcp.services.screencapture.ScreenshotAnnotator
 import com.danielealbano.androidremotecontrolmcp.services.screencapture.ScreenshotEncoder
@@ -130,31 +132,26 @@ class GetScreenStateHandler
             val snapshot = parsed?.let { screenStateSnapshotCache.get(it.first) }
             val body =
                 when {
-                    parsed == null -> INVALID_CURSOR_MESSAGE
-                    snapshot == null -> SNAPSHOT_GONE_MESSAGE
-                    parsed.second < 1 || parsed.second > snapshot.totalPages ->
+                    parsed == null -> {
+                        INVALID_CURSOR_MESSAGE
+                    }
+
+                    snapshot == null -> {
+                        SNAPSHOT_GONE_MESSAGE
+                    }
+
+                    parsed.second < 1 || parsed.second > snapshot.totalPages -> {
                         noSuchPageMessage(parsed.first, parsed.second, snapshot.totalPages)
-                    else -> compactTreeFormatter.formatMultiWindowPage(snapshot, parsed.second)
+                    }
+
+                    else -> {
+                        compactTreeFormatter.formatMultiWindowPage(snapshot, parsed.second)
+                    }
                 }
             // include_screenshot is ignored on ANY cursor call; when it was requested, append the
             // note to EVERY cursor response — valid page OR guidance — per agreed design point 9.
             return if (includeScreenshot) "$body\n$SCREENSHOT_ONLY_PAGE1_NOTE" else body
         }
-
-        private fun parseCursor(cursor: String): Pair<String, Int>? {
-            val dot = cursor.lastIndexOf('.')
-            val page = cursor.substringAfterLast('.', "").toIntOrNull()
-            return if (dot <= 0 || dot == cursor.length - 1 || page == null) {
-                null
-            } else {
-                cursor.substring(0, dot) to page
-            }
-        }
-
-        private fun ceilDiv(
-            a: Int,
-            b: Int,
-        ): Int = if (a <= 0) 1 else (a + b - 1) / b
 
         /**
          * Captures, annotates, and encodes the screenshot, returning a text+image result.
@@ -369,3 +366,23 @@ fun registerScreenIntrospectionTools(
         )
     }
 }
+
+/**
+ * Parses a pagination cursor "<id>.<page>" into (id, page). Validates FORMAT only (id present, page
+ * parses as an integer); the page RANGE (1..totalPages) is validated by the caller, so that page < 1
+ * yields the no-such-page guidance — NOT the invalid-cursor guidance. Returns null if malformed.
+ */
+private fun parseCursor(cursor: String): Pair<String, Int>? {
+    val dot = cursor.lastIndexOf('.')
+    val page = cursor.substringAfterLast('.', "").toIntOrNull()
+    return if (dot <= 0 || dot == cursor.length - 1 || page == null) {
+        null
+    } else {
+        cursor.substring(0, dot) to page
+    }
+}
+
+private fun ceilDiv(
+    a: Int,
+    b: Int,
+): Int = if (a <= 0) 1 else (a + b - 1) / b

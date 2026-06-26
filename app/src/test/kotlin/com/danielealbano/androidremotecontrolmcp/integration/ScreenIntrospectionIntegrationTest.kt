@@ -418,8 +418,7 @@ class ScreenIntrospectionIntegrationTest {
             )
         }
 
-        private fun snapshotId(text: String): String =
-            Regex("snapshot:(\\S+)").find(text)!!.groupValues[1]
+        private fun snapshotId(text: String): String = Regex("snapshot:(\\S+)").find(text)!!.groupValues[1]
 
         @Test
         fun `get_screen_state paginates over streamable http`() =
