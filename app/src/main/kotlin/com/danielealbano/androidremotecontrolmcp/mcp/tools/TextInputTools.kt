@@ -45,6 +45,24 @@ private const val ADAPTIVE_DELAY_DECREASE_MS = 25
 private const val ADAPTIVE_DELAY_MAX_MS = 2000
 
 /**
+ * Shared guidance appended to every text-entry tool description: entering text leaves the soft
+ * keyboard open, which can cover lower parts of the screen. [toolNamePrefix] is interpolated so
+ * the referenced tool name matches the server's configured prefix.
+ */
+private fun keyboardOverlayHint(toolNamePrefix: String): String =
+    "Typing leaves the keyboard open and may cover elements; " +
+        "call ${toolNamePrefix}dismiss_keyboard before tapping them."
+
+/**
+ * Standard trailing sentence shared by every text-entry tool description: confirms the
+ * verification behavior and appends the [keyboardOverlayHint]. Kept as one helper so the common
+ * tail stays DRY and does not lengthen each `register` function.
+ */
+private fun verificationAndKeyboardHint(toolNamePrefix: String): String =
+    "Returns the field content after the operation for verification. " +
+        keyboardOverlayHint(toolNamePrefix)
+
+/**
  * Mutex serializing all type tool operations.
  * Prevents concurrent MCP requests from interleaving character commits.
  *
@@ -438,7 +456,7 @@ class TypeAppendTextTool
                         "Maximum text length: $MAX_TEXT_LENGTH characters. " +
                         "For text longer than $MAX_TEXT_LENGTH chars, call this tool multiple times — " +
                         "subsequent calls continue typing at the current cursor position. " +
-                        "Returns the field content after the operation for verification.",
+                        verificationAndKeyboardHint(toolNamePrefix),
                 inputSchema =
                     ToolSchema(
                         properties =
@@ -576,7 +594,7 @@ class TypeInsertTextTool
                     "Type text character by character at a specific position in a text field. " +
                         "Uses natural InputConnection typing (indistinguishable from keyboard input). " +
                         "Maximum text length: $MAX_TEXT_LENGTH characters. " +
-                        "Returns the field content after the operation for verification.",
+                        verificationAndKeyboardHint(toolNamePrefix),
                 inputSchema =
                     ToolSchema(
                         properties =
@@ -783,7 +801,7 @@ class TypeReplaceTextTool
                         "character by character via InputConnection. " +
                         "Maximum new_text length: $MAX_TEXT_LENGTH characters. " +
                         "Returns error if search text is not found. " +
-                        "Returns the field content after the operation for verification.",
+                        verificationAndKeyboardHint(toolNamePrefix),
                 inputSchema =
                     ToolSchema(
                         properties =
@@ -938,7 +956,7 @@ class TypeClearTextTool
                 description =
                     "Clear all text from a field naturally using select-all + delete. " +
                         "Uses InputConnection operations (indistinguishable from user action). " +
-                        "Returns the field content after the operation for verification.",
+                        verificationAndKeyboardHint(toolNamePrefix),
                 inputSchema =
                     ToolSchema(
                         properties =

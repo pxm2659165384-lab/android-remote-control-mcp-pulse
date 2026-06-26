@@ -52,4 +52,34 @@ class SystemActionIntegrationTest {
                 assertTrue(text.contains("executed successfully"))
             }
         }
+
+    @Test
+    fun `dismiss_keyboard reports dismissal when a keyboard was open`() =
+        runTest {
+            val deps = McpIntegrationTestHelper.createMockDependencies()
+            every { deps.accessibilityServiceProvider.isReady() } returns true
+            coEvery { deps.actionExecutor.dismissKeyboard() } returns Result.success(true)
+
+            McpIntegrationTestHelper.withTestApplication(deps) { client, _ ->
+                val result = client.callTool(name = "android_dismiss_keyboard", arguments = emptyMap())
+                assertNotEquals(true, result.isError)
+                val text = (result.content[0] as TextContent).text
+                assertTrue(text.contains("Keyboard dismissed"))
+            }
+        }
+
+    @Test
+    fun `dismiss_keyboard reports no-op when no keyboard was open`() =
+        runTest {
+            val deps = McpIntegrationTestHelper.createMockDependencies()
+            every { deps.accessibilityServiceProvider.isReady() } returns true
+            coEvery { deps.actionExecutor.dismissKeyboard() } returns Result.success(false)
+
+            McpIntegrationTestHelper.withTestApplication(deps) { client, _ ->
+                val result = client.callTool(name = "android_dismiss_keyboard", arguments = emptyMap())
+                assertNotEquals(true, result.isError)
+                val text = (result.content[0] as TextContent).text
+                assertTrue(text.contains("No keyboard was open"))
+            }
+        }
 }

@@ -613,6 +613,70 @@ class GetDeviceLogsHandler
     }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// dismiss_keyboard
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * MCP tool handler for `dismiss_keyboard`.
+ *
+ * Closes the on-screen soft keyboard if one is open. No-op (and never navigates back) when no
+ * keyboard is visible — see [ActionExecutor.dismissKeyboard].
+ *
+ * **Input**: `{}` (no parameters)
+ * **Output**: text `"Keyboard dismissed"` or `"No keyboard was open"`
+ * **Errors**:
+ *   - PermissionDenied if accessibility service is not enabled
+ *   - ActionFailed if dismissing the keyboard failed
+ */
+class DismissKeyboardHandler
+    @Inject
+    constructor(
+        private val actionExecutor: ActionExecutor,
+        private val accessibilityServiceProvider: AccessibilityServiceProvider,
+    ) {
+        @Suppress("UnusedParameter")
+        suspend fun execute(arguments: JsonObject?): CallToolResult {
+            if (!accessibilityServiceProvider.isReady()) {
+                throw McpToolException.PermissionDenied(
+                    "Accessibility service not enabled. Please enable it in Android Settings > Accessibility.",
+                )
+            }
+
+            val dismissed =
+                actionExecutor.dismissKeyboard().getOrElse { exception ->
+                    throw McpToolException.ActionFailed(
+                        "Dismiss keyboard failed: ${exception.message ?: "Unknown error"}",
+                    )
+                }
+
+            return McpToolUtils.textResult(
+                if (dismissed) "Keyboard dismissed" else "No keyboard was open",
+            )
+        }
+
+        fun register(
+            server: Server,
+            toolNamePrefix: String,
+        ) {
+            server.addTool(
+                name = "$toolNamePrefix$TOOL_NAME",
+                description =
+                    "Closes the on-screen keyboard if open; no-op if none (never navigates back). " +
+                        "Use after typing to reveal elements it covers.",
+                inputSchema =
+                    ToolSchema(
+                        properties = buildJsonObject {},
+                        required = listOf(),
+                    ),
+            ) { request -> execute(request.arguments) }
+        }
+
+        companion object {
+            const val TOOL_NAME = "dismiss_keyboard"
+        }
+    }
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Registration function
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -642,6 +706,9 @@ fun registerSystemActionTools(
     }
     if (perms.isToolEnabled(OpenQuickSettingsHandler.TOOL_NAME)) {
         OpenQuickSettingsHandler(actionExecutor, accessibilityServiceProvider).register(server, toolNamePrefix)
+    }
+    if (perms.isToolEnabled(DismissKeyboardHandler.TOOL_NAME)) {
+        DismissKeyboardHandler(actionExecutor, accessibilityServiceProvider).register(server, toolNamePrefix)
     }
     if (perms.isToolEnabled(GetDeviceLogsHandler.TOOL_NAME)) {
         GetDeviceLogsHandler().register(server, toolNamePrefix)

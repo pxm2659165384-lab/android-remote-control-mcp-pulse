@@ -65,6 +65,7 @@ private val ALL_TOOL_CATEGORIES: List<ToolCategory> =
                 ToolEntry("press_recents", "Press Recents"),
                 ToolEntry("open_notifications", "Open Notifications"),
                 ToolEntry("open_quick_settings", "Open Quick Settings"),
+                ToolEntry("dismiss_keyboard", "Dismiss Keyboard"),
                 ToolEntry("get_device_logs", "Get Device Logs"),
             ),
         ),
