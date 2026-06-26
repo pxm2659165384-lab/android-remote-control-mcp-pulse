@@ -338,11 +338,11 @@ Add page-aware formatting that reuses the existing per-window TSV and hierarchy 
 `get_screen_state` accepts `cursor`, serves fresh page 1 or a cached page, validates cursors with normal-text guidance, and restricts the screenshot to the cursorless (page 1) call. The snapshot cache is cleared on server shutdown.
 
 ### Acceptance Criteria
-- [ ] `cursor` param exists in the tool input schema and description; tool description documents pagination, 200-row pages, screenshot-on-page-1-only, and stop-early guidance.
-- [ ] Cursorless: ≤200 rows ⇒ today's output + cache cleared; >200 rows ⇒ stored snapshot + page 1.
-- [ ] Cursor: malformed / stale-id / out-of-range ⇒ `untrustedTextResult` guidance (`isError=false`); valid ⇒ requested page from the frozen snapshot.
-- [ ] `include_screenshot` honored only on the cursorless call; on any cursor call it is ignored with a concise appended note.
-- [ ] Snapshot cache cleared in `McpServerService.onDestroy`.
+- [x] `cursor` param exists in the tool input schema and description; tool description documents pagination, 200-row pages, screenshot-on-page-1-only, and stop-early guidance.
+- [x] Cursorless: ≤200 rows ⇒ today's output + cache cleared; >200 rows ⇒ stored snapshot + page 1.
+- [x] Cursor: malformed / stale-id / out-of-range ⇒ `untrustedTextResult` guidance (`isError=false`); valid ⇒ requested page from the frozen snapshot.
+- [x] `include_screenshot` honored only on the cursorless call; on any cursor call it is ignored with a concise appended note.
+- [x] Snapshot cache cleared in `McpServerService.onDestroy`.
 
 ### Task 3.1: GetScreenStateHandler
 
@@ -531,16 +531,16 @@ Replace the existing `description = "..."` string for this tool with exactly the
 ```
 
 **Definition of Done**:
-- [ ] `execute` and every new helper are ≤60 lines and ≤2 `return` statements (detekt LongMethod/ReturnCount).
-- [ ] No new `@Suppress` added except the pre-existing ones carried over onto `buildScreenshotResult`.
-- [ ] Tool description and `cursor` schema present; `include_screenshot` schema unchanged.
+- [x] `execute` and every new helper are ≤60 lines and ≤2 `return` statements (detekt LongMethod/ReturnCount).
+- [x] No new `@Suppress` added except the pre-existing ones carried over onto `buildScreenshotResult`.
+- [x] Tool description and `cursor` schema present; `include_screenshot` schema unchanged.
 
 ### Task 3.2: Registration function
 
 **Action 3.2.1** — Modify `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/mcp/tools/ScreenIntrospectionTools.kt` (modify): add `screenStateSnapshotCache: ScreenStateSnapshotCache` to `registerScreenIntrospectionTools(...)` parameters (after `nodeCache`) and pass it into the `GetScreenStateHandler(...)` constructor call.
 
 **Definition of Done**:
-- [ ] `registerScreenIntrospectionTools` forwards the cache to the handler.
+- [x] `registerScreenIntrospectionTools` forwards the cache to the handler.
 
 ### Task 3.3: Service wiring + lifecycle
 
@@ -557,7 +557,7 @@ Replace the existing `description = "..."` string for this tool with exactly the
 Add import for `ScreenStateSnapshotCache`.
 
 **Definition of Done**:
-- [ ] App compiles; snapshot cache cleared on service destroy.
+- [x] App compiles; snapshot cache cleared on service destroy.
 
 ---
 

@@ -11,6 +11,10 @@ import com.danielealbano.androidremotecontrolmcp.services.accessibility.Accessib
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.AccessibilityServiceProvider
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.AccessibilityTreeParser
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.CompactTreeFormatter
+import com.danielealbano.androidremotecontrolmcp.services.accessibility.MultiWindowResult
+import com.danielealbano.androidremotecontrolmcp.services.accessibility.ScreenInfo
+import com.danielealbano.androidremotecontrolmcp.services.accessibility.ScreenStateSnapshot
+import com.danielealbano.androidremotecontrolmcp.services.accessibility.ScreenStateSnapshotCache
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.WindowData
 import com.danielealbano.androidremotecontrolmcp.services.screencapture.ScreenCaptureProvider
 import com.danielealbano.androidremotecontrolmcp.services.screencapture.ScreenshotAnnotator
@@ -18,9 +22,13 @@ import com.danielealbano.androidremotecontrolmcp.services.screencapture.Screensh
 import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
 import io.modelcontextprotocol.kotlin.sdk.types.ToolSchema
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
@@ -49,98 +57,175 @@ class GetScreenStateHandler
         private val screenshotAnnotator: ScreenshotAnnotator,
         private val screenshotEncoder: ScreenshotEncoder,
         private val nodeCache: AccessibilityNodeCache,
+        private val screenStateSnapshotCache: ScreenStateSnapshotCache,
     ) {
         @Volatile private var includeScreenshotEnabled: Boolean = true
 
-        @Suppress("ThrowsCount", "LongMethod", "TooGenericExceptionCaught")
         suspend fun execute(arguments: JsonObject?): CallToolResult {
-            // 1. Parse include_screenshot param FIRST (before expensive operations)
-            val includeScreenshot =
-                if (includeScreenshotEnabled) {
-                    arguments?.get("include_screenshot")?.jsonPrimitive?.booleanOrNull ?: false
-                } else {
-                    false
-                }
+            val includeScreenshot = parseIncludeScreenshot(arguments)
+            val cursorElement = arguments?.get("cursor")
+            // Absent, JSON null, or a blank string ⇒ fresh cursorless capture (settled behavior 1).
+            // A present, non-blank value (INCLUDING a non-primitive object/array) ⇒ paged path,
+            // where an unusable value yields INVALID_CURSOR_MESSAGE guidance rather than throwing.
+            val isFresh =
+                cursorElement == null ||
+                    cursorElement is JsonNull ||
+                    ((cursorElement as? JsonPrimitive)?.contentOrNull?.isBlank() == true)
+            return if (isFresh) {
+                handleFreshRequest(includeScreenshot)
+            } else {
+                McpToolUtils.untrustedTextResult(buildPagedText(cursorElement, includeScreenshot))
+            }
+        }
 
-            // 2. Get multi-window accessibility snapshot
-            //    (getFreshWindows handles isReady check and fallback to single-window)
-            val result = getFreshWindows(treeParser, accessibilityServiceProvider, nodeCache)
-
-            // 3. Get screen info
-            val screenInfo = accessibilityServiceProvider.getScreenInfo()
-
-            // 4. Format compact multi-window output
-            val compactOutput = compactTreeFormatter.formatMultiWindow(result, screenInfo)
-
-            Log.d(TAG, "get_screen_state: includeScreenshot=$includeScreenshot")
-
-            // 5. Optionally include annotated screenshot.
-            // NOTE: There is an inherent timing gap between tree parsing and
-            // screenshot capture below. If the UI changes in between, bounding boxes may
-            // reference stale element positions. Atomic capture is not possible with the
-            // current Android accessibility APIs.
-            if (includeScreenshot) {
-                if (!screenCaptureProvider.isScreenCaptureAvailable()) {
-                    throw McpToolException.PermissionDenied(
-                        "Screen capture not available. Please enable the accessibility " +
-                            "service in Android Settings.",
-                    )
-                }
-
-                val bitmapResult =
-                    screenCaptureProvider.captureScreenshotBitmap(
-                        maxWidth = SCREENSHOT_MAX_SIZE,
-                        maxHeight = SCREENSHOT_MAX_SIZE,
-                    )
-                val resizedBitmap =
-                    bitmapResult.getOrElse { exception ->
-                        Log.e(TAG, "Screenshot capture failed", exception)
-                        throw McpToolException.ActionFailed(
-                            "Screenshot capture failed",
-                        )
-                    }
-
-                var annotatedBitmap: Bitmap? = null
-                try {
-                    // Collect on-screen elements from ALL windows' trees
-                    val onScreenElements = collectOnScreenElements(result.windows)
-
-                    // Annotate the screenshot with bounding boxes
-                    annotatedBitmap =
-                        screenshotAnnotator.annotate(
-                            resizedBitmap,
-                            onScreenElements,
-                            screenInfo.width,
-                            screenInfo.height,
-                        )
-
-                    // Encode annotated bitmap to base64 JPEG
-                    val screenshotData =
-                        screenshotEncoder.bitmapToScreenshotData(
-                            annotatedBitmap,
-                            ScreenCaptureProvider.DEFAULT_QUALITY,
-                        )
-
-                    return McpToolUtils.untrustedTextAndImageResult(
-                        compactOutput,
-                        screenshotData.data,
-                        "image/jpeg",
-                    )
-                } catch (e: McpToolException) {
-                    throw e
-                } catch (e: Exception) {
-                    Log.e(TAG, "Screenshot annotation failed", e)
-                    throw McpToolException.ActionFailed(
-                        "Screenshot annotation failed",
-                    )
-                } finally {
-                    annotatedBitmap?.recycle()
-                    resizedBitmap.recycle()
-                }
+        private fun parseIncludeScreenshot(arguments: JsonObject?): Boolean =
+            if (includeScreenshotEnabled) {
+                arguments?.get("include_screenshot")?.jsonPrimitive?.booleanOrNull ?: false
+            } else {
+                false
             }
 
-            // 6. Return text-only result
-            return McpToolUtils.untrustedTextResult(compactOutput)
+        private suspend fun handleFreshRequest(includeScreenshot: Boolean): CallToolResult {
+            val result = getFreshWindows(treeParser, accessibilityServiceProvider, nodeCache)
+            val screenInfo = accessibilityServiceProvider.getScreenInfo()
+            val totalKept = compactTreeFormatter.countKeptNodes(result)
+            val totalPages = ceilDiv(totalKept, CompactTreeFormatter.PAGE_SIZE)
+            val compactOutput = buildFreshPageText(result, screenInfo, totalKept, totalPages)
+            Log.d(TAG, "get_screen_state: includeScreenshot=$includeScreenshot pages=$totalPages")
+            return if (includeScreenshot) {
+                buildScreenshotResult(result, screenInfo, compactOutput)
+            } else {
+                McpToolUtils.untrustedTextResult(compactOutput)
+            }
+        }
+
+        private fun buildFreshPageText(
+            result: MultiWindowResult,
+            screenInfo: ScreenInfo,
+            totalKept: Int,
+            totalPages: Int,
+        ): String =
+            if (totalPages <= 1) {
+                screenStateSnapshotCache.clear()
+                compactTreeFormatter.formatMultiWindow(result, screenInfo)
+            } else {
+                val snapshot =
+                    ScreenStateSnapshot(
+                        System.currentTimeMillis().toString(CURSOR_RADIX),
+                        result,
+                        screenInfo,
+                        totalKept,
+                        totalPages,
+                    )
+                screenStateSnapshotCache.store(snapshot)
+                compactTreeFormatter.formatMultiWindowPage(snapshot, 1)
+            }
+
+        private fun buildPagedText(
+            cursorElement: JsonElement?,
+            includeScreenshot: Boolean,
+        ): String {
+            // Non-primitive (object/array) ⇒ contentOrNull is null ⇒ parsed is null ⇒ invalid-cursor guidance.
+            val parsed = (cursorElement as? JsonPrimitive)?.contentOrNull?.let { parseCursor(it) }
+            val snapshot = parsed?.let { screenStateSnapshotCache.get(it.first) }
+            val body =
+                when {
+                    parsed == null -> INVALID_CURSOR_MESSAGE
+                    snapshot == null -> SNAPSHOT_GONE_MESSAGE
+                    parsed.second < 1 || parsed.second > snapshot.totalPages ->
+                        noSuchPageMessage(parsed.first, parsed.second, snapshot.totalPages)
+                    else -> compactTreeFormatter.formatMultiWindowPage(snapshot, parsed.second)
+                }
+            // include_screenshot is ignored on ANY cursor call; when it was requested, append the
+            // note to EVERY cursor response — valid page OR guidance — per agreed design point 9.
+            return if (includeScreenshot) "$body\n$SCREENSHOT_ONLY_PAGE1_NOTE" else body
+        }
+
+        private fun parseCursor(cursor: String): Pair<String, Int>? {
+            val dot = cursor.lastIndexOf('.')
+            val page = cursor.substringAfterLast('.', "").toIntOrNull()
+            return if (dot <= 0 || dot == cursor.length - 1 || page == null) {
+                null
+            } else {
+                cursor.substring(0, dot) to page
+            }
+        }
+
+        private fun ceilDiv(
+            a: Int,
+            b: Int,
+        ): Int = if (a <= 0) 1 else (a + b - 1) / b
+
+        /**
+         * Captures, annotates, and encodes the screenshot, returning a text+image result.
+         *
+         * NOTE: There is an inherent timing gap between tree parsing and screenshot capture.
+         * If the UI changes in between, bounding boxes may reference stale element positions.
+         * Atomic capture is not possible with the current Android accessibility APIs.
+         */
+        @Suppress("ThrowsCount", "LongMethod", "TooGenericExceptionCaught")
+        private suspend fun buildScreenshotResult(
+            result: MultiWindowResult,
+            screenInfo: ScreenInfo,
+            compactOutput: String,
+        ): CallToolResult {
+            if (!screenCaptureProvider.isScreenCaptureAvailable()) {
+                throw McpToolException.PermissionDenied(
+                    "Screen capture not available. Please enable the accessibility " +
+                        "service in Android Settings.",
+                )
+            }
+
+            val bitmapResult =
+                screenCaptureProvider.captureScreenshotBitmap(
+                    maxWidth = SCREENSHOT_MAX_SIZE,
+                    maxHeight = SCREENSHOT_MAX_SIZE,
+                )
+            val resizedBitmap =
+                bitmapResult.getOrElse { exception ->
+                    Log.e(TAG, "Screenshot capture failed", exception)
+                    throw McpToolException.ActionFailed(
+                        "Screenshot capture failed",
+                    )
+                }
+
+            var annotatedBitmap: Bitmap? = null
+            try {
+                // Collect on-screen elements from ALL windows' trees
+                val onScreenElements = collectOnScreenElements(result.windows)
+
+                // Annotate the screenshot with bounding boxes
+                annotatedBitmap =
+                    screenshotAnnotator.annotate(
+                        resizedBitmap,
+                        onScreenElements,
+                        screenInfo.width,
+                        screenInfo.height,
+                    )
+
+                // Encode annotated bitmap to base64 JPEG
+                val screenshotData =
+                    screenshotEncoder.bitmapToScreenshotData(
+                        annotatedBitmap,
+                        ScreenCaptureProvider.DEFAULT_QUALITY,
+                    )
+
+                return McpToolUtils.untrustedTextAndImageResult(
+                    compactOutput,
+                    screenshotData.data,
+                    "image/jpeg",
+                )
+            } catch (e: McpToolException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "Screenshot annotation failed", e)
+                throw McpToolException.ActionFailed(
+                    "Screenshot annotation failed",
+                )
+            } finally {
+                annotatedBitmap?.recycle()
+                resizedBitmap.recycle()
+            }
         }
 
         /**
@@ -181,7 +266,11 @@ class GetScreenStateHandler
                         "${toolNamePrefix}get_node_details to retrieve full values). Optionally includes a " +
                         "low-resolution screenshot (only request the screenshot when the node " +
                         "list alone is not sufficient to understand the screen layout). " +
-                        "Includes a hierarchy section showing node nesting via indentation.",
+                        "Includes a hierarchy section showing node nesting via indentation. " +
+                        "Large screens are split into pages of 200 nodes: the response includes a " +
+                        "'page:N/total' line and a cursor; call again with that cursor to fetch the " +
+                        "next page. You do NOT need to fetch every page — stop once you have found " +
+                        "what you need. A screenshot can only be requested on page 1 (without a cursor).",
                 inputSchema =
                     ToolSchema(
                         properties =
@@ -197,6 +286,17 @@ class GetScreenStateHandler
                                         put("default", false)
                                     }
                                 }
+                                putJsonObject("cursor") {
+                                    put("type", "string")
+                                    put(
+                                        "description",
+                                        "Pagination cursor from a previous response (format " +
+                                            "\"<id>.<page>\"). Omit to capture a fresh screen state " +
+                                            "starting at page 1. A cursor is tied to one screen " +
+                                            "snapshot; if the screen changed you will be told to " +
+                                            "request a fresh one.",
+                                    )
+                                }
                             },
                         required = emptyList(),
                     ),
@@ -207,6 +307,25 @@ class GetScreenStateHandler
             const val TOOL_NAME = "get_screen_state"
             internal const val SCREENSHOT_MAX_SIZE = 700
             private const val TAG = "MCP:ScreenIntrospection"
+            internal const val CURSOR_RADIX = 36
+            internal const val INVALID_CURSOR_MESSAGE =
+                "note:invalid cursor. Call get_screen_state without a cursor to get a fresh " +
+                    "screen-state snapshot starting at page 1."
+            internal const val SNAPSHOT_GONE_MESSAGE =
+                "note:this screen-state snapshot is no longer available (the screen state was " +
+                    "refreshed since this cursor was issued). Call get_screen_state without a " +
+                    "cursor to get a fresh snapshot."
+            internal const val SCREENSHOT_ONLY_PAGE1_NOTE =
+                "note:a screenshot can only be requested on page 1 (call get_screen_state without " +
+                    "a cursor / without specifying a page)."
+
+            internal fun noSuchPageMessage(
+                id: String,
+                page: Int,
+                totalPages: Int,
+            ): String =
+                "note:page $page does not exist — snapshot $id has $totalPages page(s). Call " +
+                    "get_screen_state without a cursor for a fresh snapshot, or request a valid page."
         }
     }
 
@@ -229,6 +348,7 @@ fun registerScreenIntrospectionTools(
     screenshotAnnotator: ScreenshotAnnotator,
     screenshotEncoder: ScreenshotEncoder,
     nodeCache: AccessibilityNodeCache,
+    screenStateSnapshotCache: ScreenStateSnapshotCache,
     toolNamePrefix: String,
     perms: ToolPermissionsConfig,
 ) {
@@ -241,6 +361,7 @@ fun registerScreenIntrospectionTools(
             screenshotAnnotator,
             screenshotEncoder,
             nodeCache,
+            screenStateSnapshotCache,
         ).register(
             server,
             toolNamePrefix,

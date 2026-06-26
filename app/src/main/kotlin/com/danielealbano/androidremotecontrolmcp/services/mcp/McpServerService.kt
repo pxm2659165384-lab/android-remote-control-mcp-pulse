@@ -36,6 +36,7 @@ import com.danielealbano.androidremotecontrolmcp.services.accessibility.Accessib
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.ActionExecutor
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.CompactTreeFormatter
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.ElementFinder
+import com.danielealbano.androidremotecontrolmcp.services.accessibility.ScreenStateSnapshotCache
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.TypeInputController
 import com.danielealbano.androidremotecontrolmcp.services.apps.AppManager
 import com.danielealbano.androidremotecontrolmcp.services.camera.CameraProvider
@@ -116,6 +117,8 @@ class McpServerService : Service() {
     @Inject lateinit var typeInputController: TypeInputController
 
     @Inject lateinit var nodeCache: AccessibilityNodeCache
+
+    @Inject lateinit var screenStateSnapshotCache: ScreenStateSnapshotCache
 
     @Inject lateinit var cameraProvider: CameraProvider
 
@@ -293,6 +296,7 @@ class McpServerService : Service() {
             screenshotAnnotator,
             screenshotEncoder,
             nodeCache,
+            screenStateSnapshotCache,
             toolNamePrefix,
             perms,
         )
@@ -337,6 +341,7 @@ class McpServerService : Service() {
     }
 
     override fun onDestroy() {
+        screenStateSnapshotCache.clear()
         Log.i(TAG, "McpServerService destroying")
         updateStatus(ServerStatus.Stopping)
 
