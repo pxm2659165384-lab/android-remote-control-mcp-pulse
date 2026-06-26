@@ -18,8 +18,10 @@ import javax.inject.Inject
  * - [get]: reads the current map (no locking).
  * - [clear]: atomically swaps to an empty map AND recycles old entries. Recycling is
  *   safe even with concurrent [get] callers because `AccessibilityNodeInfo.recycle()` is
- *   a no-op on API 33+ (minSdk). In practice, only called during service shutdown
- *   ([McpAccessibilityService.onDestroy]) when no new requests are served.
+ *   a no-op on API 33+ (minSdk). Called on service shutdown
+ *   ([McpAccessibilityService.onDestroy]) and after a settled window transition (soft-keyboard
+ *   show/hide, rotation, activity/dialog change); an in-flight node action keeps using the
+ *   reference it already resolved, so concurrency with [get] is safe regardless of timing.
  *
  * Hilt-injectable as a singleton.
  */
