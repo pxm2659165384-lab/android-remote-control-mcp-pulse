@@ -881,4 +881,143 @@ class CompactTreeFormatterTest {
             assertTrue(lines[secondHierarchyNodeIdx] == "node_dialog")
         }
     }
+
+    @Nested
+    @DisplayName("pagination")
+    inner class PaginationTests {
+        private fun snapshotOf(
+            result: MultiWindowResult,
+            id: String = "snap1",
+        ): ScreenStateSnapshot {
+            val total = formatter.countKeptNodes(result)
+            val size = CompactTreeFormatter.PAGE_SIZE
+            val pages = if (total <= 0) 1 else (total + size - 1) / size
+            return ScreenStateSnapshot(id, result, defaultScreenInfo, total, pages)
+        }
+
+        private fun tsvRows(pageText: String): List<String> =
+            pageText.lines().filter { it.contains('\t') && !it.startsWith("node_id\t") }
+
+        private fun hierarchyLines(pageText: String): List<String> {
+            val lines = pageText.lines()
+            val idx = lines.indexOfLast { it == CompactTreeFormatter.HIERARCHY_HEADER }
+            return if (idx < 0) emptyList() else lines.subList(idx + 1, lines.size)
+        }
+
+        @Test
+        @DisplayName("countKeptNodes matches formatMultiWindow row count")
+        fun countKeptNodesMatchesFormatMultiWindowRowCount() {
+            val result = PaginationTestTrees.result(PaginationTestTrees.keptNodeWindow(50))
+            val rows = tsvRows(formatter.formatMultiWindow(result, defaultScreenInfo))
+            assertEquals(rows.size, formatter.countKeptNodes(result))
+        }
+
+        @Test
+        @DisplayName("page 1 contains first 200 rows")
+        fun page1ContainsFirst200Rows() {
+            // ancestorDepth=2 + 448 leaves = 450 kept -> 3 pages (200/200/50)
+            val result = PaginationTestTrees.result(PaginationTestTrees.keptNodeWindow(448))
+            val page = formatter.formatMultiWindowPage(snapshotOf(result), 1)
+            assertTrue(page.contains("page:1/3 snapshot:snap1 nodes:1-200/450"))
+            assertEquals(200, tsvRows(page).size)
+            assertTrue(page.contains("node_anc_0\t"))
+            assertTrue(page.contains("node_leaf_0\t"))
+            assertTrue(page.contains("node_leaf_197\t"))
+            assertFalse(page.contains("node_leaf_198\t"))
+        }
+
+        @Test
+        @DisplayName("page 2 contains rows 201..400")
+        fun page2ContainsRows201To400() {
+            val result = PaginationTestTrees.result(PaginationTestTrees.keptNodeWindow(448))
+            val page = formatter.formatMultiWindowPage(snapshotOf(result), 2)
+            assertTrue(page.contains("page:2/3 snapshot:snap1 nodes:201-400/450"))
+            assertEquals(200, tsvRows(page).size)
+            assertTrue(page.contains("node_leaf_198\t"))
+            assertTrue(page.contains("node_leaf_397\t"))
+            assertFalse(page.contains("node_leaf_197\t"))
+            assertFalse(page.contains("node_leaf_398\t"))
+        }
+
+        @Test
+        @DisplayName("last page has end note and earlier pages have next-cursor note")
+        fun lastPageHasEndNote() {
+            val snap = snapshotOf(PaginationTestTrees.result(PaginationTestTrees.keptNodeWindow(448)))
+            assertTrue(formatter.formatMultiWindowPage(snap, 1).contains("cursor \"snap1.2\""))
+            assertTrue(formatter.formatMultiWindowPage(snap, 2).contains("cursor \"snap1.3\""))
+            val lastPage = formatter.formatMultiWindowPage(snap, 3)
+            assertTrue(lastPage.contains("note:end of snapshot (page 3/3)"))
+            assertFalse(lastPage.contains("cursor \"snap1.4\""))
+        }
+
+        @Test
+        @DisplayName("page hierarchy includes kept ancestors of page rows but not in TSV")
+        fun pageHierarchyIncludesKeptAncestors() {
+            val result = PaginationTestTrees.result(PaginationTestTrees.keptNodeWindow(448))
+            val page2 = formatter.formatMultiWindowPage(snapshotOf(result), 2)
+            val hierarchy = hierarchyLines(page2)
+            // ancestors of page-2 leaves appear in the hierarchy...
+            assertTrue(hierarchy.contains("node_anc_0"))
+            assertTrue(hierarchy.contains("  node_anc_1"))
+            // ...but NOT as TSV rows on page 2 (their rows are on page 1)
+            assertFalse(page2.contains("node_anc_0\t"))
+            assertFalse(page2.contains("node_anc_1\t"))
+        }
+
+        @Test
+        @DisplayName("page hierarchy indentation equals full hierarchy")
+        fun pageHierarchyIndentationEqualsFullHierarchy() {
+            val result = PaginationTestTrees.result(PaginationTestTrees.keptNodeWindow(448))
+            val full = formatter.formatMultiWindow(result, defaultScreenInfo)
+            val page2 = formatter.formatMultiWindowPage(snapshotOf(result), 2)
+            // leaf_198 sits at depth 2 (anc_0 -> anc_1 -> leaf) => 4-space indent, in BOTH outputs
+            assertTrue(full.lines().contains("    node_leaf_198"))
+            assertTrue(page2.lines().contains("    node_leaf_198"))
+        }
+
+        @Test
+        @DisplayName("window header repeats when window spans pages")
+        fun windowHeaderRepeatsWhenWindowSpansPages() {
+            val window = PaginationTestTrees.keptNodeWindow(448, windowId = 7, packageName = "com.span")
+            val snap = snapshotOf(PaginationTestTrees.result(window))
+            val header = formatter.buildWindowHeader(window)
+            assertTrue(formatter.formatMultiWindowPage(snap, 1).contains(header))
+            assertTrue(formatter.formatMultiWindowPage(snap, 2).contains(header))
+        }
+
+        @Test
+        @DisplayName("multi-window page boundary splits correctly")
+        fun multiWindowPageBoundarySplitsCorrectly() {
+            val w1 = PaginationTestTrees.keptNodeWindow(148, windowId = 1, packageName = "com.app1")
+            val w2 = PaginationTestTrees.keptNodeWindow(98, windowId = 2, packageName = "com.app2")
+            // w1=150 kept, w2=100 kept, total=250 -> 2 pages; page 2 (rows 201-250) is window 2 only
+            val snap = snapshotOf(MultiWindowResult(windows = listOf(w1, w2)))
+            val page2 = formatter.formatMultiWindowPage(snap, 2)
+            assertTrue(page2.contains("page:2/2 snapshot:snap1 nodes:201-250/250"))
+            assertTrue(page2.contains("window:2 "))
+            assertTrue(page2.contains("pkg:com.app2 "))
+            assertFalse(page2.contains("window:1 "))
+            assertFalse(page2.contains("pkg:com.app1 "))
+        }
+
+        @Test
+        @DisplayName("single page output has no pagination metadata")
+        fun singlePageOutputHasNoPaginationMetadata() {
+            val result = PaginationTestTrees.result(PaginationTestTrees.keptNodeWindow(10))
+            val output = formatter.formatMultiWindow(result, defaultScreenInfo)
+            assertFalse(output.contains("page:"))
+            assertFalse(output.contains("cursor"))
+        }
+
+        @Test
+        @DisplayName("degraded result paginates with degradation note on each page")
+        fun degradedResultPaginatesWithDegradationNoteOnEachPage() {
+            val window = PaginationTestTrees.keptNodeWindow(448)
+            val snap = snapshotOf(PaginationTestTrees.result(window, degraded = true))
+            val note = CompactTreeFormatter.DEGRADATION_NOTE
+            assertEquals(note, formatter.formatMultiWindowPage(snap, 1).lines().first())
+            assertEquals(note, formatter.formatMultiWindowPage(snap, 2).lines().first())
+            assertEquals(note, formatter.formatMultiWindowPage(snap, 3).lines().first())
+        }
+    }
 }

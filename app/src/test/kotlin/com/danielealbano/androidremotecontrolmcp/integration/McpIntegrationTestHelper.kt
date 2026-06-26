@@ -27,6 +27,8 @@ import com.danielealbano.androidremotecontrolmcp.services.accessibility.ActionEx
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.CompactTreeFormatter
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.ElementFinder
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.ScreenInfo
+import com.danielealbano.androidremotecontrolmcp.services.accessibility.ScreenStateSnapshotCache
+import com.danielealbano.androidremotecontrolmcp.services.accessibility.ScreenStateSnapshotCacheImpl
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.TypeInputController
 import com.danielealbano.androidremotecontrolmcp.services.apps.AppManager
 import com.danielealbano.androidremotecontrolmcp.services.camera.CameraProvider
@@ -138,6 +140,7 @@ object McpIntegrationTestHelper {
             screenshotEncoder = mockk(relaxed = true),
             cameraProvider = mockk(relaxed = true),
             nodeCache = mockk(relaxed = true),
+            screenStateSnapshotCache = ScreenStateSnapshotCacheImpl(),
             intentDispatcher = mockk(relaxed = true),
             notificationProvider = mockk(relaxed = true),
             locationProvider = mockk(relaxed = true),
@@ -162,6 +165,7 @@ object McpIntegrationTestHelper {
             deps.screenshotAnnotator,
             deps.screenshotEncoder,
             deps.nodeCache,
+            deps.screenStateSnapshotCache,
             toolNamePrefix,
             perms,
         )
@@ -362,6 +366,7 @@ data class MockDependencies(
     val screenshotEncoder: ScreenshotEncoder,
     val cameraProvider: CameraProvider,
     val nodeCache: AccessibilityNodeCache,
+    val screenStateSnapshotCache: ScreenStateSnapshotCache,
     val intentDispatcher: IntentDispatcher,
     val notificationProvider: NotificationProvider,
     val locationProvider: LocationProvider,

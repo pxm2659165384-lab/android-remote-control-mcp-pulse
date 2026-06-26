@@ -566,10 +566,10 @@ Add import for `ScreenStateSnapshotCache`.
 Cover the cache, the paginated formatter (boundaries, ancestor-closure hierarchy, multi-window page spanning, single-page parity), the handler dispatch/guidance/screenshot rules, and an end-to-end integration path.
 
 ### Acceptance Criteria
-- [ ] New cache unit tests pass.
-- [ ] Formatter pagination unit tests pass, including byte-equality of a single-page (≤200) result with the existing `formatMultiWindow` output.
-- [ ] Handler unit tests cover cursorless (single/multi), cursor success, all three guidance cases, and screenshot rules.
-- [ ] Integration test exercises pagination over the real SDK routing.
+- [x] New cache unit tests pass.
+- [x] Formatter pagination unit tests pass, including byte-equality of a single-page (≤200) result with the existing `formatMultiWindow` output.
+- [x] Handler unit tests cover cursorless (single/multi), cursor success, all three guidance cases, and screenshot rules.
+- [x] Integration test exercises pagination over the real SDK routing.
 
 ### Task 4.1: Cache unit tests
 
@@ -715,8 +715,8 @@ object PaginationTestTrees {
 | `get_screen_state small screen returns no cursor` | ≤200 kept nodes ⇒ response has no `page:` line |
 
 **Definition of Done**:
-- [ ] All new/updated tests pass under `./gradlew :app:test`.
-- [ ] No existing test left broken (fix any breakage caused by the new constructor/registration parameters).
+- [x] All new/updated tests pass under `./gradlew :app:test`.
+- [x] No existing test left broken (fix any breakage caused by the new constructor/registration parameters).
 
 ---
 
