@@ -728,8 +728,8 @@ Run the full quality gates, then re-verify the entire implementation from scratc
 - [x] `make lint` clean (ktlint + detekt), no new suppressions.
 - [x] `./gradlew :app:test` green.
 - [x] `./gradlew build` succeeds without warnings.
-- [ ] code-reviewer (plan-compliance mode) reports no issues.
-- [ ] Ground-up re-verification completed and documented.
+- [x] code-reviewer (plan-compliance mode) reports no issues.
+- [x] Ground-up re-verification completed and documented.
 
 ### Task 5.1: Linting
 
@@ -757,21 +757,21 @@ Run the full quality gates, then re-verify the entire implementation from scratc
 **Action 5.4.1** — Spawn the `code-reviewer` subagent in plan-compliance mode against this plan; fix ALL reported findings (CRITICAL, WARNING, INFO); re-run until clean.
 
 **Definition of Done**:
-- [ ] code-reviewer clean.
+- [x] code-reviewer clean. (Two independent adversarial plan-compliance reviews → PASS, 0/0/0.)
 
 ### Task 5.5: Ground-up double-check (FINAL)
 
 **Action 5.5.1** — Re-verify the ENTIRE implementation from the ground up, independently of the checkmarks above. Read every created/modified file end-to-end and confirm, point by point:
-- [ ] The hierarchy block representation is byte-for-byte identical to the pre-change format (indented `node_id`-only, kept nodes only, structural collapsed, 2-space kept-depth); only the set of ids on a page differs (page rows + kept-ancestors).
-- [ ] TSV row format, flags, window-header format, and note lines are unchanged.
-- [ ] Cursorless ≤200 output is byte-identical to the previous behavior, and the snapshot cache is cleared in that case.
-- [ ] Cursorless >200 stores a snapshot keyed by `base36(System.currentTimeMillis())` and returns page 1.
-- [ ] Cursor calls never re-capture, never touch `nodeCache`, and serve only from the frozen snapshot.
-- [ ] The three guidance cases (malformed / stale id / out-of-range) return `isError=false` normal text via `untrustedTextResult`.
-- [ ] `include_screenshot` is honored only on the cursorless call; on any cursor call it is ignored and the screenshot-only-page-1 note is appended.
-- [ ] Page size is 200; `page:` line and pagination note are present only when paginating (totalPages > 1).
-- [ ] Snapshot holds no live `AccessibilityNodeInfo` references; cache cleared on `McpServerService.onDestroy`.
-- [ ] No behavior diverges from this plan or the agreed discussion; OUT OF SCOPE items were not touched.
+- [x] The hierarchy block representation is byte-for-byte identical to the pre-change format (indented `node_id`-only, kept nodes only, structural collapsed, 2-space kept-depth); only the set of ids on a page differs (page rows + kept-ancestors). (Verified: only diff to the formatter's existing code is the two visibility-modifier swaps; `walkTree`/`appendElementRow` body unchanged.)
+- [x] TSV row format, flags, window-header format, and note lines are unchanged.
+- [x] Cursorless ≤200 output is byte-identical to the previous behavior, and the snapshot cache is cleared in that case. (`buildFreshPageText` totalPages≤1 branch → `formatMultiWindow` + `clear()`.)
+- [x] Cursorless >200 stores a snapshot keyed by `base36(System.currentTimeMillis())` and returns page 1.
+- [x] Cursor calls never re-capture, never touch `nodeCache`, and serve only from the frozen snapshot. (Verified: `buildPagedText` references neither `getFreshWindows` nor `nodeCache`.)
+- [x] The three guidance cases (malformed / stale id / out-of-range) return `isError=false` normal text via `untrustedTextResult`.
+- [x] `include_screenshot` is honored only on the cursorless call; on any cursor call it is ignored and the screenshot-only-page-1 note is appended.
+- [x] Page size is 200; `page:` line and pagination note are present only when paginating (totalPages > 1).
+- [x] Snapshot holds no live `AccessibilityNodeInfo` references; cache cleared on `McpServerService.onDestroy` (first statement).
+- [x] No behavior diverges from this plan or the agreed discussion; OUT OF SCOPE items were not touched.
 
 **Definition of Done**:
-- [ ] Every checkbox in Action 5.5.1 verified true; any discrepancy fixed and the gates (5.1–5.4) re-run.
+- [x] Every checkbox in Action 5.5.1 verified true; any discrepancy fixed and the gates (5.1–5.4) re-run.
