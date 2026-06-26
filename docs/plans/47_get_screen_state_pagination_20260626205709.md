@@ -42,10 +42,10 @@ Bound `get_screen_state` output so a single response can never exceed the model 
 Provide a single-slot, thread-safe, timestamp-keyed cache holding the most recent paginated screen-state snapshot. A new `store()` replaces any prior snapshot; `get(id)` returns the snapshot only when `id` matches the currently stored one.
 
 ### Acceptance Criteria
-- [ ] `ScreenStateSnapshot` data class holds `id`, `result`, `screenInfo`, `totalKeptNodes`, `totalPages` and no live node references.
-- [ ] `ScreenStateSnapshotCache` interface exposes `store`, `get(id)`, `clear`.
-- [ ] `ScreenStateSnapshotCacheImpl` is a Hilt `@Singleton`, thread-safe, returns the snapshot only on id match.
-- [ ] Bound in Hilt `ServiceModule`.
+- [x] `ScreenStateSnapshot` data class holds `id`, `result`, `screenInfo`, `totalKeptNodes`, `totalPages` and no live node references.
+- [x] `ScreenStateSnapshotCache` interface exposes `store`, `get(id)`, `clear`.
+- [x] `ScreenStateSnapshotCacheImpl` is a Hilt `@Singleton`, thread-safe, returns the snapshot only on id match.
+- [x] Bound in Hilt `ServiceModule`.
 
 ### Task 1.1: Snapshot model + cache interface
 
@@ -90,7 +90,7 @@ interface ScreenStateSnapshotCache {
 ```
 
 **Definition of Done**:
-- [ ] File compiles; `ScreenStateSnapshot` references existing `MultiWindowResult` and `ScreenInfo`.
+- [x] File compiles; `ScreenStateSnapshot` references existing `MultiWindowResult` and `ScreenInfo`.
 
 ### Task 1.2: Cache implementation
 
@@ -125,8 +125,8 @@ class ScreenStateSnapshotCacheImpl
 ```
 
 **Definition of Done**:
-- [ ] `@Volatile` single-reference swap provides thread-safe replace/read.
-- [ ] `get` returns null on id mismatch.
+- [x] `@Volatile` single-reference swap provides thread-safe replace/read.
+- [x] `get` returns null on id mismatch.
 
 ### Task 1.3: Hilt binding
 
@@ -141,7 +141,7 @@ class ScreenStateSnapshotCacheImpl
 Add the corresponding imports for `ScreenStateSnapshotCache` and `ScreenStateSnapshotCacheImpl`.
 
 **Definition of Done**:
-- [ ] Hilt graph resolves `ScreenStateSnapshotCache` as a singleton.
+- [x] Hilt graph resolves `ScreenStateSnapshotCache` as a singleton.
 
 ---
 
