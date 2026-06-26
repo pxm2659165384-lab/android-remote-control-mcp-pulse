@@ -13,6 +13,7 @@ import io.mockk.spyk
 import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -241,6 +242,102 @@ class ActionExecutorImplTest {
 
                 // Assert
                 assertTrue(result.isFailure)
+            }
+    }
+
+    @Nested
+    @DisplayName("Dismiss keyboard")
+    inner class DismissKeyboard {
+        private fun imeWindow(): AccessibilityWindowInfo =
+            mockk<AccessibilityWindowInfo>(relaxed = true) {
+                every { type } returns AccessibilityWindowInfo.TYPE_INPUT_METHOD
+            }
+
+        private fun appWindow(): AccessibilityWindowInfo =
+            mockk<AccessibilityWindowInfo>(relaxed = true) {
+                every { type } returns AccessibilityWindowInfo.TYPE_APPLICATION
+            }
+
+        @Test
+        @DisplayName("returns failure when service is not available")
+        fun returnsFailureWhenServiceNotAvailable() =
+            runTest {
+                // Arrange: instance left null
+
+                // Act
+                val result = executor.dismissKeyboard()
+
+                // Assert
+                assertTrue(result.isFailure)
+            }
+
+        @Test
+        @DisplayName("dismisses via GLOBAL_ACTION_BACK when an input-method window is open")
+        fun dismissesWhenKeyboardOpen() =
+            runTest {
+                // Arrange
+                setServiceInstance(mockService)
+                every { mockService.getAccessibilityWindows() } returns listOf(appWindow(), imeWindow())
+                every { mockService.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK) } returns true
+
+                // Act
+                val result = executor.dismissKeyboard()
+
+                // Assert
+                assertTrue(result.isSuccess)
+                assertEquals(true, result.getOrNull())
+                verify { mockService.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK) }
+            }
+
+        @Test
+        @DisplayName("is a no-op (no back) when no input-method window is open")
+        fun noOpWhenKeyboardClosed() =
+            runTest {
+                // Arrange
+                setServiceInstance(mockService)
+                every { mockService.getAccessibilityWindows() } returns listOf(appWindow())
+
+                // Act
+                val result = executor.dismissKeyboard()
+
+                // Assert
+                assertTrue(result.isSuccess)
+                assertEquals(false, result.getOrNull())
+                verify(exactly = 0) { mockService.performGlobalAction(any()) }
+            }
+
+        @Test
+        @DisplayName("returns failure when GLOBAL_ACTION_BACK fails while a keyboard is open")
+        fun returnsFailureWhenBackFails() =
+            runTest {
+                // Arrange
+                setServiceInstance(mockService)
+                every { mockService.getAccessibilityWindows() } returns listOf(imeWindow())
+                every { mockService.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK) } returns false
+
+                // Act
+                val result = executor.dismissKeyboard()
+
+                // Assert
+                assertTrue(result.isFailure)
+            }
+
+        @Test
+        @DisplayName("recycles the queried window objects")
+        @Suppress("DEPRECATION")
+        fun recyclesQueriedWindows() =
+            runTest {
+                // Arrange
+                setServiceInstance(mockService)
+                val window = imeWindow()
+                every { mockService.getAccessibilityWindows() } returns listOf(window)
+                every { mockService.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK) } returns true
+
+                // Act
+                executor.dismissKeyboard()
+
+                // Assert
+                verify { window.recycle() }
             }
     }
 

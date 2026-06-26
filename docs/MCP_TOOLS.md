@@ -33,12 +33,12 @@ This document provides a comprehensive reference for all MCP tools available in 
 
 ## Overview
 
-The MCP server exposes 55 tools via the JSON-RPC 2.0 protocol, organized into 13 categories:
+The MCP server exposes 56 tools via the JSON-RPC 2.0 protocol, organized into 13 categories:
 
 | Category | Tools | Plan |
 |----------|-------|------|
 | Screen Introspection | `android_get_screen_state` | 7, 15 |
-| System Actions | `android_press_back`, `android_press_home`, `android_press_recents`, `android_open_notifications`, `android_open_quick_settings`, `android_get_device_logs` | 7 |
+| System Actions | `android_press_back`, `android_press_home`, `android_press_recents`, `android_open_notifications`, `android_open_quick_settings`, `android_dismiss_keyboard`, `android_get_device_logs` | 7 |
 | Touch Actions | `android_tap`, `android_long_press`, `android_double_tap`, `android_swipe`, `android_scroll` | 8 |
 | Gestures | `android_pinch`, `android_custom_gesture` | 8 |
 | Node Actions | `android_find_nodes`, `android_click_node`, `android_long_click_node`, `android_tap_node`, `android_scroll_to_node` | 9, 35 |
@@ -580,6 +580,56 @@ Opens the quick settings panel.
 **Error Cases**:
 - **Permission denied**: Accessibility service not enabled
 - **Action failed**: Action execution failed
+
+---
+
+### `android_dismiss_keyboard`
+
+Closes the on-screen soft keyboard if one is open. No-op (and never navigates back) when no keyboard is visible — unlike `android_press_back`, which would navigate back if no keyboard were shown. Useful after typing to reveal buttons or fields the keyboard may be covering.
+
+**Input Schema**:
+```json
+{
+  "type": "object",
+  "properties": {},
+  "required": []
+}
+```
+
+**Request Example**:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 5,
+  "method": "tools/call",
+  "params": {
+    "name": "android_dismiss_keyboard",
+    "arguments": {}
+  }
+}
+```
+
+**Response Example (Success)**:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 5,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Keyboard dismissed"
+      }
+    ]
+  }
+}
+```
+
+When no keyboard was open, the response text is `"No keyboard was open"`.
+
+**Error Cases**:
+- **Permission denied**: Accessibility service not enabled
+- **Action failed**: Dismissing the keyboard failed
 
 ---
 

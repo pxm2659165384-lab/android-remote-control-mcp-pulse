@@ -118,6 +118,17 @@ interface ActionExecutor {
 
     suspend fun openQuickSettings(): Result<Unit>
 
+    /**
+     * Dismisses the on-screen soft keyboard if one is currently open.
+     *
+     * Unlike [pressBack], this is a no-op when no input-method window is visible: the back action
+     * is dispatched only when a keyboard was detected, so it is not used to navigate back.
+     *
+     * @return `Result.success(true)` if a keyboard was open and dismissed,
+     *   `Result.success(false)` if no keyboard was open, or `Result.failure` on error.
+     */
+    suspend fun dismissKeyboard(): Result<Boolean>
+
     suspend fun pinch(
         centerX: Float,
         centerY: Float,

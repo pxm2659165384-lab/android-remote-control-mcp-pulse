@@ -443,6 +443,54 @@ class ActionExecutorImpl
                 "openQuickSettings",
             )
 
+        /**
+         * Dismisses the soft keyboard if an input-method window is currently shown.
+         *
+         * Detects the keyboard via [McpAccessibilityService.getAccessibilityWindows] (an
+         * INPUT_METHOD-type window exists only while the IME is visible) and, if present, sends
+         * GLOBAL_ACTION_BACK — which the system routes to closing the IME first. When no keyboard
+         * is open it returns `false` without performing any action; BACK is dispatched only when
+         * an IME window was detected, so it is not used to navigate back.
+         */
+        override suspend fun dismissKeyboard(): Result<Boolean> {
+            val service =
+                McpAccessibilityService.instance
+                    ?: return Result.failure(
+                        IllegalStateException("Accessibility service is not available"),
+                    )
+
+            val windows = service.getAccessibilityWindows()
+            val keyboardOpen =
+                try {
+                    windows.any {
+                        it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD
+                    }
+                } finally {
+                    // Recycle all AccessibilityWindowInfo objects for consistency
+                    for (w in windows) {
+                        @Suppress("DEPRECATION")
+                        w.recycle()
+                    }
+                }
+
+            return when {
+                !keyboardOpen -> {
+                    Log.d(TAG, "dismissKeyboard: no input-method window open, nothing to dismiss")
+                    Result.success(false)
+                }
+
+                // A keyboard was detected just above, so BACK closes the IME rather than navigating
+                // back. Reuse the shared helper for uniform success/failure logging, mapping its
+                // Unit success to `true`.
+                else -> {
+                    performGlobalAction(
+                        android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK,
+                        "dismissKeyboard",
+                    ).map { true }
+                }
+            }
+        }
+
         // ─────────────────────────────────────────────────────────────────────────
         // Advanced Gestures
         // ─────────────────────────────────────────────────────────────────────────

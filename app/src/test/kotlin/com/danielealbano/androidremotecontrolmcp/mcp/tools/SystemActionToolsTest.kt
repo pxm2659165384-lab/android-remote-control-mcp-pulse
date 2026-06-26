@@ -613,4 +613,64 @@ class SystemActionToolsTest {
                 assertTrue(exception.message!!.contains("ISO 8601"))
             }
     }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // dismiss_keyboard
+    // ─────────────────────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("DismissKeyboardHandler")
+    inner class DismissKeyboardTests {
+        private lateinit var handler: DismissKeyboardHandler
+
+        @BeforeEach
+        fun setUp() {
+            handler = DismissKeyboardHandler(mockActionExecutor, mockAccessibilityServiceProvider)
+        }
+
+        @Test
+        @DisplayName("returns 'Keyboard dismissed' when a keyboard was open")
+        fun returnsDismissedWhenKeyboardOpen() =
+            runTest {
+                coEvery { mockActionExecutor.dismissKeyboard() } returns Result.success(true)
+
+                val result = handler.execute(null)
+
+                coVerify(exactly = 1) { mockActionExecutor.dismissKeyboard() }
+                assertTextContentResponse(result, "Keyboard dismissed")
+            }
+
+        @Test
+        @DisplayName("returns 'No keyboard was open' when none was open")
+        fun returnsNoOpWhenKeyboardClosed() =
+            runTest {
+                coEvery { mockActionExecutor.dismissKeyboard() } returns Result.success(false)
+
+                val result = handler.execute(null)
+
+                assertTextContentResponse(result, "No keyboard was open")
+            }
+
+        @Test
+        @DisplayName("throws PermissionDenied when service not available")
+        fun throwsPermissionDeniedWhenServiceNotReady() =
+            runTest {
+                every { mockAccessibilityServiceProvider.isReady() } returns false
+                assertThrows<McpToolException.PermissionDenied> { handler.execute(null) }
+            }
+
+        @Test
+        @DisplayName("throws ActionFailed when dismissing fails")
+        fun throwsActionFailedWhenDismissFails() =
+            runTest {
+                coEvery { mockActionExecutor.dismissKeyboard() } returns
+                    Result.failure(RuntimeException("Failed to dismiss keyboard"))
+
+                val exception =
+                    assertThrows<McpToolException.ActionFailed> {
+                        handler.execute(null)
+                    }
+                assertTrue(exception.message!!.contains("Failed to dismiss keyboard"))
+            }
+    }
 }
