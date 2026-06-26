@@ -37,6 +37,10 @@ class McpAccessibilityService : AccessibilityService() {
 
     private var serviceScope: CoroutineScope? = null
 
+    private var nodeCache: AccessibilityNodeCache? = null
+
+    private var cacheInvalidationDebouncer: CacheInvalidationDebouncer? = null
+
     @Volatile
     private var currentPackageName: String? = null
 
@@ -47,7 +51,15 @@ class McpAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
 
         instance = this
-        serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+        serviceScope = scope
+        nodeCache = resolveNodeCache()
+        cacheInvalidationDebouncer =
+            CacheInvalidationDebouncer(
+                scope = scope,
+                debounceMillis = CACHE_INVALIDATION_DEBOUNCE_MS,
+                onSettled = { invalidateCache(nodeCache) },
+            )
 
         configureServiceInfo()
 
@@ -72,6 +84,11 @@ class McpAccessibilityService : AccessibilityService() {
                 )
             }
 
+            AccessibilityEvent.TYPE_WINDOWS_CHANGED -> {
+                // Soft-keyboard show/hide and other window add/remove/bounds changes arrive here.
+                Log.d(TAG, "Windows changed (e.g. soft-keyboard show/hide)")
+            }
+
             AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
                 Log.d(TAG, "Window content changed: package=${event.packageName}")
             }
@@ -80,6 +97,13 @@ class McpAccessibilityService : AccessibilityService() {
                 // Ignored event types
             }
         }
+
+        // A structural window change (keyboard show/hide, rotation, activity/dialog transition)
+        // shifts element bounds. Because cached node ids are derived from bounds, and which
+        // elements are present/actionable also changes, the cached id->node entries become stale.
+        // Schedule a debounced invalidation so the cache is dropped once — and only once — AFTER
+        // the transition settles, so the next node lookup resolves against the live tree.
+        scheduleCacheInvalidationIfNeeded(event.eventType, cacheInvalidationDebouncer)
     }
 
     override fun onInterrupt() {
@@ -89,17 +113,13 @@ class McpAccessibilityService : AccessibilityService() {
     override fun onDestroy() {
         Log.i(TAG, "Accessibility service destroying")
 
-        // Flush the node cache — all AccessibilityNodeInfo references become invalid
-        try {
-            val entryPoint =
-                EntryPointAccessors.fromApplication(
-                    applicationContext,
-                    NodeCacheEntryPoint::class.java,
-                )
-            entryPoint.nodeCache().clear()
-        } catch (e: IllegalStateException) {
-            Log.w(TAG, "Could not flush node cache during destroy", e)
-        }
+        // Stop any pending debounced invalidation before tearing down the scope it runs on.
+        cacheInvalidationDebouncer?.cancel()
+        cacheInvalidationDebouncer = null
+
+        // Flush the node cache — all AccessibilityNodeInfo references become invalid.
+        nodeCache?.clear()
+        nodeCache = null
 
         serviceScope?.cancel()
         serviceScope = null
@@ -218,6 +238,7 @@ class McpAccessibilityService : AccessibilityService() {
         serviceInfo =
             serviceInfo?.apply {
                 eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or
+                    AccessibilityEvent.TYPE_WINDOWS_CHANGED or
                     AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
                 feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
                 flags = AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS or
@@ -229,6 +250,21 @@ class McpAccessibilityService : AccessibilityService() {
             Log.w(TAG, "serviceInfo is null, cannot configure accessibility service settings")
         }
     }
+
+    /**
+     * Resolves the singleton [AccessibilityNodeCache] via Hilt's application entry point.
+     * Returns null (and logs) if Hilt is not initialized, in which case cache invalidation
+     * becomes a no-op rather than crashing the service.
+     */
+    private fun resolveNodeCache(): AccessibilityNodeCache? =
+        try {
+            EntryPointAccessors
+                .fromApplication(applicationContext, NodeCacheEntryPoint::class.java)
+                .nodeCache()
+        } catch (e: IllegalStateException) {
+            Log.w(TAG, "Could not resolve node cache", e)
+            null
+        }
 
     /**
      * Takes a screenshot using AccessibilityService.takeScreenshot() API.
@@ -283,6 +319,16 @@ class McpAccessibilityService : AccessibilityService() {
         private const val SCREENSHOT_TIMEOUT_MS = 5000L
 
         /**
+         * Length of the QUIET GAP (no further window-structure events) that must elapse before the
+         * node cache is invalidated. The debounce timer resets on every event during a transition,
+         * so this value is the silence required *after the last event*, not the total transition
+         * duration. 250ms is an empirically chosen heuristic — long enough that a settling
+         * keyboard/rotation has stopped emitting events, short enough to keep the post-transition
+         * cache fresh quickly. Single tunable constant; validate/adjust against real-device traces.
+         */
+        private const val CACHE_INVALIDATION_DEBOUNCE_MS = 250L
+
+        /**
          * Singleton instance of the accessibility service.
          * Set when the service connects, cleared when it is destroyed.
          * Access from other components to interact with the accessibility tree.
@@ -295,4 +341,46 @@ class McpAccessibilityService : AccessibilityService() {
         var inputMethodInstance: McpInputMethod? = null
             private set
     }
+}
+
+/**
+ * Returns true if [eventType] is a structural window change after which cached node bounds may be
+ * stale and the node cache should be invalidated: [AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED]
+ * (rotation, activity/dialog transition) and [AccessibilityEvent.TYPE_WINDOWS_CHANGED]
+ * (soft-keyboard show/hide, window add/remove).
+ *
+ * Deliberately EXCLUDES [AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED], which fires far too
+ * frequently (e.g. live text, progress bars) to drive cache invalidation without thrashing.
+ *
+ * Top-level and `internal` so the decision can be unit-tested without instantiating the service.
+ */
+internal fun triggersCacheInvalidation(eventType: Int): Boolean =
+    eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
+        eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED
+
+/**
+ * Schedules a debounced cache invalidation iff [eventType] is a structural window change (see
+ * [triggersCacheInvalidation]). No-op when [debouncer] is null (service not fully connected).
+ *
+ * Top-level and `internal` so the event-to-schedule wiring can be unit-tested without
+ * instantiating the service.
+ */
+internal fun scheduleCacheInvalidationIfNeeded(
+    eventType: Int,
+    debouncer: CacheInvalidationDebouncer?,
+) {
+    if (triggersCacheInvalidation(eventType)) {
+        debouncer?.schedule()
+    }
+}
+
+/**
+ * Clears [cache] if present. The whole-cache drop is the invalidation applied after a settled
+ * window transition; a null [cache] (Hilt entry point unavailable) is a safe no-op.
+ *
+ * Top-level and `internal` so the invalidation behavior can be unit-tested without instantiating
+ * the service.
+ */
+internal fun invalidateCache(cache: AccessibilityNodeCache?) {
+    cache?.clear()
 }

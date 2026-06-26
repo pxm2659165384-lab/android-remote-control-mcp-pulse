@@ -73,8 +73,10 @@ interface AccessibilityNodeCache {
      *
      * Recycling old entries is safe even if a concurrent [get] call holds a reference to a
      * [CachedNode] from the previous map, because [AccessibilityNodeInfo.recycle] is a no-op
-     * on API 33+ (which is this project's minSdk). In practice, this is only called during
-     * service shutdown ([McpAccessibilityService.onDestroy]) when no new requests are served.
+     * on API 33+ (which is this project's minSdk). Called during service shutdown
+     * ([McpAccessibilityService.onDestroy]) and after a settled window transition (soft-keyboard
+     * show/hide, rotation, activity/dialog change) to drop node references whose bounds may have
+     * moved; an in-flight node action keeps using the reference it already resolved.
      */
     fun clear()
 
