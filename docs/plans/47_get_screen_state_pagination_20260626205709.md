@@ -150,10 +150,10 @@ Add the corresponding imports for `ScreenStateSnapshotCache` and `ScreenStateSna
 Add page-aware formatting that reuses the existing per-window TSV and hierarchy rendering. The hierarchy representation is unchanged; a page's hierarchy includes the kept-ancestor closure of that page's rows.
 
 ### Acceptance Criteria
-- [ ] `PAGE_SIZE = 200` constant added.
-- [ ] `countKeptNodes(result)` returns the exact number of TSV rows `formatMultiWindow` would emit.
-- [ ] `formatMultiWindowPage(...)` renders one page: header block + `page:` line + per-window TSV rows for that page + per-window `hierarchy:` block containing the page's rows AND their kept-ancestors (same indentation as today) + trailing cursor/end note.
-- [ ] Existing `format()` and `formatMultiWindow()` are unchanged.
+- [x] `PAGE_SIZE = 200` constant added.
+- [x] `countKeptNodes(result)` returns the exact number of TSV rows `formatMultiWindow` would emit.
+- [x] `formatMultiWindowPage(...)` renders one page: header block + `page:` line + per-window TSV rows for that page + per-window `hierarchy:` block containing the page's rows AND their kept-ancestors (same indentation as today) + trailing cursor/end note.
+- [x] Existing `format()` and `formatMultiWindow()` are unchanged.
 
 ### Task 2.1: Kept-node count + page-size constant
 
@@ -180,7 +180,7 @@ Add page-aware formatting that reuses the existing per-window TSV and hierarchy 
 ```
 
 **Definition of Done**:
-- [ ] `countKeptNodes` uses `shouldKeepNode` so it matches the TSV row count exactly.
+- [x] `countKeptNodes` uses `shouldKeepNode` so it matches the TSV row count exactly.
 
 ### Task 2.2: Single-page formatting
 
@@ -327,9 +327,9 @@ Add page-aware formatting that reuses the existing per-window TSV and hierarchy 
 > Implementation note: `HIERARCHY_INDENT` is the existing `private const val "  "`. The `pageNodes` sublist uses local window indices; `(windowEnd - kept.size)` is the window's global start index. The `DEGRADATION_NOTE` is emitted on **every page** when `result.degraded` (intentional: each page is a self-contained response repeating the full note/screen block, exactly as the other note lines do — this matches `formatMultiWindow`'s placement and does not change the note's text). A degraded single-window fallback can still exceed 200 kept nodes, so the degraded+paginated path is reachable and is covered by a test in Task 4.2.
 
 **Definition of Done**:
-- [ ] `formatMultiWindowPage` reuses `buildWindowHeader`, `HEADER`, `appendElementRow`, `shouldKeepNode`, `HIERARCHY_HEADER`, `HIERARCHY_INDENT` — no duplicated formats.
-- [ ] Page 1 of a node set ≤ `PAGE_SIZE` is never produced via this method (caller uses `formatMultiWindow` for single page).
-- [ ] No detekt violations (method/parameter counts addressed via the helper split above).
+- [x] `formatMultiWindowPage` reuses `buildWindowHeader`, `HEADER`, `appendElementRow`, `shouldKeepNode`, `HIERARCHY_HEADER`, `HIERARCHY_INDENT` — no duplicated formats.
+- [x] Page 1 of a node set ≤ `PAGE_SIZE` is never produced via this method (caller uses `formatMultiWindow` for single page).
+- [x] No detekt violations (method/parameter counts addressed via the helper split above).
 
 ---
 
