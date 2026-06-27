@@ -37,6 +37,10 @@ data class BoundsData(
  * @property editable Whether the node is an editable text field.
  * @property enabled Whether the node is enabled.
  * @property visible Whether the node is visible to the user.
+ * @property webRole Chromium DOM role from `getExtras()` (e.g., "link", "heading", "article"),
+ *   populated by Chrome and the Android System WebView on every web accessibility node. Null for
+ *   native and Compose nodes. Used to scope WebView node collapsing to web content only.
+ * @property targetUrl Target URL from `getExtras()` for links and images, or null when absent.
  * @property children The child nodes of this node.
  */
 @Serializable
@@ -54,6 +58,8 @@ data class AccessibilityNodeData(
     val editable: Boolean = false,
     val enabled: Boolean = false,
     val visible: Boolean = false,
+    val webRole: String? = null,
+    val targetUrl: String? = null,
     val children: List<AccessibilityNodeData> = emptyList(),
 )
 
@@ -188,6 +194,12 @@ class AccessibilityTreeParser
             val enabled = node.isEnabled
             val visible = isNodeVisible(node)
 
+            // Chromium (Chrome + Android System WebView) populates these extras on every web node.
+            // They are absent on native/Compose nodes, so webRole/targetUrl stay null there.
+            val extras = node.extras
+            val webRole = extras?.getString(EXTRA_KEY_CHROME_ROLE)?.takeIf(String::isNotEmpty)
+            val targetUrl = extras?.getString(EXTRA_KEY_TARGET_URL)?.takeIf(String::isNotEmpty)
+
             // Max depth protection: return current node as leaf without recursing into children
             if (depth >= MAX_TREE_DEPTH) {
                 Log.w(TAG, "Maximum tree depth ($MAX_TREE_DEPTH) reached, truncating subtree")
@@ -207,6 +219,8 @@ class AccessibilityTreeParser
                         editable = editable,
                         enabled = enabled,
                         visible = visible,
+                        webRole = webRole,
+                        targetUrl = targetUrl,
                         children = emptyList(),
                     )
 
@@ -268,6 +282,8 @@ class AccessibilityTreeParser
                     editable = editable,
                     enabled = enabled,
                     visible = visible,
+                    webRole = webRole,
+                    targetUrl = targetUrl,
                     children = children,
                 )
 
@@ -318,6 +334,12 @@ class AccessibilityTreeParser
             private const val ROOT_PARENT_ID = "root"
             private const val HASH_RADIX = 16
             internal const val MAX_TREE_DEPTH = 100
+
+            /** `getExtras()` key holding the Chromium DOM role on web accessibility nodes. */
+            private const val EXTRA_KEY_CHROME_ROLE = "AccessibilityNodeInfo.chromeRole"
+
+            /** `getExtras()` key holding the target URL for web links and images. */
+            private const val EXTRA_KEY_TARGET_URL = "AccessibilityNodeInfo.targetUrl"
 
             /**
              * Extra data key added by Compose's AccessibilityNodeProvider to every

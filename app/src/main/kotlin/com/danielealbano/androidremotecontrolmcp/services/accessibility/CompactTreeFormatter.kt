@@ -111,8 +111,12 @@ class CompactTreeFormatter
         ) {
             val id = node.id
             val className = simplifyClassName(node.className)
-            val text = sanitizeText(node.text)
-            val desc = sanitizeText(node.contentDescription)
+            // Merged WebView nodes carry content collapsed from many DOM nodes that exists ONLY in
+            // this output (get_node_details reads the original, un-merged node cache). Truncating it
+            // would lose text, so web nodes are never truncated.
+            val truncate = node.webRole == null
+            val text = sanitizeText(node.text, truncate)
+            val desc = sanitizeText(node.contentDescription, truncate)
             val resId = sanitizeResourceId(node.resourceId)
             val bounds =
                 "${node.bounds.left},${node.bounds.top}," +
@@ -225,9 +229,14 @@ class CompactTreeFormatter
          * 1. Replaces tabs, newlines, carriage returns with spaces.
          * 2. Trims whitespace.
          * 3. Returns "-" if null, empty, or whitespace-only after sanitization.
-         * 4. Truncates to [MAX_TEXT_LENGTH] characters with [TRUNCATION_SUFFIX] if exceeded.
+         * 4. Truncates to [MAX_TEXT_LENGTH] characters with [TRUNCATION_SUFFIX] if exceeded,
+         *    UNLESS [truncate] is false (used for merged WebView nodes whose collapsed content
+         *    exists only in this output and must not be lost).
          */
-        internal fun sanitizeText(text: String?): String {
+        internal fun sanitizeText(
+            text: String?,
+            truncate: Boolean = true,
+        ): String {
             val sanitized =
                 text
                     ?.replace('\t', ' ')
@@ -240,7 +249,7 @@ class CompactTreeFormatter
                     NULL_VALUE
                 }
 
-                sanitized.length > MAX_TEXT_LENGTH -> {
+                truncate && sanitized.length > MAX_TEXT_LENGTH -> {
                     sanitized.substring(0, MAX_TEXT_LENGTH) + TRUNCATION_SUFFIX
                 }
 

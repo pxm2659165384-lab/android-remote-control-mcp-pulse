@@ -38,6 +38,7 @@ import com.danielealbano.androidremotecontrolmcp.services.accessibility.CompactT
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.ElementFinder
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.ScreenStateSnapshotCache
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.TypeInputController
+import com.danielealbano.androidremotecontrolmcp.services.accessibility.WebViewNodeMerger
 import com.danielealbano.androidremotecontrolmcp.services.apps.AppManager
 import com.danielealbano.androidremotecontrolmcp.services.camera.CameraProvider
 import com.danielealbano.androidremotecontrolmcp.services.intents.IntentDispatcher
@@ -119,6 +120,8 @@ class McpServerService : Service() {
     @Inject lateinit var nodeCache: AccessibilityNodeCache
 
     @Inject lateinit var screenStateSnapshotCache: ScreenStateSnapshotCache
+
+    @Inject lateinit var webViewNodeMerger: WebViewNodeMerger
 
     @Inject lateinit var cameraProvider: CameraProvider
 
@@ -297,6 +300,7 @@ class McpServerService : Service() {
             screenshotEncoder,
             nodeCache,
             screenStateSnapshotCache,
+            webViewNodeMerger,
             toolNamePrefix,
             perms,
         )
