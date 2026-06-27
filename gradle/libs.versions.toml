@@ -27,7 +27,7 @@ mcp-kotlin-sdk = "0.8.3"
 slf4j-android = "1.7.36"
 
 # Certificate generation
-bouncy-castle = "1.83"
+bouncy-castle = "1.84"
 
 # Serialization
 kotlinx-serialization = "1.10.0"
