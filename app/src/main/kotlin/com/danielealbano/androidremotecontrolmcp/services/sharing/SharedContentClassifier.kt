@@ -5,19 +5,23 @@ import com.danielealbano.androidremotecontrolmcp.services.screencapture.Screensh
 import java.io.File
 
 /** A downscaled inline image plus the MIME type that actually describes [base64]. */
-data class InlineImage(val base64: String, val mimeType: String)
+data class InlineImage(
+    val base64: String,
+    val mimeType: String,
+)
 
 /**
  * Classifies shared MIME types and downscales images for inline display.
  *
  * [isTextual] / [isImage] are pure. [downscaleToInline] decodes an image file and produces a
- * base64 view whose longest side is ≤ [IMAGE_MAX_DIMENSION], reusing [ScreenshotEncoder].
+ * base64 view whose longest side is at most [IMAGE_MAX_DIMENSION], reusing [ScreenshotEncoder].
  */
 object SharedContentClassifier {
     const val IMAGE_MAX_DIMENSION = 800
+
     private const val JPEG_QUALITY = 80
 
-    private val TEXTUAL_MIMES =
+    private val textualMimes =
         setOf(
             "application/json",
             "application/xml",
@@ -30,13 +34,13 @@ object SharedContentClassifier {
 
     private val encoder = ScreenshotEncoder()
 
-    /** True for `text/*` plus the explicit textual allowlist (ignores any `; charset=` suffix). */
+    /** True for any `text/` subtype plus the explicit textual allowlist (ignores any `; charset=` suffix). */
     fun isTextual(mimeType: String): Boolean {
         val mime = mimeType.substringBefore(';').trim().lowercase()
-        return mime.startsWith("text/") || mime in TEXTUAL_MIMES
+        return mime.startsWith("text/") || mime in textualMimes
     }
 
-    /** True for `image/*`. */
+    /** True for any `image/` subtype. */
     fun isImage(mimeType: String): Boolean = mimeType.trim().lowercase().startsWith("image/")
 
     /**

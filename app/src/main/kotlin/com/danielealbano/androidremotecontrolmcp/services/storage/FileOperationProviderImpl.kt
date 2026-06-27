@@ -12,8 +12,6 @@ import com.danielealbano.androidremotecontrolmcp.data.repository.SettingsReposit
 import com.danielealbano.androidremotecontrolmcp.mcp.McpToolException
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.BufferedReader
-import java.io.ByteArrayOutputStream
-import java.io.InputStream
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.MalformedURLException
@@ -179,29 +177,13 @@ class FileOperationProviderImpl
                 )
             }
 
-            val reportedSize = documentFile.length()
-            if (reportedSize > maxBytes) {
-                throw McpToolException.ActionFailed(
-                    "File size ($reportedSize bytes) exceeds the limit of $maxBytes bytes.",
-                )
-            }
-
             val fileName = documentFile.name ?: path.substringAfterLast('/')
-            val mimeType =
-                documentFile.type
-                    ?: context.contentResolver.getType(documentFile.uri)
-                    ?: MimeTypeUtils.guessMimeType(fileName)
-            val bytes =
-                context.contentResolver.openInputStream(documentFile.uri)?.use { readCapped(it, maxBytes) }
-                    ?: throw McpToolException.ActionFailed(
-                        "Failed to open file for reading: $path in location '$locationId'",
-                    )
-
-            return FileBytesResult(
-                bytes = bytes,
-                mimeType = mimeType,
-                fileName = fileName,
-                sizeBytes = bytes.size.toLong(),
+            return readFileBytesFromUri(
+                context.contentResolver,
+                documentFile.uri,
+                fileName,
+                documentFile.length(),
+                maxBytes,
             )
         }
 
@@ -698,31 +680,6 @@ class FileOperationProviderImpl
         }
 
         /**
-         * Reads [input] fully into memory, aborting if the cumulative byte count exceeds [maxBytes].
-         * Guards against providers that under-report (or omit) the file size.
-         */
-        private fun readCapped(
-            input: InputStream,
-            maxBytes: Long,
-        ): ByteArray {
-            val output = ByteArrayOutputStream()
-            val buffer = ByteArray(READ_BUFFER_SIZE)
-            var total = 0L
-            while (true) {
-                val read = input.read(buffer)
-                if (read < 0) break
-                total += read
-                if (total > maxBytes) {
-                    throw McpToolException.ActionFailed(
-                        "File size exceeds the limit of $maxBytes bytes.",
-                    )
-                }
-                output.write(buffer, 0, read)
-            }
-            return output.toByteArray()
-        }
-
-        /**
          * Counts non-overlapping occurrences of [needle] in [haystack].
          */
         private fun countOccurrences(
@@ -814,7 +771,6 @@ class FileOperationProviderImpl
             private const val BYTES_PER_MB = 1024L * 1024L
             private const val MILLIS_PER_SECOND = 1000
             private const val DOWNLOAD_BUFFER_SIZE = 8192
-            private const val READ_BUFFER_SIZE = 8192
             private val HTTP_SUCCESS_RANGE = 200..299
         }
     }

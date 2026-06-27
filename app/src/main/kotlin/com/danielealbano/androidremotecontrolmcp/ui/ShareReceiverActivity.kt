@@ -17,6 +17,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
+import java.io.InputStream
+import java.io.OutputStream
 import java.util.UUID
 import javax.inject.Inject
 
@@ -57,42 +59,39 @@ class ShareReceiverActivity : ComponentActivity() {
 
     private suspend fun handleIntent(intent: Intent) {
         when (intent.action) {
-            Intent.ACTION_SEND -> {
-                val text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)
-                val type = intent.type
-                if (text != null && type != null && SharedContentClassifier.isTextual(type)) {
-                    addTextItem(text.toString(), type)
-                } else {
-                    val uri = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)
-                    if (uri != null) streamToInbox(uri)?.let { inbox.add(it) }
-                }
-            }
-
-            Intent.ACTION_SEND_MULTIPLE -> {
-                val uris = IntentCompat.getParcelableArrayListExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)
-                uris?.forEach { uri -> streamToInbox(uri)?.let { inbox.add(it) } }
-            }
+            Intent.ACTION_SEND -> handleSend(intent)
+            Intent.ACTION_SEND_MULTIPLE -> handleSendMultiple(intent)
         }
     }
 
-    private suspend fun addTextItem(
-        text: String,
-        type: String,
-    ) {
-        val now = System.currentTimeMillis()
-        inbox.add(
-            SharedItem(
-                id = UUID.randomUUID().toString(),
-                kind = SharedItem.Kind.TEXT,
-                mimeType = type,
-                fileName = null,
-                text = text,
-                blob = null,
-                sizeBytes = text.toByteArray().size.toLong(),
-                createdAtMs = now,
-                expiresAtMs = now + SharedContentInbox.TTL_MS,
-            ),
-        )
+    private suspend fun handleSend(intent: Intent) {
+        val text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
+        val type = intent.type
+        if (text != null && type != null && SharedContentClassifier.isTextual(type)) {
+            val now = System.currentTimeMillis()
+            inbox.add(
+                SharedItem(
+                    id = UUID.randomUUID().toString(),
+                    kind = SharedItem.Kind.TEXT,
+                    mimeType = type,
+                    fileName = null,
+                    text = text,
+                    blob = null,
+                    sizeBytes = text.toByteArray().size.toLong(),
+                    createdAtMs = now,
+                    expiresAtMs = now + SharedContentInbox.TTL_MS,
+                ),
+            )
+            return
+        }
+        val uri = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java) ?: return
+        streamToInbox(uri)?.let { inbox.add(it) }
+    }
+
+    private suspend fun handleSendMultiple(intent: Intent) {
+        val uris =
+            IntentCompat.getParcelableArrayListExtra(intent, Intent.EXTRA_STREAM, Uri::class.java) ?: return
+        uris.forEach { uri -> streamToInbox(uri)?.let { inbox.add(it) } }
     }
 
     /**
@@ -105,30 +104,8 @@ class ShareReceiverActivity : ComponentActivity() {
         val displayName = queryDisplayName(uri)
         val id = UUID.randomUUID().toString()
         val dest = File(inbox.blobDir, id)
-        var count = 0L
-        try {
-            val input = contentResolver.openInputStream(uri)
-            if (input == null) {
-                dest.delete()
-                return null
-            }
-            input.use { source ->
-                dest.outputStream().use { output ->
-                    val buffer = ByteArray(BUFFER_SIZE)
-                    while (true) {
-                        val read = source.read(buffer)
-                        if (read < 0) break
-                        count += read
-                        if (count > SharedContentInbox.MAX_FILE_BYTES) {
-                            dest.delete()
-                            return null
-                        }
-                        output.write(buffer, 0, read)
-                    }
-                }
-            }
-        } catch (e: IOException) {
-            Log.w(TAG, "Failed to read shared stream", e)
+        val count = copyToBlob(uri, dest)
+        if (count == null) {
             dest.delete()
             return null
         }
@@ -144,6 +121,37 @@ class ShareReceiverActivity : ComponentActivity() {
             createdAtMs = now,
             expiresAtMs = now + SharedContentInbox.TTL_MS,
         )
+    }
+
+    /** Copies [uri] into [dest], returning the byte count, or null if it cannot be opened or fails to read. */
+    private fun copyToBlob(
+        uri: Uri,
+        dest: File,
+    ): Long? =
+        try {
+            contentResolver.openInputStream(uri)?.use { source ->
+                dest.outputStream().use { output -> copyCapped(source, output) }
+            }
+        } catch (e: IOException) {
+            Log.w(TAG, "Failed to read shared stream", e)
+            null
+        }
+
+    /** Streams [source] to [output] up to the per-file cap; returns total bytes, or null if the cap is exceeded. */
+    private fun copyCapped(
+        source: InputStream,
+        output: OutputStream,
+    ): Long? {
+        val buffer = ByteArray(BUFFER_SIZE)
+        var count = 0L
+        while (true) {
+            val read = source.read(buffer)
+            if (read < 0) break
+            count += read
+            if (count > SharedContentInbox.MAX_FILE_BYTES) return null
+            output.write(buffer, 0, read)
+        }
+        return count
     }
 
     private fun queryDisplayName(uri: Uri): String? =

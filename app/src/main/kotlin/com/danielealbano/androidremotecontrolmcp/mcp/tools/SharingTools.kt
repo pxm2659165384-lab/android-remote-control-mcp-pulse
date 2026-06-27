@@ -9,6 +9,7 @@ import com.danielealbano.androidremotecontrolmcp.services.sharing.EphemeralFileL
 import com.danielealbano.androidremotecontrolmcp.services.sharing.SharedContentClassifier
 import com.danielealbano.androidremotecontrolmcp.services.sharing.SharedContentInbox
 import com.danielealbano.androidremotecontrolmcp.services.sharing.SharedItem
+import com.danielealbano.androidremotecontrolmcp.services.storage.FileBytesResult
 import com.danielealbano.androidremotecontrolmcp.services.storage.FileOperationProvider
 import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
@@ -60,28 +61,35 @@ class GetSharedContentHandler(
         var linkProduced = false
         for (item in items) {
             when {
-                item.kind == SharedItem.Kind.TEXT -> content += TextContent(text = item.text.orEmpty())
+                item.kind == SharedItem.Kind.TEXT -> {
+                    content += TextContent(text = item.text.orEmpty())
+                }
 
                 SharedContentClassifier.isImage(item.mimeType) && item.blob != null -> {
                     val name = item.fileName ?: "image"
                     // Read/encode the image BEFORE register (which moves the blob out of the inbox dir).
-                    val inline = runCatching { SharedContentClassifier.downscaleToInline(item.blob, item.mimeType) }.getOrNull()
+                    val inline =
+                        runCatching {
+                            SharedContentClassifier.downscaleToInline(item.blob, item.mimeType)
+                        }.getOrNull()
                     val token = linkService.register(item.blob, item.mimeType, name)
                     val url = baseUrlProvider() + linkService.pathFor(token)
                     linkProduced = true
                     if (inline != null) {
                         content += ImageContent(data = inline.base64, mimeType = inline.mimeType)
-                        content += TextContent(
-                            text =
-                                "Image '$name' (${item.sizeBytes} bytes). Original (full-res) at $url " +
-                                    "(expires 1h). Only share this URL with the user if they ask for the original.",
-                        )
+                        content +=
+                            TextContent(
+                                text =
+                                    "Image '$name' (${item.sizeBytes} bytes). Original (full-res) at $url " +
+                                        "(expires 1h). Only share this URL with the user if they ask for the original.",
+                            )
                     } else {
-                        content += TextContent(
-                            text =
-                                "Image '$name' ${item.mimeType} (${item.sizeBytes} bytes) could not be decoded; " +
-                                    "download it at $url (expires 1h).",
-                        )
+                        content +=
+                            TextContent(
+                                text =
+                                    "Image '$name' ${item.mimeType} (${item.sizeBytes} bytes) could not be decoded; " +
+                                        "download it at $url (expires 1h).",
+                            )
                     }
                 }
 
@@ -90,11 +98,12 @@ class GetSharedContentHandler(
                     val token = linkService.register(item.blob, item.mimeType, name)
                     val url = baseUrlProvider() + linkService.pathFor(token)
                     linkProduced = true
-                    content += TextContent(
-                        text =
-                            "File '$name' ${item.mimeType} (${item.sizeBytes} bytes) at $url (expires 1h). " +
-                                "You can web_fetch text/PDF URLs to read them; other types are download-only.",
-                    )
+                    content +=
+                        TextContent(
+                            text =
+                                "File '$name' ${item.mimeType} (${item.sizeBytes} bytes) at $url (expires 1h). " +
+                                    "You can web_fetch text/PDF URLs to read them; other types are download-only.",
+                        )
                 }
             }
         }
@@ -145,35 +154,12 @@ class ShareFileViaWebHandler(
     private val tunnelConnected: () -> Boolean,
     private val context: Context,
 ) {
-    @Suppress("TooGenericExceptionCaught")
     suspend fun execute(arguments: JsonObject?): CallToolResult {
         val locationId = McpToolUtils.requireString(arguments, "location_id")
         val path = McpToolUtils.requireString(arguments, "path")
-        val maxBytes = fileSizeLimitMb.toLong() * BYTES_PER_MB
 
-        val result =
-            try {
-                fileOperationProvider.readFileBytes(locationId, path, maxBytes)
-            } catch (e: McpToolException) {
-                throw e
-            } catch (e: Exception) {
-                throw McpToolException.ActionFailed(
-                    "Could not read the file (it may be missing or exceed the configured size limit): " +
-                        (e.message ?: "unknown error"),
-                )
-            }
-
-        // Stage the bytes on the same filesystem as the registry so register()'s move is intra-filesystem.
-        val tempDir = File(context.filesDir, "ephemeral_links_tmp").also { it.mkdirs() }
-        val tempFile = File(tempDir, UUID.randomUUID().toString())
-        tempFile.writeBytes(result.bytes)
-        val token =
-            try {
-                linkService.register(tempFile, result.mimeType, result.fileName)
-            } catch (e: Exception) {
-                tempFile.delete()
-                throw e
-            }
+        val result = readOrThrow(locationId, path)
+        val token = stageAndRegister(result)
         val url = baseUrlProvider() + linkService.pathFor(token)
 
         val message =
@@ -188,6 +174,37 @@ class ShareFileViaWebHandler(
                 }
             }
         return McpToolUtils.untrustedTextResult(message)
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private suspend fun readOrThrow(
+        locationId: String,
+        path: String,
+    ) = try {
+        fileOperationProvider.readFileBytes(locationId, path, fileSizeLimitMb.toLong() * BYTES_PER_MB)
+    } catch (e: McpToolException) {
+        throw e
+    } catch (e: Exception) {
+        throw McpToolException.ActionFailed(
+            "Could not read the file (it may be missing or exceed the configured size limit): " +
+                (e.message ?: "unknown error"),
+            e,
+        )
+    }
+
+    /** Stages [result] bytes on the registry filesystem and registers a capability link. */
+    @Suppress("TooGenericExceptionCaught")
+    private suspend fun stageAndRegister(result: FileBytesResult): String {
+        // Same filesystem as the registry so register()'s move is intra-filesystem.
+        val tempDir = File(context.filesDir, "ephemeral_links_tmp").also { it.mkdirs() }
+        val tempFile = File(tempDir, UUID.randomUUID().toString())
+        tempFile.writeBytes(result.bytes)
+        return try {
+            linkService.register(tempFile, result.mimeType, result.fileName)
+        } catch (e: Exception) {
+            tempFile.delete()
+            throw e
+        }
     }
 
     fun register(

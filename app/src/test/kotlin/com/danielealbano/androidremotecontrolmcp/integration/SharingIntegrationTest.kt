@@ -239,7 +239,10 @@ class SharingIntegrationTest {
                 assertEquals(true, result.isError)
                 // EphemeralFileLinkServiceImpl stores registered blobs under filesDir/ephemeral_links.
                 val registeredBlobs = File(tempDir, "ephemeral_links").listFiles()
-                assertTrue(registeredBlobs == null || registeredBlobs.isEmpty(), "no link must be registered on failure")
+                assertTrue(
+                    registeredBlobs == null || registeredBlobs.isEmpty(),
+                    "no link must be registered on failure",
+                )
             }
         }
 
@@ -373,7 +376,11 @@ class SharingIntegrationTest {
                         if (entry == null) {
                             call.respond(HttpStatusCode.NotFound)
                         } else {
-                            call.respondBytes(entry.blob.readBytes(), ContentType.parse(entry.mimeType), HttpStatusCode.OK)
+                            call.respondBytes(
+                                entry.blob.readBytes(),
+                                ContentType.parse(entry.mimeType),
+                                HttpStatusCode.OK,
+                            )
                         }
                     }
                 }

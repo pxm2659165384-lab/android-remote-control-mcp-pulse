@@ -17,10 +17,12 @@ internal object CapabilityToken {
         val nanos = System.nanoTime()
         val nanoBytes = ByteArray(Long.SIZE_BYTES) { (nanos shr (it * Byte.SIZE_BITS)).toByte() }
         val digest =
-            MessageDigest.getInstance("SHA-256").apply {
-                update(nanoBytes)
-                update(random)
-            }.digest()
+            MessageDigest
+                .getInstance("SHA-256")
+                .apply {
+                    update(nanoBytes)
+                    update(random)
+                }.digest()
         return digest.joinToString("") { "%02x".format(it) }
     }
 

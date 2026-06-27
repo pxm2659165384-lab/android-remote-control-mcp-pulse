@@ -463,7 +463,7 @@ class FileOperationProviderTest {
                 every { mockFile.length() } returns 4L
                 every { mockFile.uri } returns mockFileUri
                 every { mockFile.name } returns "doc.pdf"
-                every { mockFile.type } returns "application/pdf"
+                every { mockContentResolver.getType(mockFileUri) } returns "application/pdf"
                 val bytes = byteArrayOf(1, 2, 3, 4)
                 every { mockContentResolver.openInputStream(mockFileUri) } returns ByteArrayInputStream(bytes)
 
@@ -506,6 +506,8 @@ class FileOperationProviderTest {
                 every { mockRootDoc.findFile("huge.bin") } returns mockFile
                 every { mockFile.isFile } returns true
                 every { mockFile.length() } returns FILE_SIZE_EXCEEDING_LIMIT
+                every { mockFile.uri } returns mockk()
+                every { mockFile.name } returns "huge.bin"
 
                 // Act & Assert
                 val exception =
