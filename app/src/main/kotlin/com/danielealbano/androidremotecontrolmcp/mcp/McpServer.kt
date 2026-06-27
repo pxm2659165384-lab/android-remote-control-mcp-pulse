@@ -176,7 +176,7 @@ class McpServer(
                 if (entry == null) {
                     call.respond(HttpStatusCode.NotFound)
                 } else {
-                    call.respondBytes(entry.blob.readBytes(), ContentType.parse(entry.mimeType), HttpStatusCode.OK)
+                    call.respondBytes(entry.bytes, ContentType.parse(entry.mimeType), HttpStatusCode.OK)
                 }
             }
         }

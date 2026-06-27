@@ -431,12 +431,21 @@ and `data class FileBytesResult(val bytes: ByteArray, val mimeType: String, val 
 **Definition of Done:**
 - [x] `code-reviewer` returns ZERO findings.
 
-**Review findings (verdict PASS — 0 CRITICAL, 0 WARNING, 5 INFO; all accepted):**
+**Review findings (accepted):**
 - R-001: `currentBaseUrl` implemented as a `private val currentBaseUrl: () -> String` (passed as `currentBaseUrl`) instead of `fun currentBaseUrl()` (`::currentBaseUrl`). Reason: keeps `McpServerService` under detekt's `TooManyFunctions` (11) limit after adding `registerSharingBundle`. Behaviorally identical (`() -> String`).
 - R-002: `currentBaseUrl` adds `?: cfg?.bindingAddress?.address ?: "127.0.0.1"` / `?: ServerConfig.DEFAULT_PORT` fallbacks because `activeConfig` is a nullable `@Volatile` seam (the plan's local `config` was non-null). Strictly more defensive; the fallback path is unreachable during a live tool call.
 - R-003: Added `services/storage/StorageStreamUtils.kt` (`readCappedBytes`, `readFileBytesFromUri`) and `services/storage/DownloadUrlValidator.kt` (byte-identical extraction of MediaStore's private `parseAndValidateUrl`). Reason: de-duplicate the capped byte read across both providers and keep `MediaStoreFileOperationsImpl` under detekt's `LargeClass` (600) limit. No behavior change.
-- R-004: `SharedContentInbox` interface exposes `val blobDir: File` so `ShareReceiverActivity` streams inbound blobs into the inbox-owned dir without hardcoding the path (Task 2.2 streams "into `shared_inbox/<uuid>`").
 - R-005: Added a "Sharing" category to `McpToolsSettingsScreen` so `get_shared_content` / `share_file_via_web` are user-toggleable like every other `perms.isToolEnabled`-gated tool (the plan predated this UI; omitting them would make the gating uncontrollable).
+
+**CRITICAL CORRECTION (user-directed) — blobs are held in RAM, never written to disk:**
+The original plan body (Tasks 1.2, 1.3, 2.1, 2.2, 2.3, 2.5, 3.2) stored blob BYTES on disk under `filesDir` (`File(filesDir, "ephemeral_links")` / `"shared_inbox")`, with only the *index* in memory and stale blobs cleared on init. The user explicitly does NOT want shared blobs written to disk. The implementation was corrected so the entire subsystem is **truly in-memory** — no disk I/O for blobs anywhere:
+- `EphemeralFileLinkService.register(bytes: ByteArray, mimeType, fileName)`; `LinkEntry.bytes: ByteArray`. `EphemeralFileLinkServiceImpl` holds bytes in a `Mutex`-guarded `LinkedHashMap`, no `Context`/`filesDir`, no blob dir, no clear-on-init, no `renameTo`. `resolve` checks TTL only (no `blob.exists()`).
+- `SharedItem.bytes: ByteArray?` (was `blob: File?`); `SharedContentInbox` no longer exposes `blobDir` (so prior finding R-004 no longer applies). `SharedContentInboxImpl` holds bytes in RAM, no `Context`/`filesDir`. `drainAll` clears the map (GC reclaims bytes); no blob deletion.
+- `ShareReceiverActivity` reads each `EXTRA_STREAM` URI fully into a capped `ByteArray` (10 MB cap enforced during the read; provider-reported size still not trusted) instead of streaming to a file.
+- `SharedContentClassifier.downscaleToInline(bytes: ByteArray, originalMime)` decodes via `BitmapFactory.decodeByteArray` (was `decodeFile`).
+- `ShareFileViaWebHandler` registers `result.bytes` directly (no temp file, no `Context`); `registerSharingTools` dropped its `context` parameter.
+- `GET /s/{token}` serves `entry.bytes` directly.
+- **RAM implication (raised with the user):** the link registry can hold up to `MAX_LINKS` (20) × the per-file cap. For `share_file_via_web` the per-file cap is `ServerConfig.fileSizeLimitMb` (default 50 MB), so the worst-case peak is ~1 GB of heap (inbox links are ≤ 10 MB each, bounded by the 50 MB inbox). This is the inherent cost of the user-requested in-memory model.
 
 ### Task 4.3 — Ground-up double-check (read everything, verify against the plan and decisions)
 

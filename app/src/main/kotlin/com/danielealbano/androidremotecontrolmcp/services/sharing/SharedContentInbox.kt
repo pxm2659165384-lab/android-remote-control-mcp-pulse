@@ -1,30 +1,24 @@
 package com.danielealbano.androidremotecontrolmcp.services.sharing
 
-import java.io.File
-
 /**
  * In-memory queue of content shared INTO the app via the Android share sheet, drained (consumed) by
  * the `get_shared_content` MCP tool.
  *
- * IN-MEMORY ONLY (no persistence across process death): at most [MAX_ITEMS] items and [MAX_TOTAL_BYTES]
- * total; each item ≤ [MAX_FILE_BYTES] (larger ones are rejected); items expire after [TTL_MS]. Stale
- * blobs are cleared on init.
+ * IN-MEMORY ONLY (no disk, no persistence across process death): blobs are held as [ByteArray]s in RAM.
+ * At most [MAX_ITEMS] items and [MAX_TOTAL_BYTES] total; each item ≤ [MAX_FILE_BYTES] (larger ones are
+ * rejected); items expire after [TTL_MS].
  */
 interface SharedContentInbox {
-    /** Directory the share receiver writes inbound blobs into before calling [add]. */
-    val blobDir: File
-
     /**
-     * Adds [item]. Returns false (deleting any blob) when `sizeBytes > MAX_FILE_BYTES`. Otherwise
-     * evicts the oldest items (deleting their blobs) to honor [MAX_ITEMS] / [MAX_TOTAL_BYTES], inserts,
-     * and returns true.
+     * Adds [item]. Returns false when `sizeBytes > MAX_FILE_BYTES`. Otherwise evicts the oldest items
+     * to honor [MAX_ITEMS] / [MAX_TOTAL_BYTES], inserts, and returns true.
      */
     suspend fun add(item: SharedItem): Boolean
 
     /** Returns all non-expired items in insertion order AND clears the queue (consume-on-read). */
     suspend fun drainAll(): List<SharedItem>
 
-    /** Deletes expired items and their blobs. */
+    /** Drops expired items. */
     suspend fun purgeExpired()
 
     companion object {
@@ -38,7 +32,7 @@ interface SharedContentInbox {
 /**
  * A shared item.
  *
- * @property kind [Kind.TEXT] carries [text]; [Kind.BLOB] carries [blob] (a file in the inbox dir).
+ * @property kind [Kind.TEXT] carries [text]; [Kind.BLOB] carries [bytes] (held in RAM).
  */
 data class SharedItem(
     val id: String,
@@ -46,10 +40,37 @@ data class SharedItem(
     val mimeType: String,
     val fileName: String?,
     val text: String?,
-    val blob: File?,
+    val bytes: ByteArray?,
     val sizeBytes: Long,
     val createdAtMs: Long,
     val expiresAtMs: Long,
 ) {
     enum class Kind { TEXT, BLOB }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is SharedItem) return false
+        return id == other.id &&
+            kind == other.kind &&
+            mimeType == other.mimeType &&
+            fileName == other.fileName &&
+            text == other.text &&
+            (bytes?.contentEquals(other.bytes) ?: (other.bytes == null)) &&
+            sizeBytes == other.sizeBytes &&
+            createdAtMs == other.createdAtMs &&
+            expiresAtMs == other.expiresAtMs
+    }
+
+    override fun hashCode(): Int {
+        var result = id.hashCode()
+        result = 31 * result + kind.hashCode()
+        result = 31 * result + mimeType.hashCode()
+        result = 31 * result + (fileName?.hashCode() ?: 0)
+        result = 31 * result + (text?.hashCode() ?: 0)
+        result = 31 * result + (bytes?.contentHashCode() ?: 0)
+        result = 31 * result + sizeBytes.hashCode()
+        result = 31 * result + createdAtMs.hashCode()
+        result = 31 * result + expiresAtMs.hashCode()
+        return result
+    }
 }

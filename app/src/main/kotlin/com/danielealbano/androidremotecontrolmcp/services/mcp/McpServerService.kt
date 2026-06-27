@@ -393,7 +393,6 @@ class McpServerService : Service() {
             fileSizeLimitMb,
             currentBaseUrl,
             { tunnelManager.tunnelStatus.value is TunnelStatus.Connected },
-            applicationContext,
             toolNamePrefix,
             perms,
         )

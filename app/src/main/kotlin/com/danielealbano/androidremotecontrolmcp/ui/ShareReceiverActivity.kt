@@ -15,10 +15,9 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
+import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.InputStream
-import java.io.OutputStream
 import java.util.UUID
 import javax.inject.Inject
 
@@ -27,11 +26,11 @@ import javax.inject.Inject
  * any MIME type). It captures the shared payload into the in-memory [SharedContentInbox] and finishes
  * with no visible UI.
  *
- * Textual `ACTION_SEND` with `EXTRA_TEXT` is stored as a text item. Otherwise each `EXTRA_STREAM` URI
- * is streamed into the inbox blob directory while counting bytes, aborting (and deleting the partial
- * file) when the per-file cap is exceeded — the provider-reported size ([OpenableColumns.SIZE]) is NOT
- * trusted (it may be -1/null). All copying happens before [finish] because the URI read grants are tied
- * to this activity's lifetime.
+ * Textual `ACTION_SEND` with `EXTRA_TEXT` is stored as a text item. Otherwise each `EXTRA_STREAM` URI is
+ * read fully into memory while counting bytes, aborting when the per-file cap is exceeded — the
+ * provider-reported size ([OpenableColumns.SIZE]) is NOT trusted (it may be -1/null). Nothing is written
+ * to disk. All reading happens before [finish] because the URI read grants are tied to this activity's
+ * lifetime.
  */
 @AndroidEntryPoint
 class ShareReceiverActivity : ComponentActivity() {
@@ -49,7 +48,7 @@ class ShareReceiverActivity : ComponentActivity() {
         process(intent)
     }
 
-    /** Streams/copies the payload off the main thread (the read grant is tied to this activity), then finishes. */
+    /** Reads the payload off the main thread (the read grant is tied to this activity), then finishes. */
     private fun process(intent: Intent) {
         lifecycleScope.launch {
             withContext(Dispatchers.IO) { handleIntent(intent) }
@@ -76,7 +75,7 @@ class ShareReceiverActivity : ComponentActivity() {
                     mimeType = type,
                     fileName = null,
                     text = text,
-                    blob = null,
+                    bytes = null,
                     sizeBytes = text.toByteArray().size.toLong(),
                     createdAtMs = now,
                     expiresAtMs = now + SharedContentInbox.TTL_MS,
@@ -85,63 +84,49 @@ class ShareReceiverActivity : ComponentActivity() {
             return
         }
         val uri = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java) ?: return
-        streamToInbox(uri)?.let { inbox.add(it) }
+        readToInbox(uri)?.let { inbox.add(it) }
     }
 
     private suspend fun handleSendMultiple(intent: Intent) {
         val uris =
             IntentCompat.getParcelableArrayListExtra(intent, Intent.EXTRA_STREAM, Uri::class.java) ?: return
-        uris.forEach { uri -> streamToInbox(uri)?.let { inbox.add(it) } }
+        uris.forEach { uri -> readToInbox(uri)?.let { inbox.add(it) } }
     }
 
     /**
-     * Streams [uri] into a fresh file in the inbox blob directory, enforcing [SharedContentInbox.MAX_FILE_BYTES]
-     * during the copy. Returns the built [SharedItem], or null when the stream cannot be opened, exceeds the cap,
-     * or fails to read (the partial file is deleted in those cases).
+     * Reads [uri] fully into memory, enforcing [SharedContentInbox.MAX_FILE_BYTES] during the read.
+     * Returns the built [SharedItem], or null when the stream cannot be opened, exceeds the cap, or fails.
      */
-    private fun streamToInbox(uri: Uri): SharedItem? {
+    private fun readToInbox(uri: Uri): SharedItem? {
         val mimeType = contentResolver.getType(uri) ?: intent.type ?: "application/octet-stream"
         val displayName = queryDisplayName(uri)
-        val id = UUID.randomUUID().toString()
-        val dest = File(inbox.blobDir, id)
-        val count = copyToBlob(uri, dest)
-        if (count == null) {
-            dest.delete()
-            return null
-        }
+        val bytes = readUriCapped(uri) ?: return null
         val now = System.currentTimeMillis()
         return SharedItem(
-            id = id,
+            id = UUID.randomUUID().toString(),
             kind = SharedItem.Kind.BLOB,
             mimeType = mimeType,
             fileName = displayName,
             text = null,
-            blob = dest,
-            sizeBytes = count,
+            bytes = bytes,
+            sizeBytes = bytes.size.toLong(),
             createdAtMs = now,
             expiresAtMs = now + SharedContentInbox.TTL_MS,
         )
     }
 
-    /** Copies [uri] into [dest], returning the byte count, or null if it cannot be opened or fails to read. */
-    private fun copyToBlob(
-        uri: Uri,
-        dest: File,
-    ): Long? =
+    /** Reads [uri] into a [ByteArray], or null if it cannot be opened, exceeds the cap, or fails to read. */
+    private fun readUriCapped(uri: Uri): ByteArray? =
         try {
-            contentResolver.openInputStream(uri)?.use { source ->
-                dest.outputStream().use { output -> copyCapped(source, output) }
-            }
+            contentResolver.openInputStream(uri)?.use { source -> readStreamCapped(source) }
         } catch (e: IOException) {
             Log.w(TAG, "Failed to read shared stream", e)
             null
         }
 
-    /** Streams [source] to [output] up to the per-file cap; returns total bytes, or null if the cap is exceeded. */
-    private fun copyCapped(
-        source: InputStream,
-        output: OutputStream,
-    ): Long? {
+    /** Reads [source] up to the per-file cap; returns the bytes, or null if the cap is exceeded. */
+    private fun readStreamCapped(source: InputStream): ByteArray? {
+        val output = ByteArrayOutputStream()
         val buffer = ByteArray(BUFFER_SIZE)
         var count = 0L
         while (true) {
@@ -151,7 +136,7 @@ class ShareReceiverActivity : ComponentActivity() {
             if (count > SharedContentInbox.MAX_FILE_BYTES) return null
             output.write(buffer, 0, read)
         }
-        return count
+        return output.toByteArray()
     }
 
     private fun queryDisplayName(uri: Uri): String? =

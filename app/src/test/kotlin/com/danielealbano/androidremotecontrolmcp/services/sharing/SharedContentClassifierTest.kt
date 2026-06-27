@@ -15,15 +15,10 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.io.TempDir
-import java.io.File
 import java.io.OutputStream
 
 @DisplayName("SharedContentClassifier")
 class SharedContentClassifierTest {
-    @TempDir
-    lateinit var tempDir: File
-
     @Test
     @DisplayName("textual mimes map to text; binary mimes do not")
     fun textualMimesMapToText() {
@@ -62,14 +57,14 @@ class SharedContentClassifierTest {
         unmockkStatic(BitmapFactory::class, Bitmap::class, Base64::class)
     }
 
-    private fun imageBlob(name: String): File = File(tempDir, name).apply { writeBytes(byteArrayOf(1, 2, 3, 4)) }
-
     @Test
     @DisplayName("large image is downscaled to 800px and re-encoded as JPEG")
     fun largeImageReencodedToJpeg() {
-        val blob = imageBlob("large.png")
-        every { BitmapFactory.decodeFile(any<String>(), any<BitmapFactory.Options>()) } answers {
-            secondArg<BitmapFactory.Options>().apply {
+        val bytes = byteArrayOf(1, 2, 3, 4)
+        every {
+            BitmapFactory.decodeByteArray(any<ByteArray>(), any<Int>(), any<Int>(), any<BitmapFactory.Options>())
+        } answers {
+            lastArg<BitmapFactory.Options>().apply {
                 outWidth = 1600
                 outHeight = 1200
             }
@@ -80,7 +75,7 @@ class SharedContentClassifierTest {
                 every { width } returns 1600
                 every { height } returns 1200
             }
-        every { BitmapFactory.decodeFile(any<String>()) } returns source
+        every { BitmapFactory.decodeByteArray(any<ByteArray>(), any<Int>(), any<Int>()) } returns source
         val resized =
             mockk<Bitmap>(relaxed = true) {
                 every { compress(any(), any(), any<OutputStream>()) } returns true
@@ -88,7 +83,7 @@ class SharedContentClassifierTest {
         every { Bitmap.createScaledBitmap(source, 800, 600, true) } returns resized
         every { Base64.encodeToString(any<ByteArray>(), Base64.NO_WRAP) } returns "JPEGB64"
 
-        val result = SharedContentClassifier.downscaleToInline(blob, "image/png")
+        val result = SharedContentClassifier.downscaleToInline(bytes, "image/png")
 
         assertEquals("image/jpeg", result.mimeType)
         assertEquals("JPEGB64", result.base64)
@@ -98,9 +93,11 @@ class SharedContentClassifierTest {
     @Test
     @DisplayName("small image keeps original bytes and MIME (no upscale)")
     fun smallImageKept() {
-        val blob = imageBlob("small.png")
-        every { BitmapFactory.decodeFile(any<String>(), any<BitmapFactory.Options>()) } answers {
-            secondArg<BitmapFactory.Options>().apply {
+        val bytes = byteArrayOf(1, 2, 3, 4)
+        every {
+            BitmapFactory.decodeByteArray(any<ByteArray>(), any<Int>(), any<Int>(), any<BitmapFactory.Options>())
+        } answers {
+            lastArg<BitmapFactory.Options>().apply {
                 outWidth = 400
                 outHeight = 300
             }
@@ -108,7 +105,7 @@ class SharedContentClassifierTest {
         }
         every { Base64.encodeToString(any<ByteArray>(), Base64.NO_WRAP) } returns "ORIGB64"
 
-        val result = SharedContentClassifier.downscaleToInline(blob, "image/png")
+        val result = SharedContentClassifier.downscaleToInline(bytes, "image/png")
 
         assertEquals("image/png", result.mimeType)
         assertEquals("ORIGB64", result.base64)

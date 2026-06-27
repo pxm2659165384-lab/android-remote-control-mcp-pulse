@@ -1,6 +1,5 @@
 package com.danielealbano.androidremotecontrolmcp.integration
 
-import android.content.Context
 import android.graphics.BitmapFactory
 import android.util.Base64
 import android.util.Log
@@ -30,6 +29,7 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
@@ -53,14 +53,9 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.io.TempDir
-import java.io.File
 
 @DisplayName("Sharing Integration Tests")
 class SharingIntegrationTest {
-    @TempDir
-    lateinit var tempDir: File
-
     @BeforeEach
     fun setUp() {
         mockkStatic(Log::class, BitmapFactory::class, Base64::class)
@@ -71,8 +66,10 @@ class SharingIntegrationTest {
         every { Log.e(any(), any()) } returns 0
         every { Base64.encodeToString(any<ByteArray>(), any()) } returns INLINE_IMAGE_BASE64
         // Bounds decode reports a small image so the classifier keeps the original bytes (no real bitmap decode).
-        every { BitmapFactory.decodeFile(any<String>(), any<BitmapFactory.Options>()) } answers {
-            secondArg<BitmapFactory.Options>().apply {
+        every {
+            BitmapFactory.decodeByteArray(any<ByteArray>(), any<Int>(), any<Int>(), any<BitmapFactory.Options>())
+        } answers {
+            lastArg<BitmapFactory.Options>().apply {
                 outWidth = 10
                 outHeight = 10
             }
@@ -111,7 +108,7 @@ class SharingIntegrationTest {
         runTest {
             val inbox = newInbox()
             val linkService = newLinkService()
-            inbox.add(blobItem(inbox, "pic.png", "image/png", byteArrayOf(1, 2, 3, 4)))
+            inbox.add(blobItem("pic.png", "image/png", byteArrayOf(1, 2, 3, 4)))
 
             runSharingApp(inbox, linkService) { client, _ ->
                 val result = client.callTool(name = "get_shared_content", arguments = emptyMap())
@@ -132,7 +129,7 @@ class SharingIntegrationTest {
             val inbox = newInbox()
             val linkService = newLinkService()
             val bytes = byteArrayOf(0x25, 0x50, 0x44, 0x46) // %PDF
-            inbox.add(blobItem(inbox, "doc.pdf", "application/pdf", bytes))
+            inbox.add(blobItem("doc.pdf", "application/pdf", bytes))
 
             runSharingApp(inbox, linkService) { client, httpClient ->
                 val result = client.callTool(name = "get_shared_content", arguments = emptyMap())
@@ -170,7 +167,7 @@ class SharingIntegrationTest {
 
             val inboxNoTunnel = newInbox()
             val linkNoTunnel = newLinkService()
-            inboxNoTunnel.add(blobItem(inboxNoTunnel, "doc.pdf", "application/pdf", byteArrayOf(1)))
+            inboxNoTunnel.add(blobItem("doc.pdf", "application/pdf", byteArrayOf(1)))
             runSharingApp(inboxNoTunnel, linkNoTunnel, tunnelConnected = { false }) { client, _ ->
                 val result = client.callTool(name = "get_shared_content", arguments = emptyMap())
                 assertTrue(
@@ -181,7 +178,7 @@ class SharingIntegrationTest {
 
             val inboxTunnel = newInbox()
             val linkTunnel = newLinkService()
-            inboxTunnel.add(blobItem(inboxTunnel, "doc.pdf", "application/pdf", byteArrayOf(1)))
+            inboxTunnel.add(blobItem("doc.pdf", "application/pdf", byteArrayOf(1)))
             runSharingApp(inboxTunnel, linkTunnel, tunnelConnected = { true }) { client, _ ->
                 val result = client.callTool(name = "get_shared_content", arguments = emptyMap())
                 assertFalse(
@@ -225,7 +222,7 @@ class SharingIntegrationTest {
     fun shareFileViaWebRejectsOverLimit() =
         runTest {
             val inbox = newInbox()
-            val linkService = newLinkService()
+            val linkService = mockk<EphemeralFileLinkService>(relaxed = true)
             val fop = mockk<FileOperationProvider>(relaxed = true)
             coEvery { fop.readFileBytes(any(), any(), any()) } throws
                 McpToolException.ActionFailed("File size (999 bytes) exceeds the limit of 1 bytes.")
@@ -237,12 +234,7 @@ class SharingIntegrationTest {
                         arguments = mapOf("location_id" to "loc1", "path" to "big.bin"),
                     )
                 assertEquals(true, result.isError)
-                // EphemeralFileLinkServiceImpl stores registered blobs under filesDir/ephemeral_links.
-                val registeredBlobs = File(tempDir, "ephemeral_links").listFiles()
-                assertTrue(
-                    registeredBlobs == null || registeredBlobs.isEmpty(),
-                    "no link must be registered on failure",
-                )
+                coVerify(exactly = 0) { linkService.register(any(), any(), any()) }
             }
         }
 
@@ -288,11 +280,9 @@ class SharingIntegrationTest {
     // Helpers
     // ─────────────────────────────────────────────────────────────────────────
 
-    private fun context(): Context = mockk<Context>().also { every { it.filesDir } returns tempDir }
+    private fun newInbox(): SharedContentInboxImpl = SharedContentInboxImpl()
 
-    private fun newInbox(): SharedContentInboxImpl = SharedContentInboxImpl(context())
-
-    private fun newLinkService(): EphemeralFileLinkServiceImpl = EphemeralFileLinkServiceImpl(context())
+    private fun newLinkService(): EphemeralFileLinkServiceImpl = EphemeralFileLinkServiceImpl()
 
     private fun textItem(text: String): SharedItem =
         SharedItem(
@@ -301,31 +291,28 @@ class SharingIntegrationTest {
             mimeType = "text/plain",
             fileName = null,
             text = text,
-            blob = null,
+            bytes = null,
             sizeBytes = text.toByteArray().size.toLong(),
             createdAtMs = 0L,
             expiresAtMs = Long.MAX_VALUE,
         )
 
     private fun blobItem(
-        inbox: SharedContentInboxImpl,
         name: String,
         mimeType: String,
         bytes: ByteArray,
-    ): SharedItem {
-        val blob = File(inbox.blobDir, name).apply { writeBytes(bytes) }
-        return SharedItem(
+    ): SharedItem =
+        SharedItem(
             id = name,
             kind = SharedItem.Kind.BLOB,
             mimeType = mimeType,
             fileName = name,
             text = null,
-            blob = blob,
+            bytes = bytes,
             sizeBytes = bytes.size.toLong(),
             createdAtMs = 0L,
             expiresAtMs = Long.MAX_VALUE,
         )
-    }
 
     private fun newServer(): Server =
         Server(
@@ -356,7 +343,6 @@ class SharingIntegrationTest {
             FILE_SIZE_LIMIT_MB,
             { BASE_URL },
             tunnelConnected,
-            context(),
             "",
             ToolPermissionsConfig(),
         )
@@ -377,7 +363,7 @@ class SharingIntegrationTest {
                             call.respond(HttpStatusCode.NotFound)
                         } else {
                             call.respondBytes(
-                                entry.blob.readBytes(),
+                                entry.bytes,
                                 ContentType.parse(entry.mimeType),
                                 HttpStatusCode.OK,
                             )

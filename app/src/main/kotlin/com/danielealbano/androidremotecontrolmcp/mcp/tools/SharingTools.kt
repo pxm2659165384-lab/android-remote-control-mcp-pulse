@@ -2,14 +2,12 @@
 
 package com.danielealbano.androidremotecontrolmcp.mcp.tools
 
-import android.content.Context
 import com.danielealbano.androidremotecontrolmcp.data.model.ToolPermissionsConfig
 import com.danielealbano.androidremotecontrolmcp.mcp.McpToolException
 import com.danielealbano.androidremotecontrolmcp.services.sharing.EphemeralFileLinkService
 import com.danielealbano.androidremotecontrolmcp.services.sharing.SharedContentClassifier
 import com.danielealbano.androidremotecontrolmcp.services.sharing.SharedContentInbox
 import com.danielealbano.androidremotecontrolmcp.services.sharing.SharedItem
-import com.danielealbano.androidremotecontrolmcp.services.storage.FileBytesResult
 import com.danielealbano.androidremotecontrolmcp.services.storage.FileOperationProvider
 import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
@@ -21,8 +19,6 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
-import java.io.File
-import java.util.UUID
 
 /**
  * Reachability note appended when a capability link is produced but no tunnel is connected: a remote
@@ -65,14 +61,13 @@ class GetSharedContentHandler(
                     content += TextContent(text = item.text.orEmpty())
                 }
 
-                SharedContentClassifier.isImage(item.mimeType) && item.blob != null -> {
+                SharedContentClassifier.isImage(item.mimeType) && item.bytes != null -> {
                     val name = item.fileName ?: "image"
-                    // Read/encode the image BEFORE register (which moves the blob out of the inbox dir).
                     val inline =
                         runCatching {
-                            SharedContentClassifier.downscaleToInline(item.blob, item.mimeType)
+                            SharedContentClassifier.downscaleToInline(item.bytes, item.mimeType)
                         }.getOrNull()
-                    val token = linkService.register(item.blob, item.mimeType, name)
+                    val token = linkService.register(item.bytes, item.mimeType, name)
                     val url = baseUrlProvider() + linkService.pathFor(token)
                     linkProduced = true
                     if (inline != null) {
@@ -93,9 +88,9 @@ class GetSharedContentHandler(
                     }
                 }
 
-                item.blob != null -> {
+                item.bytes != null -> {
                     val name = item.fileName ?: "file"
-                    val token = linkService.register(item.blob, item.mimeType, name)
+                    val token = linkService.register(item.bytes, item.mimeType, name)
                     val url = baseUrlProvider() + linkService.pathFor(token)
                     linkProduced = true
                     content +=
@@ -142,9 +137,9 @@ class GetSharedContentHandler(
 /**
  * MCP tool handler for `share_file_via_web`.
  *
- * Reads an existing device file (via the authorized-location model), copies it into the capability-link
- * registry, and returns a temporary fetch URL plus metadata. The untrusted-content warning is included
- * because the filename/MIME are device-derived. Files larger than the configured limit are rejected.
+ * Reads an existing device file (via the authorized-location model) into memory, registers it as a
+ * capability link, and returns a temporary fetch URL plus metadata. The untrusted-content warning is
+ * included because the filename/MIME are device-derived. Files larger than the configured limit are rejected.
  */
 class ShareFileViaWebHandler(
     private val fileOperationProvider: FileOperationProvider,
@@ -152,14 +147,13 @@ class ShareFileViaWebHandler(
     private val fileSizeLimitMb: Int,
     private val baseUrlProvider: () -> String,
     private val tunnelConnected: () -> Boolean,
-    private val context: Context,
 ) {
     suspend fun execute(arguments: JsonObject?): CallToolResult {
         val locationId = McpToolUtils.requireString(arguments, "location_id")
         val path = McpToolUtils.requireString(arguments, "path")
 
         val result = readOrThrow(locationId, path)
-        val token = stageAndRegister(result)
+        val token = linkService.register(result.bytes, result.mimeType, result.fileName)
         val url = baseUrlProvider() + linkService.pathFor(token)
 
         val message =
@@ -190,21 +184,6 @@ class ShareFileViaWebHandler(
                 (e.message ?: "unknown error"),
             e,
         )
-    }
-
-    /** Stages [result] bytes on the registry filesystem and registers a capability link. */
-    @Suppress("TooGenericExceptionCaught")
-    private suspend fun stageAndRegister(result: FileBytesResult): String {
-        // Same filesystem as the registry so register()'s move is intra-filesystem.
-        val tempDir = File(context.filesDir, "ephemeral_links_tmp").also { it.mkdirs() }
-        val tempFile = File(tempDir, UUID.randomUUID().toString())
-        tempFile.writeBytes(result.bytes)
-        return try {
-            linkService.register(tempFile, result.mimeType, result.fileName)
-        } catch (e: Exception) {
-            tempFile.delete()
-            throw e
-        }
     }
 
     fun register(
@@ -257,7 +236,6 @@ fun registerSharingTools(
     fileSizeLimitMb: Int,
     baseUrlProvider: () -> String,
     tunnelConnected: () -> Boolean,
-    context: Context,
     toolNamePrefix: String,
     perms: ToolPermissionsConfig,
 ) {
@@ -272,7 +250,6 @@ fun registerSharingTools(
             fileSizeLimitMb,
             baseUrlProvider,
             tunnelConnected,
-            context,
         ).register(server, toolNamePrefix)
     }
 }
