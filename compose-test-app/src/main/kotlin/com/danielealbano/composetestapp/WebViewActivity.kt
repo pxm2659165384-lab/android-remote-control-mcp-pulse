@@ -23,6 +23,11 @@ import androidx.activity.ComponentActivity
  * When launched with the string extra `content=heavy`, it instead loads a large,
  * content-heavy page (hundreds of articles with headings, paragraphs, links, list
  * items and images) used to exercise WebView node collapsing in E2E tests.
+ *
+ * This activity is `singleTop`, so a relaunch reuses the same instance and fires
+ * [onNewIntent] rather than [onCreate]. Both route through [applyIntent] so the
+ * displayed page is always determined by the latest intent — a simple-page launch
+ * after a heavy-page launch reliably shows the simple page again.
  */
 class WebViewActivity : ComponentActivity() {
 
@@ -31,32 +36,51 @@ class WebViewActivity : ComponentActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val heavy = intent?.getStringExtra(EXTRA_CONTENT) == CONTENT_HEAVY
-        Log.i(TAG, "onCreate called, heavy=$heavy")
-
+        Log.i(TAG, "onCreate called")
         webView = WebView(this).apply {
             settings.javaScriptEnabled = true
             webViewClient = WebViewClient()
-            if (heavy) {
-                loadDataWithBaseURL(null, buildHeavyHtml(), "text/html", "UTF-8", null)
-            } else {
-                loadData(
-                    """
-                    <html>
-                    <body style="display:flex;justify-content:center;align-items:center;height:100vh;margin:0;">
-                        <span id="counter" style="font-size:48px;">Number: 0</span>
-                    </body>
-                    </html>
-                    """.trimIndent(),
-                    "text/html",
-                    "UTF-8",
-                )
-            }
         }
         setContentView(webView)
+        applyIntent(intent)
+    }
 
-        if (!heavy) {
-            handleNumberIntent(intent)
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        Log.i(TAG, "onNewIntent called, extras=${intent.extras}")
+        applyIntent(intent)
+    }
+
+    /**
+     * Routes an intent: a `number` extra updates the counter in place via JavaScript (no reload);
+     * otherwise the page is (re)loaded — the heavy page when `content=heavy`, the simple counter
+     * page otherwise.
+     */
+    private fun applyIntent(intent: Intent?) {
+        when {
+            intent?.hasExtra(EXTRA_NUMBER) == true -> updateNumber(intent.getIntExtra(EXTRA_NUMBER, 0))
+            intent?.getStringExtra(EXTRA_CONTENT) == CONTENT_HEAVY -> loadHeavyPage()
+            else -> loadSimplePage()
+        }
+    }
+
+    private fun loadSimplePage() {
+        Log.i(TAG, "loading simple counter page")
+        webView?.loadData(SIMPLE_HTML, "text/html", "UTF-8")
+    }
+
+    private fun loadHeavyPage() {
+        Log.i(TAG, "loading heavy page")
+        webView?.loadDataWithBaseURL(null, buildHeavyHtml(), "text/html", "UTF-8", null)
+    }
+
+    private fun updateNumber(newNumber: Int) {
+        Log.i(TAG, "updating WebView to number=$newNumber")
+        webView?.evaluateJavascript(
+            "document.getElementById('counter').textContent = 'Number: $newNumber';",
+        ) { result ->
+            Log.i(TAG, "evaluateJavascript result=$result")
         }
     }
 
@@ -81,26 +105,6 @@ class WebViewActivity : ComponentActivity() {
         return "<html><body>$body</body></html>"
     }
 
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        Log.i(TAG, "onNewIntent called, extras=${intent.extras}")
-        handleNumberIntent(intent)
-    }
-
-    private fun handleNumberIntent(intent: Intent?) {
-        if (intent?.hasExtra(EXTRA_NUMBER) == true) {
-            val newNumber = intent.getIntExtra(EXTRA_NUMBER, 0)
-            Log.i(TAG, "handleNumberIntent: updating WebView to number=$newNumber")
-            webView?.evaluateJavascript(
-                "document.getElementById('counter').textContent = 'Number: $newNumber';",
-            ) { result ->
-                Log.i(TAG, "handleNumberIntent: evaluateJavascript result=$result")
-            }
-        } else {
-            Log.i(TAG, "handleNumberIntent: no '$EXTRA_NUMBER' extra in intent")
-        }
-    }
-
     override fun onDestroy() {
         webView?.destroy()
         webView = null
@@ -113,6 +117,15 @@ class WebViewActivity : ComponentActivity() {
         private const val EXTRA_CONTENT = "content"
         private const val CONTENT_HEAVY = "heavy"
         private const val ARTICLE_COUNT = 200
+
+        private val SIMPLE_HTML =
+            """
+            <html>
+            <body style="display:flex;justify-content:center;align-items:center;height:100vh;margin:0;">
+                <span id="counter" style="font-size:48px;">Number: 0</span>
+            </body>
+            </html>
+            """.trimIndent()
 
         /** 1x1 transparent PNG so each article has a real <img> accessibility node, offline. */
         private const val PIXEL_DATA_URI =
