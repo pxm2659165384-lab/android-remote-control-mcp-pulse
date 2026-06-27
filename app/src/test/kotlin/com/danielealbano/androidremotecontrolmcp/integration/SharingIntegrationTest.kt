@@ -5,6 +5,7 @@ import android.graphics.BitmapFactory
 import android.util.Base64
 import android.util.Log
 import com.danielealbano.androidremotecontrolmcp.data.model.ToolPermissionsConfig
+import com.danielealbano.androidremotecontrolmcp.mcp.McpToolException
 import com.danielealbano.androidremotecontrolmcp.mcp.auth.BearerTokenAuthPlugin
 import com.danielealbano.androidremotecontrolmcp.mcp.mcpStreamableHttp
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.McpToolUtils
@@ -14,6 +15,7 @@ import com.danielealbano.androidremotecontrolmcp.services.sharing.EphemeralFileL
 import com.danielealbano.androidremotecontrolmcp.services.sharing.SharedContentInbox
 import com.danielealbano.androidremotecontrolmcp.services.sharing.SharedContentInboxImpl
 import com.danielealbano.androidremotecontrolmcp.services.sharing.SharedItem
+import com.danielealbano.androidremotecontrolmcp.services.storage.FileBytesResult
 import com.danielealbano.androidremotecontrolmcp.services.storage.FileOperationProvider
 import io.ktor.client.request.get
 import io.ktor.client.statement.readRawBytes
@@ -27,6 +29,7 @@ import io.ktor.server.response.respondBytes
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
@@ -45,6 +48,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -187,6 +191,96 @@ class SharingIntegrationTest {
             }
         }
 
+    @Test
+    @DisplayName("share_file_via_web returns a capability url that resolves via /s/{token}")
+    fun shareFileViaWebResolves() =
+        runTest {
+            val inbox = newInbox()
+            val linkService = newLinkService()
+            val fop = mockk<FileOperationProvider>(relaxed = true)
+            val bytes = byteArrayOf(0x25, 0x50, 0x44, 0x46)
+            coEvery { fop.readFileBytes("loc1", "doc.pdf", any()) } returns
+                FileBytesResult(bytes, "application/pdf", "doc.pdf", bytes.size.toLong())
+
+            runSharingApp(inbox, linkService, fileOperationProvider = fop) { client, httpClient ->
+                val result =
+                    client.callTool(
+                        name = "share_file_via_web",
+                        arguments = mapOf("location_id" to "loc1", "path" to "doc.pdf"),
+                    )
+                assertNotEquals(true, result.isError)
+                val text = (result.content[0] as TextContent).text
+                assertTrue(text.startsWith(McpToolUtils.UNTRUSTED_CONTENT_WARNING), "warning must be first")
+                val token = TOKEN_REGEX.find(text)?.groupValues?.get(1)
+                assertTrue(token != null, "result must contain a capability URL")
+
+                val response = httpClient.get("/s/$token")
+                assertEquals(HttpStatusCode.OK, response.status)
+                assertArrayEquals(bytes, response.readRawBytes())
+            }
+        }
+
+    @Test
+    @DisplayName("share_file_via_web rejects an over-limit file and registers no link")
+    fun shareFileViaWebRejectsOverLimit() =
+        runTest {
+            val inbox = newInbox()
+            val linkService = newLinkService()
+            val fop = mockk<FileOperationProvider>(relaxed = true)
+            coEvery { fop.readFileBytes(any(), any(), any()) } throws
+                McpToolException.ActionFailed("File size (999 bytes) exceeds the limit of 1 bytes.")
+
+            runSharingApp(inbox, linkService, fileOperationProvider = fop) { client, _ ->
+                val result =
+                    client.callTool(
+                        name = "share_file_via_web",
+                        arguments = mapOf("location_id" to "loc1", "path" to "big.bin"),
+                    )
+                assertEquals(true, result.isError)
+                // EphemeralFileLinkServiceImpl stores registered blobs under filesDir/ephemeral_links.
+                val registeredBlobs = File(tempDir, "ephemeral_links").listFiles()
+                assertTrue(registeredBlobs == null || registeredBlobs.isEmpty(), "no link must be registered on failure")
+            }
+        }
+
+    @Test
+    @DisplayName("share_file_via_web reuses the link registry (21st call evicts the oldest)")
+    fun shareFileViaWebReusesRegistryCap() =
+        runTest {
+            val inbox = newInbox()
+            val linkService = newLinkService()
+            val fop = mockk<FileOperationProvider>(relaxed = true)
+            coEvery { fop.readFileBytes(any(), any(), any()) } answers {
+                val path = secondArg<String>()
+                val data = path.toByteArray()
+                FileBytesResult(data, "application/octet-stream", path, data.size.toLong())
+            }
+
+            runSharingApp(inbox, linkService, fileOperationProvider = fop) { client, httpClient ->
+                val tokens = mutableListOf<String>()
+                repeat(EphemeralFileLinkService.MAX_LINKS + 1) { i ->
+                    val result =
+                        client.callTool(
+                            name = "share_file_via_web",
+                            arguments = mapOf("location_id" to "loc1", "path" to "f$i.bin"),
+                        )
+                    val text = (result.content[0] as TextContent).text
+                    tokens += TOKEN_REGEX.find(text)!!.groupValues[1]
+                }
+
+                assertEquals(
+                    HttpStatusCode.NotFound,
+                    httpClient.get("/s/${tokens.first()}").status,
+                    "the oldest link must be evicted",
+                )
+                assertEquals(
+                    HttpStatusCode.OK,
+                    httpClient.get("/s/${tokens.last()}").status,
+                    "the newest link must resolve",
+                )
+            }
+        }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Helpers
     // ─────────────────────────────────────────────────────────────────────────
@@ -247,9 +341,9 @@ class SharingIntegrationTest {
         inbox: SharedContentInbox,
         linkService: EphemeralFileLinkService,
         tunnelConnected: () -> Boolean = { false },
+        fileOperationProvider: FileOperationProvider = mockk(relaxed = true),
         block: suspend (Client, io.ktor.client.HttpClient) -> Unit,
     ) {
-        val fileOperationProvider = mockk<FileOperationProvider>(relaxed = true)
         val server = newServer()
         registerSharingTools(
             server,

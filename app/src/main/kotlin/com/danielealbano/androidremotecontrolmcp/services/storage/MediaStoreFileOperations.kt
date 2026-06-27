@@ -23,6 +23,12 @@ interface MediaStoreFileOperations {
         limit: Int,
     ): FileReadResult
 
+    suspend fun readFileBytes(
+        locationId: String,
+        path: String,
+        maxBytes: Long,
+    ): FileBytesResult
+
     suspend fun writeFile(
         locationId: String,
         path: String,

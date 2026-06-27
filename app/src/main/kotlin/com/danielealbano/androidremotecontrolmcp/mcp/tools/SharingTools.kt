@@ -2,18 +2,34 @@
 
 package com.danielealbano.androidremotecontrolmcp.mcp.tools
 
+import android.content.Context
 import com.danielealbano.androidremotecontrolmcp.data.model.ToolPermissionsConfig
+import com.danielealbano.androidremotecontrolmcp.mcp.McpToolException
 import com.danielealbano.androidremotecontrolmcp.services.sharing.EphemeralFileLinkService
 import com.danielealbano.androidremotecontrolmcp.services.sharing.SharedContentClassifier
 import com.danielealbano.androidremotecontrolmcp.services.sharing.SharedContentInbox
 import com.danielealbano.androidremotecontrolmcp.services.sharing.SharedItem
+import com.danielealbano.androidremotecontrolmcp.services.storage.FileOperationProvider
 import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
 import io.modelcontextprotocol.kotlin.sdk.types.ContentBlock
 import io.modelcontextprotocol.kotlin.sdk.types.ImageContent
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import io.modelcontextprotocol.kotlin.sdk.types.ToolSchema
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonObject
+import java.io.File
+import java.util.UUID
+
+/**
+ * Reachability note appended when a capability link is produced but no tunnel is connected: a remote
+ * client (Claude.ai / Claude Desktop) can only fetch a LAN URL when a tunnel is active.
+ */
+private const val REACHABILITY_NOTE =
+    "note:download URLs use the device's local network address; a remote client " +
+        "(Claude.ai / Claude Desktop) can only fetch them when a tunnel is active."
 
 // ─────────────────────────────────────────────────────────────────────────────
 // get_shared_content
@@ -84,11 +100,7 @@ class GetSharedContentHandler(
         }
 
         if (linkProduced && !tunnelConnected()) {
-            content += TextContent(
-                text =
-                    "note:download URLs use the device's local network address; a remote client " +
-                        "(Claude.ai / Claude Desktop) can only fetch them when a tunnel is active.",
-            )
+            content += TextContent(text = REACHABILITY_NOTE)
         }
 
         return McpToolUtils.untrustedResult(content)
@@ -115,6 +127,104 @@ class GetSharedContentHandler(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// share_file_via_web
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * MCP tool handler for `share_file_via_web`.
+ *
+ * Reads an existing device file (via the authorized-location model), copies it into the capability-link
+ * registry, and returns a temporary fetch URL plus metadata. The untrusted-content warning is included
+ * because the filename/MIME are device-derived. Files larger than the configured limit are rejected.
+ */
+class ShareFileViaWebHandler(
+    private val fileOperationProvider: FileOperationProvider,
+    private val linkService: EphemeralFileLinkService,
+    private val fileSizeLimitMb: Int,
+    private val baseUrlProvider: () -> String,
+    private val tunnelConnected: () -> Boolean,
+    private val context: Context,
+) {
+    @Suppress("TooGenericExceptionCaught")
+    suspend fun execute(arguments: JsonObject?): CallToolResult {
+        val locationId = McpToolUtils.requireString(arguments, "location_id")
+        val path = McpToolUtils.requireString(arguments, "path")
+        val maxBytes = fileSizeLimitMb.toLong() * BYTES_PER_MB
+
+        val result =
+            try {
+                fileOperationProvider.readFileBytes(locationId, path, maxBytes)
+            } catch (e: McpToolException) {
+                throw e
+            } catch (e: Exception) {
+                throw McpToolException.ActionFailed(
+                    "Could not read the file (it may be missing or exceed the configured size limit): " +
+                        (e.message ?: "unknown error"),
+                )
+            }
+
+        // Stage the bytes on the same filesystem as the registry so register()'s move is intra-filesystem.
+        val tempDir = File(context.filesDir, "ephemeral_links_tmp").also { it.mkdirs() }
+        val tempFile = File(tempDir, UUID.randomUUID().toString())
+        tempFile.writeBytes(result.bytes)
+        val token =
+            try {
+                linkService.register(tempFile, result.mimeType, result.fileName)
+            } catch (e: Exception) {
+                tempFile.delete()
+                throw e
+            }
+        val url = baseUrlProvider() + linkService.pathFor(token)
+
+        val message =
+            buildString {
+                append(
+                    "File '${result.fileName}' ${result.mimeType} (${result.sizeBytes} bytes) at $url " +
+                        "(expires 1h). web_fetch can read text/PDF; other types are download-only.",
+                )
+                if (!tunnelConnected()) {
+                    append("\n")
+                    append(REACHABILITY_NOTE)
+                }
+            }
+        return McpToolUtils.untrustedTextResult(message)
+    }
+
+    fun register(
+        server: Server,
+        toolNamePrefix: String,
+    ) {
+        server.addTool(
+            name = "$toolNamePrefix$TOOL_NAME",
+            description =
+                "Exposes a device file (location_id + path) as a temporary fetch URL (expires 1h, " +
+                    "multiple fetches allowed). Use to let the agent read a device PDF/text via web_fetch, " +
+                    "or to give the user a download link. Limited to the configured file size limit.",
+            inputSchema =
+                ToolSchema(
+                    properties =
+                        buildJsonObject {
+                            putJsonObject("location_id") {
+                                put("type", "string")
+                                put("description", "The authorized storage location identifier")
+                            }
+                            putJsonObject("path") {
+                                put("type", "string")
+                                put("description", "Relative path to the file within the location")
+                            }
+                        },
+                    required = listOf("location_id", "path"),
+                ),
+        ) { request -> execute(request.arguments) }
+    }
+
+    companion object {
+        const val TOOL_NAME = "share_file_via_web"
+        private const val BYTES_PER_MB = 1024L * 1024L
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Registration
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -126,11 +236,11 @@ fun registerSharingTools(
     server: Server,
     inbox: SharedContentInbox,
     linkService: EphemeralFileLinkService,
-    fileOperationProvider: com.danielealbano.androidremotecontrolmcp.services.storage.FileOperationProvider,
+    fileOperationProvider: FileOperationProvider,
     fileSizeLimitMb: Int,
     baseUrlProvider: () -> String,
     tunnelConnected: () -> Boolean,
-    context: android.content.Context,
+    context: Context,
     toolNamePrefix: String,
     perms: ToolPermissionsConfig,
 ) {
@@ -139,7 +249,13 @@ fun registerSharingTools(
             .register(server, toolNamePrefix)
     }
     if (perms.isToolEnabled(ShareFileViaWebHandler.TOOL_NAME)) {
-        ShareFileViaWebHandler(fileOperationProvider, linkService, fileSizeLimitMb, baseUrlProvider, tunnelConnected, context)
-            .register(server, toolNamePrefix)
+        ShareFileViaWebHandler(
+            fileOperationProvider,
+            linkService,
+            fileSizeLimitMb,
+            baseUrlProvider,
+            tunnelConnected,
+            context,
+        ).register(server, toolNamePrefix)
     }
 }

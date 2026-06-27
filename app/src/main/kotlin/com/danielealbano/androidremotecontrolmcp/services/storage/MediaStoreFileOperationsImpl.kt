@@ -15,6 +15,8 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.BufferedReader
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.MalformedURLException
@@ -225,6 +227,39 @@ class MediaStoreFileOperationsImpl
                     hasMore = endLine < totalLines,
                     startLine = offset,
                     endLine = endLine,
+                )
+            }
+
+        // ─── readFileBytes ──────────────────────────────────────────────────
+
+        override suspend fun readFileBytes(
+            locationId: String,
+            path: String,
+            maxBytes: Long,
+        ): FileBytesResult =
+            withContext(Dispatchers.IO) {
+                val builtin = resolveBuiltin(locationId)
+                BuiltinStorageLocation.validatePath(path)
+
+                val uri = findFileOrThrow(locationId, builtin, path)
+                val reportedSize = queryFileSize(uri)
+                if (reportedSize > maxBytes) {
+                    throw McpToolException.ActionFailed(
+                        "File size ($reportedSize bytes) exceeds the limit of $maxBytes bytes.",
+                    )
+                }
+
+                val displayName = extractDisplayName(path)
+                val mimeType = context.contentResolver.getType(uri) ?: MimeTypeUtils.guessMimeType(displayName)
+                val bytes =
+                    context.contentResolver.openInputStream(uri)?.use { readCapped(it, maxBytes) }
+                        ?: throw McpToolException.ActionFailed("Failed to open file for reading: $path")
+
+                FileBytesResult(
+                    bytes = bytes,
+                    mimeType = mimeType,
+                    fileName = displayName,
+                    sizeBytes = bytes.size.toLong(),
                 )
             }
 
@@ -679,6 +714,31 @@ class MediaStoreFileOperationsImpl
             }
         }
 
+        /**
+         * Reads [input] fully into memory, aborting if the cumulative byte count exceeds [maxBytes].
+         * Guards against providers that under-report (or omit) the file size.
+         */
+        private fun readCapped(
+            input: InputStream,
+            maxBytes: Long,
+        ): ByteArray {
+            val output = ByteArrayOutputStream()
+            val buffer = ByteArray(READ_BUFFER_SIZE)
+            var total = 0L
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) break
+                total += read
+                if (total > maxBytes) {
+                    throw McpToolException.ActionFailed(
+                        "File size exceeds the limit of $maxBytes bytes.",
+                    )
+                }
+                output.write(buffer, 0, read)
+            }
+            return output.toByteArray()
+        }
+
         private fun countOccurrences(
             haystack: String,
             needle: String,
@@ -730,6 +790,7 @@ class MediaStoreFileOperationsImpl
             private const val BYTES_PER_MB = 1024L * 1024L
             private const val MILLIS_PER_SECOND = 1000L
             private const val DOWNLOAD_BUFFER_SIZE = 8192
+            private const val READ_BUFFER_SIZE = 8192
             private val HTTP_SUCCESS_RANGE = 200..299
         }
     }

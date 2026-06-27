@@ -353,7 +353,7 @@ fun untrustedResult(content: List<ContentBlock>): CallToolResult =
 **Why:** Lets the agent expose a device file (e.g. a PDF the file tools cannot read, since `readFile` is text-only) as a fetchable capability URL, reusing US1.
 
 **Acceptance criteria:**
-- [ ] `android_<prefix>share_file_via_web` takes `(location_id, path)` like the other file tools, reads the EXISTING file's bytes via the authorized-location model, rejects files over `ServerConfig.fileSizeLimitMb`, registers a capability link, and returns the URL + metadata (name, mime, size) with the untrusted-content warning.
+- [x] `android_<prefix>share_file_via_web` takes `(location_id, path)` like the other file tools, reads the EXISTING file's bytes via the authorized-location model, rejects files over `ServerConfig.fileSizeLimitMb`, registers a capability link, and returns the URL + metadata (name, mime, size) with the untrusted-content warning.
 
 ### Task 3.1 — Byte-read for existing files in the storage layer
 
@@ -367,7 +367,7 @@ and `data class FileBytesResult(val bytes: ByteArray, val mimeType: String, val 
 **Action** — implement in `FileOperationProviderImpl` (SAF) and `MediaStoreFileOperationsImpl` (MediaStore): resolve the EXISTING document/URI for `(locationId, path)` WITHOUT creating it (SAF: `DocumentFile` lookup; MediaStore: query by relative path) using the location's READ access; if not found → failure; determine size (`length()` / `SIZE`); if `> maxBytes` → failure; derive mime (`contentResolver.getType` or extension) and display name; read bytes via `contentResolver.openInputStream`. Do NOT use `createFileUri` (it creates/returns and requires write perm). `FileOperationProviderImpl.readFileBytes` MUST delegate builtin/MediaStore location IDs to `MediaStoreFileOperationsImpl.readFileBytes` exactly as `readFile` does (`if (BuiltinStorageLocation.isBuiltinId(locationId)) return mediaStoreFileOperations.readFileBytes(...)`).
 
 **Definition of Done:**
-- [ ] `readFileBytes` returns bytes+mime+name+size for an existing readable file; missing file or `> maxBytes` → failure; no file is created.
+- [x] `readFileBytes` returns bytes+mime+name+size for an existing readable file; missing file or `> maxBytes` → failure; no file is created.
 
 ### Task 3.2 — `ShareFileViaWebHandler`
 
@@ -381,14 +381,14 @@ and `data class FileBytesResult(val bytes: ByteArray, val mimeType: String, val 
 **Action** — register `"$toolNamePrefix${ShareFileViaWebHandler.TOOL_NAME}"` in `registerSharingTools(...)` when `perms.isToolEnabled(ShareFileViaWebHandler.TOOL_NAME)`.
 
 **Definition of Done:**
-- [ ] Returns a working capability URL for a file within the size limit; over-limit/missing → error; URL resolves to the file bytes via `/s/{token}`; result carries the untrusted warning.
+- [x] Returns a working capability URL for a file within the size limit; over-limit/missing → error; URL resolves to the file bytes via `/s/{token}`; result carries the untrusted warning.
 
 ### Task 3.3 — Finalize wiring
 
 **Action** — `services/mcp/McpServerService.kt`: ensure `registerSharingTools(...)` is called exactly once in `registerAllTools(...)` using the canonical argument order from Task 2.5 (server, inbox, link service, file operation provider, `config.fileSizeLimitMb`, `::currentBaseUrl`, tunnel-connected lambda, application context, tool-name prefix, perms). Confirm Hilt provides `SharedContentInbox` and `EphemeralFileLinkService`.
 
 **Definition of Done:**
-- [ ] Both sharing tools register under the device prefix and honor `ToolPermissionsConfig`.
+- [x] Both sharing tools register under the device prefix and honor `ToolPermissionsConfig`.
 
 ### Task 3.4 — US3 tests
 

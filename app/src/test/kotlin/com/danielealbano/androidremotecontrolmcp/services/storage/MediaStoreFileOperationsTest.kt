@@ -24,6 +24,7 @@ import io.mockk.unmockkStatic
 import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -383,6 +384,54 @@ class MediaStoreFileOperationsTest {
             }
     }
 
+    // ─── readFileBytes ──────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("readFileBytes")
+    inner class ReadFileBytes {
+        @Test
+        fun `readFileBytes reads existing file bytes mime name and size`() =
+            runTest {
+                stubFindOwnedFile(id = 1L, found = true)
+                stubFileSizeQuery(size = 4L)
+                every { mockContentResolver.getType(any()) } returns "application/pdf"
+                val bytes = byteArrayOf(1, 2, 3, 4)
+                every { mockContentResolver.openInputStream(any()) } returns ByteArrayInputStream(bytes)
+
+                val result = operations.readFileBytes("builtin:downloads", "doc.pdf", TEN_MB)
+
+                assertArrayEquals(bytes, result.bytes)
+                assertEquals("application/pdf", result.mimeType)
+                assertEquals("doc.pdf", result.fileName)
+                assertEquals(4L, result.sizeBytes)
+            }
+
+        @Test
+        fun `readFileBytes throws when file not found`() =
+            runTest {
+                stubFindOwnedFile(found = false)
+
+                val exception =
+                    assertThrows<McpToolException.ActionFailed> {
+                        operations.readFileBytes("builtin:downloads", "missing.pdf", TEN_MB)
+                    }
+                assertTrue(exception.message!!.contains("File not found"))
+            }
+
+        @Test
+        fun `readFileBytes throws when file exceeds maxBytes`() =
+            runTest {
+                stubFindOwnedFile(id = 1L, found = true)
+                stubFileSizeQuery(size = OVERSIZE_BYTES)
+
+                val exception =
+                    assertThrows<McpToolException.ActionFailed> {
+                        operations.readFileBytes("builtin:downloads", "huge.bin", TEN_MB)
+                    }
+                assertTrue(exception.message!!.contains("exceeds"))
+            }
+    }
+
     // ─── writeFile ──────────────────────────────────────────────────────
 
     @Nested
@@ -657,5 +706,10 @@ class MediaStoreFileOperationsTest {
                     operations.createFileUri("builtin:downloads", "../file.txt", "text/plain")
                 }
             }
+    }
+
+    private companion object {
+        const val TEN_MB = 10L * 1024 * 1024
+        const val OVERSIZE_BYTES = 100_000_000L
     }
 }
