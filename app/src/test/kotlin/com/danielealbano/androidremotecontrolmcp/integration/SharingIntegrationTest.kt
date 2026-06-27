@@ -149,6 +149,24 @@ class SharingIntegrationTest {
         }
 
     @Test
+    @DisplayName("a textual file is returned inline as text, not as a URL")
+    fun textualFileInlined() =
+        runTest {
+            val inbox = newInbox()
+            val linkService = newLinkService()
+            val json = """{"hello":"world"}"""
+            inbox.add(blobItem("data.json", "application/json", json.toByteArray()))
+
+            runSharingApp(inbox, linkService) { client, _ ->
+                val result = client.callTool(name = "get_shared_content", arguments = emptyMap())
+                assertWarningFirst(result.content)
+                val text = (result.content[1] as TextContent).text
+                assertTrue(text.contains(json), "textual file content must be inlined")
+                assertFalse(text.contains("/s/"), "a textual file must NOT be served as a capability URL")
+            }
+        }
+
+    @Test
     @DisplayName("a blob with a malformed MIME is served as octet-stream with no Content-Disposition")
     fun malformedMimeServedAsOctetStream() =
         runTest {

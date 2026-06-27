@@ -80,29 +80,19 @@ class GetSharedContentHandler(
             }
 
             SharedContentClassifier.isImage(item.mimeType) && item.bytes != null -> {
-                val name = item.fileName ?: "image"
-                val inline =
-                    runCatching {
-                        SharedContentClassifier.downscaleToInline(item.bytes, item.mimeType)
-                    }.getOrNull()
-                val url = baseUrlProvider() + linkService.pathFor(linkService.register(item.bytes, item.mimeType, name))
+                appendImageItem(item, item.bytes, content)
                 linkProduced = true
-                if (inline != null) {
-                    content += ImageContent(data = inline.base64, mimeType = inline.mimeType)
-                    content +=
-                        TextContent(
-                            text =
-                                "Image '$name' (${item.sizeBytes} bytes). Original (full-res) at $url " +
-                                    "(expires 1h). Only share this URL with the user if they ask for the original.",
-                        )
-                } else {
-                    content +=
-                        TextContent(
-                            text =
-                                "Image '$name' ${item.mimeType} (${item.sizeBytes} bytes) could not be decoded; " +
-                                    "download it at $url (expires 1h).",
-                        )
-                }
+            }
+
+            SharedContentClassifier.isTextual(item.mimeType) && item.bytes != null -> {
+                // Textual files are returned inline (per the content-mapping decision), not as a URL.
+                val name = item.fileName ?: "file"
+                content +=
+                    TextContent(
+                        text =
+                            "File '$name' ${item.mimeType} (${item.sizeBytes} bytes):\n" +
+                                String(item.bytes, Charsets.UTF_8),
+                    )
             }
 
             item.bytes != null -> {
@@ -131,6 +121,33 @@ class GetSharedContentHandler(
         return linkProduced
     }
 
+    /** Appends a downscaled inline image plus a full-res capability URL for [bytes] to [content]. */
+    private suspend fun appendImageItem(
+        item: SharedItem,
+        bytes: ByteArray,
+        content: MutableList<ContentBlock>,
+    ) {
+        val name = item.fileName ?: "image"
+        val inline = runCatching { SharedContentClassifier.downscaleToInline(bytes, item.mimeType) }.getOrNull()
+        val url = baseUrlProvider() + linkService.pathFor(linkService.register(bytes, item.mimeType, name))
+        if (inline != null) {
+            content += ImageContent(data = inline.base64, mimeType = inline.mimeType)
+            content +=
+                TextContent(
+                    text =
+                        "Image '$name' (${item.sizeBytes} bytes). Original (full-res) at $url " +
+                            "(expires 1h). Only share this URL with the user if they ask for the original.",
+                )
+        } else {
+            content +=
+                TextContent(
+                    text =
+                        "Image '$name' ${item.mimeType} (${item.sizeBytes} bytes) could not be decoded; " +
+                            "download it at $url (expires 1h).",
+                )
+        }
+    }
+
     fun register(
         server: Server,
         toolNamePrefix: String,
@@ -140,8 +157,9 @@ class GetSharedContentHandler(
             description =
                 "Returns and clears items shared to this app via Android Share (text, images, files); " +
                     "read-once (re-share to read again). Prefer this over the clipboard when content can be " +
-                    "shared directly to this app. Images return a downscaled view plus a full-res download " +
-                    "URL; files return a fetch URL (web_fetch reads text/PDF).",
+                    "shared directly to this app. Text and textual files are returned inline; images return a " +
+                    "downscaled view plus a full-res download URL; other files return a fetch URL " +
+                    "(web_fetch reads PDF).",
             inputSchema = ToolSchema(properties = buildJsonObject { }, required = emptyList()),
         ) { execute() }
     }
