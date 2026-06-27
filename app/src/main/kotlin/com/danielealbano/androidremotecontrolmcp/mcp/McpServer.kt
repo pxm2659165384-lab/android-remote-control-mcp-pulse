@@ -4,6 +4,7 @@ import android.util.Log
 import com.danielealbano.androidremotecontrolmcp.BuildConfig
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerConfig
 import com.danielealbano.androidremotecontrolmcp.mcp.auth.BearerTokenAuthPlugin
+import com.danielealbano.androidremotecontrolmcp.services.sharing.EphemeralFileLinkService
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
@@ -14,6 +15,8 @@ import io.ktor.server.engine.sslConnector
 import io.ktor.server.netty.Netty
 import io.ktor.server.netty.NettyApplicationEngine
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.response.respond
+import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
@@ -36,12 +39,14 @@ import java.util.concurrent.atomic.AtomicBoolean
  * @param keyStore The SSL KeyStore for HTTPS (null when HTTPS is disabled).
  * @param keyStorePassword The KeyStore password (null when HTTPS is disabled).
  * @param mcpSdkServer The MCP SDK Server instance with registered tools.
+ * @param ephemeralFileLinkService Backs the unauthenticated `/s/{token}` capability-link route.
  */
 class McpServer(
     private val config: ServerConfig,
     private val keyStore: KeyStore?,
     private val keyStorePassword: CharArray?,
     private val mcpSdkServer: io.modelcontextprotocol.kotlin.sdk.server.Server,
+    private val ephemeralFileLinkService: EphemeralFileLinkService,
 ) {
     @Volatile
     private var server: EmbeddedServer<NettyApplicationEngine, NettyApplicationEngine.Configuration>? = null
@@ -142,10 +147,14 @@ class McpServer(
             json(McpJson)
         }
 
-        // Global bearer token authentication (all requests except /health)
+        // Global bearer token authentication (all requests except /health and the /s/ capability route)
         install(BearerTokenAuthPlugin) {
             expectedToken = config.bearerToken
             excludedPaths = setOf("/health")
+            // The /s/{token} download route cannot carry a bearer token (it is fetched by web_fetch /
+            // a browser); the unguessable capability token is the credential. No other route is
+            // mounted under /s/, so prefix-exempting it does not expose /mcp.
+            excludedPathPrefixes = setOf(EphemeralFileLinkService.PATH_PREFIX)
         }
 
         // Health check endpoint — unauthenticated, installed before MCP routes.
@@ -157,6 +166,19 @@ class McpServer(
                     ContentType.Application.Json,
                     HttpStatusCode.OK,
                 )
+            }
+
+            // Capability-link download route — unauthenticated; the token is the credential.
+            // Serves the registered blob bytes with its content-type; 404 for unknown/expired tokens.
+            // Never log the token or URL.
+            get("${EphemeralFileLinkService.PATH_PREFIX}{token}") {
+                val entry = ephemeralFileLinkService.resolve(call.parameters["token"].orEmpty())
+                if (entry == null) {
+                    call.respond(HttpStatusCode.NotFound)
+                } else {
+                    // A sharing app may supply a malformed MIME; fall back to octet-stream rather than 500.
+                    call.respondBytes(entry.bytes, contentTypeOrOctetStream(entry.mimeType), HttpStatusCode.OK)
+                }
             }
         }
 

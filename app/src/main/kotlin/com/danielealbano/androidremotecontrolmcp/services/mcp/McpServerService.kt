@@ -9,6 +9,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.danielealbano.androidremotecontrolmcp.McpApplication
 import com.danielealbano.androidremotecontrolmcp.R
+import com.danielealbano.androidremotecontrolmcp.data.model.ServerConfig
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerLogEntry
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerStatus
 import com.danielealbano.androidremotecontrolmcp.data.model.ToolPermissionsConfig
@@ -26,6 +27,7 @@ import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerLocationTools
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerNodeActionTools
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerNotificationTools
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerScreenIntrospectionTools
+import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerSharingTools
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerSystemActionTools
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerTextInputTools
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerTouchActionTools
@@ -47,10 +49,13 @@ import com.danielealbano.androidremotecontrolmcp.services.notifications.Notifica
 import com.danielealbano.androidremotecontrolmcp.services.screencapture.ScreenCaptureProvider
 import com.danielealbano.androidremotecontrolmcp.services.screencapture.ScreenshotAnnotator
 import com.danielealbano.androidremotecontrolmcp.services.screencapture.ScreenshotEncoder
+import com.danielealbano.androidremotecontrolmcp.services.sharing.EphemeralFileLinkService
+import com.danielealbano.androidremotecontrolmcp.services.sharing.SharedContentInbox
 import com.danielealbano.androidremotecontrolmcp.services.storage.FileOperationProvider
 import com.danielealbano.androidremotecontrolmcp.services.storage.StorageLocationProvider
 import com.danielealbano.androidremotecontrolmcp.services.tunnel.TunnelManager
 import com.danielealbano.androidremotecontrolmcp.ui.MainActivity
+import com.danielealbano.androidremotecontrolmcp.utils.NetworkUtils
 import dagger.hilt.android.AndroidEntryPoint
 import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
@@ -131,6 +136,14 @@ class McpServerService : Service() {
 
     @Inject lateinit var locationProvider: LocationProvider
 
+    @Inject lateinit var ephemeralFileLinkService: EphemeralFileLinkService
+
+    @Inject lateinit var sharedContentInbox: SharedContentInbox
+
+    /** Config of the currently running server; used to build capability-link base URLs. */
+    @Volatile
+    private var activeConfig: ServerConfig? = null
+
     private val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val serverActive = AtomicBoolean(false)
     private var mcpServer: McpServer? = null
@@ -175,6 +188,7 @@ class McpServerService : Service() {
             updateStatus(ServerStatus.Starting)
 
             val config = settingsRepository.serverConfig.first()
+            activeConfig = config
             val toolNamePrefix = McpToolUtils.buildToolNamePrefix(config.deviceSlug)
             Log.i(
                 TAG,
@@ -212,7 +226,7 @@ class McpServerService : Service() {
                                 ),
                         ),
                 )
-            registerAllTools(sdkServer, toolNamePrefix, config.toolPermissionsConfig)
+            registerAllTools(sdkServer, toolNamePrefix, config.toolPermissionsConfig, config.fileSizeLimitMb)
 
             // Create and start the Ktor server
             mcpServer =
@@ -221,6 +235,7 @@ class McpServerService : Service() {
                     keyStore = keyStore,
                     keyStorePassword = keyStorePassword,
                     mcpSdkServer = sdkServer,
+                    ephemeralFileLinkService = ephemeralFileLinkService,
                 )
             mcpServer?.start()
 
@@ -285,10 +300,29 @@ class McpServerService : Service() {
         }
     }
 
+    /**
+     * Externally-reachable base URL for capability links: the tunnel URL when a tunnel is connected,
+     * otherwise the device LAN URL (`scheme://<device-ip>:<port>`).
+     */
+    private val currentBaseUrl: () -> String = {
+        val tunnel = tunnelManager.tunnelStatus.value
+        if (tunnel is TunnelStatus.Connected) {
+            tunnel.url
+        } else {
+            val cfg = activeConfig
+            val scheme = if (cfg?.httpsEnabled == true) "https" else "http"
+            val host =
+                NetworkUtils.getDeviceIpAddress(applicationContext) ?: cfg?.bindingAddress?.address ?: "127.0.0.1"
+            val port = cfg?.port ?: ServerConfig.DEFAULT_PORT
+            "$scheme://$host:$port"
+        }
+    }
+
     private fun registerAllTools(
         server: Server,
         toolNamePrefix: String,
         perms: ToolPermissionsConfig,
+        fileSizeLimitMb: Int,
     ) {
         registerScreenIntrospectionTools(
             server,
@@ -342,6 +376,26 @@ class McpServerService : Service() {
         registerIntentTools(server, intentDispatcher, toolNamePrefix, perms)
         registerNotificationTools(server, notificationProvider, toolNamePrefix, perms)
         registerLocationTools(server, locationProvider, toolNamePrefix, perms)
+        registerSharingBundle(server, toolNamePrefix, perms, fileSizeLimitMb)
+    }
+
+    private fun registerSharingBundle(
+        server: Server,
+        toolNamePrefix: String,
+        perms: ToolPermissionsConfig,
+        fileSizeLimitMb: Int,
+    ) {
+        registerSharingTools(
+            server,
+            sharedContentInbox,
+            ephemeralFileLinkService,
+            fileOperationProvider,
+            fileSizeLimitMb,
+            currentBaseUrl,
+            { tunnelManager.tunnelStatus.value is TunnelStatus.Connected },
+            toolNamePrefix,
+            perms,
+        )
     }
 
     override fun onDestroy() {

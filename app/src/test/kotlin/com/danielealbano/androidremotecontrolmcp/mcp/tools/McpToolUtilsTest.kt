@@ -627,6 +627,29 @@ class McpToolUtilsTest {
     }
 
     // ─────────────────────────────────────────────────────────────────────
+    // untrustedResult
+    // ─────────────────────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("untrustedResult")
+    inner class UntrustedResultTests {
+        @Test
+        @DisplayName("prepends warning as first content block, preserving the rest in order")
+        fun prependsWarningFirst() {
+            val first = TextContent("first")
+            val image = ImageContent(data = "imgdata", mimeType = "image/png")
+            val result = McpToolUtils.untrustedResult(listOf(first, image))
+
+            assertEquals(3, result.content.size)
+            assertEquals(McpToolUtils.UNTRUSTED_CONTENT_WARNING, (result.content[0] as TextContent).text)
+            assertEquals("first", (result.content[1] as TextContent).text)
+            val resultImage = result.content[2] as ImageContent
+            assertEquals("imgdata", resultImage.data)
+            assertEquals("image/png", resultImage.mimeType)
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
     // UNTRUSTED_CONTENT_WARNING constant
     // ─────────────────────────────────────────────────────────────────────
 

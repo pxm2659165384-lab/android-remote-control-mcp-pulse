@@ -43,6 +43,38 @@ data class FileReplaceResult(
 )
 
 /**
+ * Result from a raw byte read of an existing file.
+ *
+ * @property bytes The file's raw bytes.
+ * @property mimeType The resolved MIME type (provider-reported or derived from the extension).
+ * @property fileName The file's display name.
+ * @property sizeBytes The number of bytes read.
+ */
+data class FileBytesResult(
+    val bytes: ByteArray,
+    val mimeType: String,
+    val fileName: String,
+    val sizeBytes: Long,
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is FileBytesResult) return false
+        return bytes.contentEquals(other.bytes) &&
+            mimeType == other.mimeType &&
+            fileName == other.fileName &&
+            sizeBytes == other.sizeBytes
+    }
+
+    override fun hashCode(): Int {
+        var result = bytes.contentHashCode()
+        result = 31 * result + mimeType.hashCode()
+        result = 31 * result + fileName.hashCode()
+        result = 31 * result + sizeBytes.hashCode()
+        return result
+    }
+}
+
+/**
  * Provides file operations via the Storage Access Framework.
  *
  * All operations work with virtual paths: "{location_id}/{relative_path}".
@@ -82,6 +114,21 @@ interface FileOperationProvider {
         offset: Int,
         limit: Int,
     ): FileReadResult
+
+    /**
+     * Reads an EXISTING file's raw bytes from an authorized location. Does NOT create the file.
+     * Fails if the file is absent or its size exceeds [maxBytes].
+     *
+     * @param locationId The authorized storage location identifier.
+     * @param path Relative path to the file.
+     * @param maxBytes Maximum allowed file size in bytes.
+     * @return [FileBytesResult] with bytes, MIME type, display name, and size.
+     */
+    suspend fun readFileBytes(
+        locationId: String,
+        path: String,
+        maxBytes: Long,
+    ): FileBytesResult
 
     /**
      * Writes text content to a file. Creates the file and parent directories

@@ -17,8 +17,6 @@ import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
-import java.net.MalformedURLException
-import java.net.URL
 import javax.inject.Inject
 import javax.net.ssl.HttpsURLConnection
 
@@ -228,6 +226,26 @@ class MediaStoreFileOperationsImpl
                 )
             }
 
+        // ─── readFileBytes ──────────────────────────────────────────────────
+
+        override suspend fun readFileBytes(
+            locationId: String,
+            path: String,
+            maxBytes: Long,
+        ): FileBytesResult =
+            withContext(Dispatchers.IO) {
+                val builtin = resolveBuiltin(locationId)
+                BuiltinStorageLocation.validatePath(path)
+                val uri = findFileOrThrow(locationId, builtin, path)
+                readFileBytesFromUri(
+                    context.contentResolver,
+                    uri,
+                    extractDisplayName(path),
+                    queryFileSize(uri),
+                    maxBytes,
+                )
+            }
+
         // ─── writeFile ──────────────────────────────────────────────────────
 
         override suspend fun writeFile(
@@ -370,7 +388,7 @@ class MediaStoreFileOperationsImpl
                 checkWritePermission(locationId)
 
                 val config = settingsRepository.getServerConfig()
-                val parsedUrl = parseAndValidateUrl(url, config)
+                val parsedUrl = parseAndValidateDownloadUrl(url, config)
                 val relativePath = buildRelativePathForDir(builtin, path)
                 val displayName = extractDisplayName(path)
                 val timeoutMs = (config.downloadTimeoutSeconds * MILLIS_PER_SECOND).toInt()
@@ -693,36 +711,6 @@ class MediaStoreFileOperationsImpl
                 startIndex = index + needle.length
             }
             return count
-        }
-
-        private fun parseAndValidateUrl(
-            url: String,
-            config: com.danielealbano.androidremotecontrolmcp.data.model.ServerConfig,
-        ): URL {
-            val parsedUrl =
-                try {
-                    URL(url)
-                } catch (e: MalformedURLException) {
-                    throw McpToolException.ActionFailed("Invalid URL: $url")
-                }
-            val errorMessage =
-                when {
-                    parsedUrl.protocol != "http" && parsedUrl.protocol != "https" -> {
-                        "Unsupported URL protocol: ${parsedUrl.protocol}. Only HTTP and HTTPS are supported."
-                    }
-
-                    parsedUrl.protocol == "http" && !config.allowHttpDownloads -> {
-                        "HTTP downloads are not allowed. Enable 'Allow HTTP Downloads' in settings, or use HTTPS."
-                    }
-
-                    else -> {
-                        null
-                    }
-                }
-            if (errorMessage != null) {
-                throw McpToolException.ActionFailed(errorMessage)
-            }
-            return parsedUrl
         }
 
         companion object {

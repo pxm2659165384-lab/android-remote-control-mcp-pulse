@@ -34,6 +34,10 @@ import com.danielealbano.androidremotecontrolmcp.services.screencapture.ApiLevel
 import com.danielealbano.androidremotecontrolmcp.services.screencapture.DefaultApiLevelProvider
 import com.danielealbano.androidremotecontrolmcp.services.screencapture.ScreenCaptureProvider
 import com.danielealbano.androidremotecontrolmcp.services.screencapture.ScreenCaptureProviderImpl
+import com.danielealbano.androidremotecontrolmcp.services.sharing.EphemeralFileLinkService
+import com.danielealbano.androidremotecontrolmcp.services.sharing.EphemeralFileLinkServiceImpl
+import com.danielealbano.androidremotecontrolmcp.services.sharing.SharedContentInbox
+import com.danielealbano.androidremotecontrolmcp.services.sharing.SharedContentInboxImpl
 import com.danielealbano.androidremotecontrolmcp.services.storage.FileOperationProvider
 import com.danielealbano.androidremotecontrolmcp.services.storage.FileOperationProviderImpl
 import com.danielealbano.androidremotecontrolmcp.services.storage.MediaStoreFileOperations
@@ -174,4 +178,12 @@ abstract class ServiceModule {
     @Binds
     @Singleton
     abstract fun bindGeofenceManager(impl: GeofenceManagerImpl): GeofenceManager
+
+    @Binds
+    @Singleton
+    abstract fun bindEphemeralFileLinkService(impl: EphemeralFileLinkServiceImpl): EphemeralFileLinkService
+
+    @Binds
+    @Singleton
+    abstract fun bindSharedContentInbox(impl: SharedContentInboxImpl): SharedContentInbox
 }

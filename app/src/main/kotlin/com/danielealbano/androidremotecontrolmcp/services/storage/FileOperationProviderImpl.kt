@@ -154,6 +154,40 @@ class FileOperationProviderImpl
         }
 
         // ─────────────────────────────────────────────────────────────────────
+        // readFileBytes
+        // ─────────────────────────────────────────────────────────────────────
+
+        override suspend fun readFileBytes(
+            locationId: String,
+            path: String,
+            maxBytes: Long,
+        ): FileBytesResult {
+            if (BuiltinStorageLocation.isBuiltinId(locationId)) {
+                return mediaStoreFileOperations.readFileBytes(locationId, path, maxBytes)
+            }
+            val documentFile =
+                resolveDocumentFile(locationId, path)
+                    ?: throw McpToolException.ActionFailed(
+                        "File not found: $path in location '$locationId'",
+                    )
+
+            if (!documentFile.isFile) {
+                throw McpToolException.ActionFailed(
+                    "Path is not a file: $path in location '$locationId'",
+                )
+            }
+
+            val fileName = documentFile.name ?: path.substringAfterLast('/')
+            return readFileBytesFromUri(
+                context.contentResolver,
+                documentFile.uri,
+                fileName,
+                documentFile.length(),
+                maxBytes,
+            )
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
         // writeFile
         // ─────────────────────────────────────────────────────────────────────
 

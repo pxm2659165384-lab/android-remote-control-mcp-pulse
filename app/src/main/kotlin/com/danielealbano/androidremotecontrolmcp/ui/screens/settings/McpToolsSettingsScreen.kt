@@ -180,6 +180,13 @@ private val ALL_TOOL_CATEGORIES: List<ToolCategory> =
                 ),
             ),
         ),
+        ToolCategory(
+            "Sharing",
+            listOf(
+                ToolEntry("get_shared_content", "Get Shared Content"),
+                ToolEntry("share_file_via_web", "Share File via Web"),
+            ),
+        ),
     )
 
 @OptIn(ExperimentalMaterial3Api::class)

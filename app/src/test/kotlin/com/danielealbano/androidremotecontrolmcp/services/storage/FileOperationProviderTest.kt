@@ -22,6 +22,7 @@ import io.mockk.unmockkStatic
 import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -438,6 +439,82 @@ class FileOperationProviderTest {
                 assertEquals(10, returnedLines.size)
                 assertEquals("line10", returnedLines[0])
                 assertEquals("line19", returnedLines[9])
+            }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // readFileBytes
+    // ─────────────────────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("readFileBytes")
+    inner class ReadFileBytes {
+        @Test
+        fun `readFileBytes reads existing file without creating it`() =
+            runTest {
+                // Arrange
+                setupAuthorizedLocation("loc1")
+                val mockRootDoc = mockk<DocumentFile>()
+                setupRootDocument(mockRootDoc)
+                val mockFile = mockk<DocumentFile>()
+                val mockFileUri = mockk<Uri>()
+                every { mockRootDoc.findFile("doc.pdf") } returns mockFile
+                every { mockFile.isFile } returns true
+                every { mockFile.length() } returns 4L
+                every { mockFile.uri } returns mockFileUri
+                every { mockFile.name } returns "doc.pdf"
+                every { mockContentResolver.getType(mockFileUri) } returns "application/pdf"
+                val bytes = byteArrayOf(1, 2, 3, 4)
+                every { mockContentResolver.openInputStream(mockFileUri) } returns ByteArrayInputStream(bytes)
+
+                // Act
+                val result = provider.readFileBytes("loc1", "doc.pdf", TEN_MB)
+
+                // Assert
+                assertArrayEquals(bytes, result.bytes)
+                assertEquals("application/pdf", result.mimeType)
+                assertEquals("doc.pdf", result.fileName)
+                assertEquals(4L, result.sizeBytes)
+                verify(exactly = 0) { mockRootDoc.createFile(any(), any()) }
+            }
+
+        @Test
+        fun `readFileBytes throws ActionFailed for missing file`() =
+            runTest {
+                // Arrange
+                setupAuthorizedLocation("loc1")
+                val mockRootDoc = mockk<DocumentFile>()
+                setupRootDocument(mockRootDoc)
+                every { mockRootDoc.findFile("missing.pdf") } returns null
+
+                // Act & Assert
+                val exception =
+                    assertThrows<McpToolException.ActionFailed> {
+                        provider.readFileBytes("loc1", "missing.pdf", TEN_MB)
+                    }
+                assertTrue(exception.message!!.contains("not found"))
+            }
+
+        @Test
+        fun `readFileBytes throws ActionFailed when file exceeds maxBytes`() =
+            runTest {
+                // Arrange
+                setupAuthorizedLocation("loc1")
+                val mockRootDoc = mockk<DocumentFile>()
+                setupRootDocument(mockRootDoc)
+                val mockFile = mockk<DocumentFile>()
+                every { mockRootDoc.findFile("huge.bin") } returns mockFile
+                every { mockFile.isFile } returns true
+                every { mockFile.length() } returns FILE_SIZE_EXCEEDING_LIMIT
+                every { mockFile.uri } returns mockk()
+                every { mockFile.name } returns "huge.bin"
+
+                // Act & Assert
+                val exception =
+                    assertThrows<McpToolException.ActionFailed> {
+                        provider.readFileBytes("loc1", "huge.bin", TEN_MB)
+                    }
+                assertTrue(exception.message!!.contains("exceeds"))
             }
     }
 
@@ -1420,6 +1497,7 @@ class FileOperationProviderTest {
         private const val BYTES_PER_MB = 1024 * 1024
         private const val DEFAULT_FILE_SIZE_LIMIT_MB = 50
         private const val FILE_SIZE_EXCEEDING_LIMIT = 100_000_000L
+        private const val TEN_MB = 10L * 1024 * 1024
         private const val LIST_ENTRIES_ABOVE_MAX = 210
         private const val LINES_ABOVE_MAX = 210
         private const val REQUESTED_LIMIT_ABOVE_MAX = 300

@@ -24,11 +24,15 @@ data class AuthErrorResponse(
  * Configuration for the [BearerTokenAuthPlugin].
  *
  * @property expectedToken The bearer token that clients must present.
- * @property excludedPaths Paths that skip authentication (e.g., "/health").
+ * @property excludedPaths Paths that skip authentication via EXACT match (e.g., "/health").
+ * @property excludedPathPrefixes Paths whose (normalized) request path STARTS WITH any of these
+ *   prefixes skip authentication — used for the unauthenticated capability-link route, which cannot
+ *   carry a bearer token. Use only for routes where the secret is in the path itself.
  */
 class BearerTokenAuthConfig {
     var expectedToken: String = ""
     var excludedPaths: Set<String> = emptySet()
+    var excludedPathPrefixes: Set<String> = emptySet()
 }
 
 /**
@@ -59,6 +63,7 @@ val BearerTokenAuthPlugin =
     ) {
         val expectedToken = pluginConfig.expectedToken
         val excludedPaths = pluginConfig.excludedPaths
+        val excludedPathPrefixes = pluginConfig.excludedPathPrefixes
 
         application.intercept(ApplicationCallPipeline.Plugins) {
             // Skip authentication when no bearer token is configured
@@ -71,6 +76,11 @@ val BearerTokenAuthPlugin =
             // Skip authentication for excluded paths (e.g., /health)
             val requestPath = call.request.path()
             if (excludedPaths.any { requestPath == it }) {
+                return@intercept
+            }
+            // Skip authentication for prefix-excluded paths (e.g., the /s/{token} capability route,
+            // which cannot carry a bearer token — the unguessable token in the path is the credential).
+            if (excludedPathPrefixes.any { requestPath.startsWith(it) }) {
                 return@intercept
             }
             val authHeader = call.request.headers["Authorization"]
