@@ -175,7 +175,10 @@ class ShareFileViaWebHandler(
         locationId: String,
         path: String,
     ) = try {
-        fileOperationProvider.readFileBytes(locationId, path, fileSizeLimitMb.toLong() * BYTES_PER_MB)
+        // The served bytes live in RAM in the link registry, so the effective cap is the smaller of the
+        // configured file-size limit and the registry's total in-memory budget.
+        val maxBytes = minOf(fileSizeLimitMb.toLong() * BYTES_PER_MB, EphemeralFileLinkService.MAX_TOTAL_BYTES)
+        fileOperationProvider.readFileBytes(locationId, path, maxBytes)
     } catch (e: McpToolException) {
         throw e
     } catch (e: Exception) {

@@ -445,7 +445,7 @@ The original plan body (Tasks 1.2, 1.3, 2.1, 2.2, 2.3, 2.5, 3.2) stored blob BYT
 - `SharedContentClassifier.downscaleToInline(bytes: ByteArray, originalMime)` decodes via `BitmapFactory.decodeByteArray` (was `decodeFile`).
 - `ShareFileViaWebHandler` registers `result.bytes` directly (no temp file, no `Context`); `registerSharingTools` dropped its `context` parameter.
 - `GET /s/{token}` serves `entry.bytes` directly.
-- **RAM implication (raised with the user):** the link registry can hold up to `MAX_LINKS` (20) × the per-file cap. For `share_file_via_web` the per-file cap is `ServerConfig.fileSizeLimitMb` (default 50 MB), so the worst-case peak is ~1 GB of heap (inbox links are ≤ 10 MB each, bounded by the 50 MB inbox). This is the inherent cost of the user-requested in-memory model.
+- **Bounded RAM budget (user decision: 64 MB):** to prevent the in-memory registry from being an OOM vector (the configurable `fileSizeLimitMb` reaches 500 MB → 20 × 500 MB ≈ 10 GB), the link registry now enforces `EphemeralFileLinkService.MAX_TOTAL_BYTES = 64 MB` total across all live links: `register` FIFO-evicts the oldest links until the new blob fits within both the 20-link and 64 MB bounds, and rejects (throws `IllegalArgumentException`) any single blob larger than 64 MB. Consequently `share_file_via_web`'s effective per-file cap is `min(fileSizeLimitMb, 64 MB)` — `readOrThrow` caps the read at that value, so an over-budget file returns a clean MCP error instead of crashing. Peak registry heap is bounded at ~64 MB.
 
 ### Task 4.3 — Ground-up double-check (read everything, verify against the plan and decisions)
 

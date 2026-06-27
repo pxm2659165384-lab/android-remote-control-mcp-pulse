@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 @DisplayName("EphemeralFileLinkServiceImpl")
 class EphemeralFileLinkServiceImplTest {
@@ -62,5 +63,30 @@ class EphemeralFileLinkServiceImplTest {
             }
 
             assertNull(service.resolve(firstToken), "oldest link evicted")
+        }
+
+    @Test
+    @DisplayName("rejects a single blob larger than the in-memory budget")
+    fun rejectsBlobLargerThanBudget() =
+        runTest {
+            val service = newService()
+            val oversized = ByteArray((EphemeralFileLinkService.MAX_TOTAL_BYTES + 1).toInt())
+            assertThrows<IllegalArgumentException> {
+                service.register(oversized, "application/octet-stream", "big.bin")
+            }
+        }
+
+    @Test
+    @DisplayName("evicts oldest links to honor the total byte budget")
+    fun evictsToHonorByteBudget() =
+        runTest {
+            val service = newService()
+            // Two 40MB blobs sum to 80MB > 64MB budget, so registering the second evicts the first.
+            val fortyMb = (40L * 1024 * 1024).toInt()
+            val firstToken = service.register(ByteArray(fortyMb), "application/octet-stream", "a.bin")
+            val secondToken = service.register(ByteArray(fortyMb), "application/octet-stream", "b.bin")
+
+            assertNull(service.resolve(firstToken), "oldest link evicted to honor the byte budget")
+            assertNotNull(service.resolve(secondToken), "newest link must remain")
         }
 }

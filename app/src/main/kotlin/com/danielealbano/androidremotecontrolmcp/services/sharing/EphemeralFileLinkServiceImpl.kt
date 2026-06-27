@@ -27,9 +27,20 @@ class EphemeralFileLinkServiceImpl
             fileName: String,
         ): String =
             mutex.withLock {
+                require(bytes.size <= EphemeralFileLinkService.MAX_TOTAL_BYTES) {
+                    "Blob (${bytes.size} bytes) exceeds the in-memory link budget of " +
+                        "${EphemeralFileLinkService.MAX_TOTAL_BYTES} bytes."
+                }
                 purgeExpiredLocked()
                 val token = CapabilityToken.generate()
-                while (entries.size >= EphemeralFileLinkService.MAX_LINKS) {
+                // Evict oldest (FIFO) until the new blob fits within both the count and byte budgets.
+                // Terminates: the new blob alone is ≤ MAX_TOTAL_BYTES, so evicting to empty always admits it.
+                while (entries.isNotEmpty() &&
+                    (
+                        entries.size >= EphemeralFileLinkService.MAX_LINKS ||
+                            currentTotalBytesLocked() + bytes.size > EphemeralFileLinkService.MAX_TOTAL_BYTES
+                    )
+                ) {
                     entries.remove(
                         entries.entries
                             .iterator()
@@ -50,13 +61,16 @@ class EphemeralFileLinkServiceImpl
 
         override suspend fun resolve(token: String): LinkEntry? =
             mutex.withLock {
+                // purgeExpiredLocked() already dropped every expired entry, so any survivor is live.
                 purgeExpiredLocked()
-                entries[token]?.takeIf { clockMs() < it.expiresAtMs }
+                entries[token]
             }
 
         override suspend fun purgeExpired() = mutex.withLock { purgeExpiredLocked() }
 
         override fun pathFor(token: String): String = EphemeralFileLinkService.PATH_PREFIX + token
+
+        private fun currentTotalBytesLocked(): Long = entries.values.sumOf { it.bytes.size.toLong() }
 
         private fun purgeExpiredLocked() {
             val now = clockMs()

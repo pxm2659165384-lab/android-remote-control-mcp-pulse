@@ -4,15 +4,17 @@ package com.danielealbano.androidremotecontrolmcp.services.sharing
  * Holds short-lived capability links that serve a blob over `/s/<token>` for a limited time.
  *
  * IN-MEMORY ONLY (no disk, no persistence across process death): each blob is held as a [ByteArray] in
- * RAM. At most [MAX_LINKS] live links; each expires after [TTL_MS]; adding beyond [MAX_LINKS] evicts the
- * oldest (FIFO). Deletion is TTL/eviction only — links are NOT removed on fetch and may be fetched
- * multiple times within the TTL. The token and full URL are credentials and MUST NOT be logged.
+ * RAM. At most [MAX_LINKS] live links AND at most [MAX_TOTAL_BYTES] total across all links (the registry
+ * is a bounded RAM cache); each expires after [TTL_MS]; adding beyond either bound evicts the oldest
+ * (FIFO). Deletion is TTL/eviction only — links are NOT removed on fetch and may be fetched multiple
+ * times within the TTL. The token and full URL are credentials and MUST NOT be logged.
  */
 interface EphemeralFileLinkService {
     /**
-     * Registers [bytes] in memory under a fresh token and returns the token. Evicts the oldest link
-     * when the registry is full. The registry keeps a reference to [bytes]; the caller MUST NOT mutate
-     * the array afterwards.
+     * Registers [bytes] in memory under a fresh token and returns the token. Evicts the oldest links
+     * until the new blob fits within [MAX_LINKS] and [MAX_TOTAL_BYTES]. Throws [IllegalArgumentException]
+     * if `bytes.size` alone exceeds [MAX_TOTAL_BYTES]. The registry keeps a reference to [bytes]; the
+     * caller MUST NOT mutate the array afterwards.
      */
     suspend fun register(
         bytes: ByteArray,
@@ -32,6 +34,7 @@ interface EphemeralFileLinkService {
     companion object {
         const val PATH_PREFIX = "/s/"
         const val MAX_LINKS = 20
+        const val MAX_TOTAL_BYTES = 64L * 1024 * 1024
         const val TTL_MS = 60L * 60L * 1000L
     }
 }
