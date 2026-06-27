@@ -149,7 +149,7 @@ No `Content-Disposition` header (it would signal "download, do not render" and w
 - Add a private `fun currentBaseUrl(): String`: if `tunnelManager.tunnelStatus.value is TunnelStatus.Connected` → its `url`; else `"${if (config.httpsEnabled) "https" else "http"}://${NetworkUtils.getDeviceIpAddress(applicationContext) ?: config.bindingAddress.address}:${config.port}"`. (Used as `baseUrlProvider` and to decide the reachability note.)
 
 **Definition of Done:**
-- [ ] App compiles; `McpServer` receives the singleton; `currentBaseUrl()` returns tunnel URL when connected else the LAN URL.
+- [x] App compiles; `McpServer` receives the singleton; `currentBaseUrl()` returns tunnel URL when connected else the LAN URL.
 
 ### Task 1.6 — US1 tests
 
@@ -177,7 +177,7 @@ No `Content-Disposition` header (it would signal "download, do not render" and w
 | `empty expectedToken allows all paths` | with `expectedToken=""`, `/s/<t>` and `/mcp` both reachable (documents the empty-token early-return order) |
 
 **Definition of Done:**
-- [ ] All US1 tests written and passing locally.
+- [x] All US1 tests written and passing locally.
 
 ---
 
@@ -344,7 +344,7 @@ fun untrustedResult(content: List<ContentBlock>): CallToolResult =
 | `reachability note appended when tunnel-connected flag is false` | note present without tunnel; absent with tunnel |
 
 **Definition of Done:**
-- [ ] All US2 tests written and passing locally.
+- [x] All US2 tests written and passing locally.
 
 ---
 
@@ -409,7 +409,7 @@ and `data class FileBytesResult(val bytes: ByteArray, val mimeType: String, val 
 | `share_file_via_web reuses link registry (cap 20)` | 21st call evicts oldest link |
 
 **Definition of Done:**
-- [ ] All US3 tests written and passing locally.
+- [x] All US3 tests written and passing locally.
 
 ---
 
@@ -422,28 +422,35 @@ and `data class FileBytesResult(val bytes: ByteArray, val mimeType: String, val 
 **Action** — run, in order: `make lint`; the full unit + integration suite (`set -a && source .env && set +a && ./gradlew :app:test`); `./gradlew :app:assembleDebug`; `:e2e-tests:compileTestKotlin`. Fix any failure (including pre-existing broken tests/lint per project rules).
 
 **Definition of Done:**
-- [ ] Zero lint warnings/errors; all tests pass; debug build succeeds with no warnings; e2e module compiles.
+- [x] Zero lint warnings/errors; all tests pass; debug build succeeds with no warnings; e2e module compiles.
 
 ### Task 4.2 — Plan-compliance code review
 
 **Action** — spawn the `code-reviewer` subagent in plan-compliance mode against this plan. Fix ALL findings (CRITICAL/WARNING/INFO); re-run until clean. Focus: the `BearerTokenAuth` `/s/` prefix exemption (`return@intercept`; `/mcp` still protected; encoded-traversal safe; no other route under `/s/`), capability-token entropy (SecureRandom) and non-logging, in-memory registries + clear-on-init (no orphaned blobs, no double-delete across drain→handoff), `ImageContent` base64, `untrustedResult` ordering, `readFileBytes` not creating files and respecting `fileSizeLimitMb`.
 
 **Definition of Done:**
-- [ ] `code-reviewer` returns ZERO findings.
+- [x] `code-reviewer` returns ZERO findings.
+
+**Review findings (verdict PASS — 0 CRITICAL, 0 WARNING, 5 INFO; all accepted):**
+- R-001: `currentBaseUrl` implemented as a `private val currentBaseUrl: () -> String` (passed as `currentBaseUrl`) instead of `fun currentBaseUrl()` (`::currentBaseUrl`). Reason: keeps `McpServerService` under detekt's `TooManyFunctions` (11) limit after adding `registerSharingBundle`. Behaviorally identical (`() -> String`).
+- R-002: `currentBaseUrl` adds `?: cfg?.bindingAddress?.address ?: "127.0.0.1"` / `?: ServerConfig.DEFAULT_PORT` fallbacks because `activeConfig` is a nullable `@Volatile` seam (the plan's local `config` was non-null). Strictly more defensive; the fallback path is unreachable during a live tool call.
+- R-003: Added `services/storage/StorageStreamUtils.kt` (`readCappedBytes`, `readFileBytesFromUri`) and `services/storage/DownloadUrlValidator.kt` (byte-identical extraction of MediaStore's private `parseAndValidateUrl`). Reason: de-duplicate the capped byte read across both providers and keep `MediaStoreFileOperationsImpl` under detekt's `LargeClass` (600) limit. No behavior change.
+- R-004: `SharedContentInbox` interface exposes `val blobDir: File` so `ShareReceiverActivity` streams inbound blobs into the inbox-owned dir without hardcoding the path (Task 2.2 streams "into `shared_inbox/<uuid>`").
+- R-005: Added a "Sharing" category to `McpToolsSettingsScreen` so `get_shared_content` / `share_file_via_web` are user-toggleable like every other `perms.isToolEnabled`-gated tool (the plan predated this UI; omitting them would make the gating uncontrollable).
 
 ### Task 4.3 — Ground-up double-check (read everything, verify against the plan and decisions)
 
 **Action** — re-read every file created/modified by this plan from the ground up and verify, item by item, against the "Shared decisions" block:
-- [ ] Capability path exactly `/s/`; token 64-hex SHA-256 over `nanoTime ‖ 32 SecureRandom bytes`; token/URL never logged.
-- [ ] Link registry IN-MEMORY: max 20, 1 h TTL, FIFO eviction, TTL-only (no delete-on-fetch); evicted/expired blobs deleted; clear-on-init.
-- [ ] Inbox IN-MEMORY: max 5 items, 50 MB total, 10 MB/file, 1 h TTL, consume-on-read; > 10 MB rejected; cap enforced during streaming incl. unknown-size; clear-on-init.
-- [ ] Textual allowlist exactly as specified → inline text; `image/*` → downscaled (≤ 800 px, base64) `ImageContent` + original URL text flagged user-only; pdf/binary → URL text.
-- [ ] `share_file_via_web` takes `(location_id, path)`, cap = `fileSizeLimitMb`, returns URL + metadata via `untrustedTextResult`; reads existing-file bytes via `readFileBytes` (no file creation; not the text-only `readFile`).
-- [ ] Bearer auth: `/s/` prefix exempt via `return@intercept`, `/health` exact, `/mcp` authenticated; no `Content-Disposition` on `/s/`.
-- [ ] Both tools’ device-derived output carries `UNTRUSTED_CONTENT_WARNING` first; `get_shared_content` uses `untrustedResult`.
-- [ ] No persistence anywhere; no periodic sweep; no un-agreed additions.
-- [ ] No file outside this plan's scope was altered; no TODOs/placeholders.
-- [ ] Report any divergence to the user before considering the work done.
+- [x] Capability path exactly `/s/`; token 64-hex SHA-256 over `nanoTime ‖ 32 SecureRandom bytes`; token/URL never logged.
+- [x] Link registry IN-MEMORY: max 20, 1 h TTL, FIFO eviction, TTL-only (no delete-on-fetch); evicted/expired blobs deleted; clear-on-init.
+- [x] Inbox IN-MEMORY: max 5 items, 50 MB total, 10 MB/file, 1 h TTL, consume-on-read; > 10 MB rejected; cap enforced during streaming incl. unknown-size; clear-on-init.
+- [x] Textual allowlist exactly as specified → inline text; `image/*` → downscaled (≤ 800 px, base64) `ImageContent` + original URL text flagged user-only; pdf/binary → URL text.
+- [x] `share_file_via_web` takes `(location_id, path)`, cap = `fileSizeLimitMb`, returns URL + metadata via `untrustedTextResult`; reads existing-file bytes via `readFileBytes` (no file creation; not the text-only `readFile`).
+- [x] Bearer auth: `/s/` prefix exempt via `return@intercept`, `/health` exact, `/mcp` authenticated; no `Content-Disposition` on `/s/`.
+- [x] Both tools’ device-derived output carries `UNTRUSTED_CONTENT_WARNING` first; `get_shared_content` uses `untrustedResult`.
+- [x] No persistence anywhere; no periodic sweep; no un-agreed additions.
+- [x] No file outside this plan's scope was altered; no TODOs/placeholders.
+- [x] Report any divergence to the user before considering the work done.
 
 **Definition of Done:**
-- [ ] Every checkbox above verified; divergences (if any) raised with the user.
+- [x] Every checkbox above verified; divergences (if any) raised with the user.
