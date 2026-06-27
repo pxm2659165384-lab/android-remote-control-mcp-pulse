@@ -6,6 +6,7 @@ import android.util.Log
 import com.danielealbano.androidremotecontrolmcp.data.model.ToolPermissionsConfig
 import com.danielealbano.androidremotecontrolmcp.mcp.McpToolException
 import com.danielealbano.androidremotecontrolmcp.mcp.auth.BearerTokenAuthPlugin
+import com.danielealbano.androidremotecontrolmcp.mcp.contentTypeOrOctetStream
 import com.danielealbano.androidremotecontrolmcp.mcp.mcpStreamableHttp
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.McpToolUtils
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerSharingTools
@@ -20,6 +21,7 @@ import io.ktor.client.request.get
 import io.ktor.client.statement.readRawBytes
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
@@ -49,6 +51,7 @@ import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -141,6 +144,27 @@ class SharingIntegrationTest {
 
                 val response = httpClient.get("/s/$token")
                 assertEquals(HttpStatusCode.OK, response.status)
+                assertArrayEquals(bytes, response.readRawBytes())
+            }
+        }
+
+    @Test
+    @DisplayName("a blob with a malformed MIME is served as octet-stream with no Content-Disposition")
+    fun malformedMimeServedAsOctetStream() =
+        runTest {
+            val inbox = newInbox()
+            val linkService = newLinkService()
+            val bytes = byteArrayOf(9, 8, 7)
+            inbox.add(blobItem("weird.bin", "this is not a mime", bytes))
+
+            runSharingApp(inbox, linkService) { client, httpClient ->
+                val result = client.callTool(name = "get_shared_content", arguments = emptyMap())
+                val token = TOKEN_REGEX.find((result.content[1] as TextContent).text)!!.groupValues[1]
+
+                val response = httpClient.get("/s/$token")
+                assertEquals(HttpStatusCode.OK, response.status)
+                assertEquals(ContentType.Application.OctetStream, response.contentType())
+                assertNull(response.headers["Content-Disposition"], "/s/ must not set Content-Disposition")
                 assertArrayEquals(bytes, response.readRawBytes())
             }
         }
@@ -393,7 +417,7 @@ class SharingIntegrationTest {
                         } else {
                             call.respondBytes(
                                 entry.bytes,
-                                ContentType.parse(entry.mimeType),
+                                contentTypeOrOctetStream(entry.mimeType),
                                 HttpStatusCode.OK,
                             )
                         }

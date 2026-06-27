@@ -11,13 +11,12 @@ import androidx.lifecycle.lifecycleScope
 import com.danielealbano.androidremotecontrolmcp.services.sharing.SharedContentClassifier
 import com.danielealbano.androidremotecontrolmcp.services.sharing.SharedContentInbox
 import com.danielealbano.androidremotecontrolmcp.services.sharing.SharedItem
+import com.danielealbano.androidremotecontrolmcp.services.sharing.readWithinCap
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.ByteArrayOutputStream
 import java.io.IOException
-import java.io.InputStream
 import java.util.UUID
 import javax.inject.Inject
 
@@ -48,7 +47,12 @@ class ShareReceiverActivity : ComponentActivity() {
         process(intent)
     }
 
-    /** Reads the payload off the main thread (the read grant is tied to this activity), then finishes. */
+    /**
+     * Reads the payload off the main thread (the read grant is tied to this activity), then finishes.
+     *
+     * [finish] is deferred until after the async read completes, so the manifest uses a translucent theme
+     * (not `Theme.NoDisplay`, which requires `finish()` to be called synchronously within `onCreate`).
+     */
     private fun process(intent: Intent) {
         lifecycleScope.launch {
             withContext(Dispatchers.IO) { handleIntent(intent) }
@@ -118,26 +122,13 @@ class ShareReceiverActivity : ComponentActivity() {
     /** Reads [uri] into a [ByteArray], or null if it cannot be opened, exceeds the cap, or fails to read. */
     private fun readUriCapped(uri: Uri): ByteArray? =
         try {
-            contentResolver.openInputStream(uri)?.use { source -> readStreamCapped(source) }
+            contentResolver.openInputStream(uri)?.use { source ->
+                readWithinCap(source, SharedContentInbox.MAX_FILE_BYTES)
+            }
         } catch (e: IOException) {
             Log.w(TAG, "Failed to read shared stream", e)
             null
         }
-
-    /** Reads [source] up to the per-file cap; returns the bytes, or null if the cap is exceeded. */
-    private fun readStreamCapped(source: InputStream): ByteArray? {
-        val output = ByteArrayOutputStream()
-        val buffer = ByteArray(BUFFER_SIZE)
-        var count = 0L
-        while (true) {
-            val read = source.read(buffer)
-            if (read < 0) break
-            count += read
-            if (count > SharedContentInbox.MAX_FILE_BYTES) return null
-            output.write(buffer, 0, read)
-        }
-        return output.toByteArray()
-    }
 
     private fun queryDisplayName(uri: Uri): String? =
         runCatching {
@@ -153,6 +144,5 @@ class ShareReceiverActivity : ComponentActivity() {
 
     companion object {
         private const val TAG = "MCP:ShareReceiver"
-        private const val BUFFER_SIZE = 8 * 1024
     }
 }
