@@ -22,13 +22,15 @@ dependencies {
     testRuntimeOnly(libs.junit.jupiter.engine)
     testRuntimeOnly(libs.junit.platform.launcher)
 
-    // Testcontainers
+    // Testcontainers (core only; the container lifecycle is managed manually in
+    // SharedAndroidContainer, so the JUnit Jupiter extension artifact is not needed —
+    // and it no longer exists in Testcontainers 2.x).
     testImplementation(libs.testcontainers)
-    testImplementation(libs.testcontainers.junit.jupiter)
 
-    // Force patched transitive dependencies from Testcontainers 1.21.3:
-    // - commons-compress 1.24.0 → 1.27.1 (CVE-2024-25710, CVE-2024-26308)
-    // - commons-lang3 3.16.0 → 3.18.0 (CVE-2025-48924)
+    // Safety floor for patched transitive dependencies pulled via Testcontainers/docker-java
+    // (Testcontainers may already resolve equal or newer versions; these guard against regressions):
+    // - commons-compress ≥ 1.27.1 (CVE-2024-25710, CVE-2024-26308)
+    // - commons-lang3 ≥ 3.18.0 (CVE-2025-48924)
     constraints {
         testImplementation("org.apache.commons:commons-compress:1.27.1")
         testImplementation("org.apache.commons:commons-lang3:3.18.0")
