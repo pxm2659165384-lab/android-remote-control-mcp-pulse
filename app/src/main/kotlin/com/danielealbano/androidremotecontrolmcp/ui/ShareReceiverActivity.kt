@@ -38,12 +38,8 @@ class ShareReceiverActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        process(intent)
-    }
-
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        setIntent(intent)
+        // launchMode is `standard`, so every share starts a fresh instance handled here in onCreate;
+        // onNewIntent is never delivered and is intentionally not overridden.
         process(intent)
     }
 
