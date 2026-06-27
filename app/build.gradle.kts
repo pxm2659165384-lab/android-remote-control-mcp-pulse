@@ -223,17 +223,17 @@ dependencies {
     // and CVE-2026-33871 (HTTP/2 CONTINUATION Frame Flood DoS).
     // Ktor 3.4.2 ships netty 4.2.9 which is vulnerable.
     constraints {
-        implementation("io.netty:netty-codec-http:4.2.11.Final")
-        implementation("io.netty:netty-codec-http2:4.2.11.Final")
-        implementation("io.netty:netty-handler:4.2.11.Final")
-        implementation("io.netty:netty-common:4.2.11.Final")
-        implementation("io.netty:netty-buffer:4.2.11.Final")
-        implementation("io.netty:netty-transport:4.2.11.Final")
-        implementation("io.netty:netty-codec-base:4.2.11.Final")
-        implementation("io.netty:netty-codec-compression:4.2.11.Final")
-        implementation("io.netty:netty-resolver:4.2.11.Final")
-        implementation("io.netty:netty-transport-native-unix-common:4.2.11.Final")
-        implementation("io.netty:netty-transport-classes-epoll:4.2.11.Final")
+        implementation("io.netty:netty-codec-http:4.2.15.Final")
+        implementation("io.netty:netty-codec-http2:4.2.15.Final")
+        implementation("io.netty:netty-handler:4.2.15.Final")
+        implementation("io.netty:netty-common:4.2.15.Final")
+        implementation("io.netty:netty-buffer:4.2.15.Final")
+        implementation("io.netty:netty-transport:4.2.15.Final")
+        implementation("io.netty:netty-codec-base:4.2.15.Final")
+        implementation("io.netty:netty-codec-compression:4.2.15.Final")
+        implementation("io.netty:netty-resolver:4.2.15.Final")
+        implementation("io.netty:netty-transport-native-unix-common:4.2.15.Final")
+        implementation("io.netty:netty-transport-classes-epoll:4.2.15.Final")
     }
 
     // Certificate generation (Bouncy Castle for self-signed cert with SAN support)
