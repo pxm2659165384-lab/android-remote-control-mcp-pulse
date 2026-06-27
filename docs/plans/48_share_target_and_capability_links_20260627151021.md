@@ -40,10 +40,10 @@ Lets an agent pull content the user/app shares INTO this app (text, images, PDFs
 **Why:** A single token→file registry plus an unauthenticated `/s/{token}` route is the shared primitive both tools need; `web_fetch` cannot send the bearer token, so the route must bypass auth via an unguessable capability token.
 
 **Acceptance criteria:**
-- [ ] `EphemeralFileLinkService` registers a blob and returns a 64-hex token; `GET /s/<token>` streams the blob with its content-type; unknown/expired token → 404.
-- [ ] Registry is in-memory, holds ≤ 20 live links; adding the 21st evicts the oldest (and deletes its blob); entries expire after 1 h; expired entries purged on access; the blob dir is cleared on service init (no persistence across process death).
-- [ ] `BearerTokenAuthPlugin` allows `/s/<token>` without a token while keeping `/health` exact-match and `/mcp` authenticated.
-- [ ] Tokens come from `SecureRandom`; tokens/URLs are never logged.
+- [x] `EphemeralFileLinkService` registers a blob and returns a 64-hex token; `GET /s/<token>` streams the blob with its content-type; unknown/expired token → 404.
+- [x] Registry is in-memory, holds ≤ 20 live links; adding the 21st evicts the oldest (and deletes its blob); entries expire after 1 h; expired entries purged on access; the blob dir is cleared on service init (no persistence across process death).
+- [x] `BearerTokenAuthPlugin` allows `/s/<token>` without a token while keeping `/health` exact-match and `/mcp` authenticated.
+- [x] Tokens come from `SecureRandom`; tokens/URLs are never logged.
 
 ### Task 1.1 — Capability token generator
 
@@ -71,7 +71,7 @@ internal object CapabilityToken {
 ```
 
 **Definition of Done:**
-- [ ] Returns a 64-char lowercase hex string; distinct across calls.
+- [x] Returns a 64-char lowercase hex string; distinct across calls.
 
 ### Task 1.2 — `EphemeralFileLinkService` interface + implementation (in-memory)
 
@@ -106,7 +106,7 @@ data class LinkEntry(val token: String, val blob: File, val mimeType: String, va
 **Action** — in the abstract `ServiceModule` class within `di/AppModule.kt` (where `bindFileOperationProvider` etc. live): `@Binds @Singleton abstract fun bindEphemeralFileLinkService(impl: EphemeralFileLinkServiceImpl): EphemeralFileLinkService`.
 
 **Definition of Done:**
-- [ ] `register` moves the source, evicts oldest at 20 (final size 20) and deletes the evicted blob; `resolve` honors TTL + missing-blob; init clears stale blobs; `Mutex`-guarded; nothing logged.
+- [x] `register` moves the source, evicts oldest at 20 (final size 20) and deletes the evicted blob; `resolve` honors TTL + missing-blob; init clears stale blobs; `Mutex`-guarded; nothing logged.
 
 ### Task 1.3 — `/s/{token}` Ktor route
 
@@ -126,7 +126,7 @@ get("${EphemeralFileLinkService.PATH_PREFIX}{token}") {
 No `Content-Disposition` header (it would signal "download, do not render" and work against `web_fetch`). The `{token}` segment carries no `/`, so it cannot match other routes. Do not log the token. Add the import `io.ktor.server.response.respondBytes` (not currently present in `McpServer.kt`); `get`, `ContentType`, `HttpStatusCode` are already imported.
 
 **Definition of Done:**
-- [ ] Valid token streams the blob with its content-type; unknown/expired token → 404; no disposition header.
+- [x] Valid token streams the blob with its content-type; unknown/expired token → 404; no disposition header.
 
 ### Task 1.4 — Bearer-auth exemption for `/s/` (security-sensitive — careful)
 
@@ -140,7 +140,7 @@ No `Content-Disposition` header (it would signal "download, do not render" and w
 **Action** — `mcp/McpServer.kt` `install(BearerTokenAuthPlugin)`: add `excludedPathPrefixes = setOf(EphemeralFileLinkService.PATH_PREFIX)` (keep `excludedPaths = setOf("/health")`).
 
 **Definition of Done:**
-- [ ] `/s/<token>` reaches the route with NO `Authorization` header; `/health` still exact; `/mcp` still requires a valid token and is NOT exempted by the `/s/` prefix; encoded-traversal cannot reach `/mcp`.
+- [x] `/s/<token>` reaches the route with NO `Authorization` header; `/health` still exact; `/mcp` still requires a valid token and is NOT exempted by the `/s/` prefix; encoded-traversal cannot reach `/mcp`.
 
 ### Task 1.5 — Wire the link service + base-URL provider through `McpServerService`
 
@@ -186,9 +186,9 @@ No `Content-Disposition` header (it would signal "download, do not render" and w
 **Why:** Receiving content via the OS share sheet (an Intent) sidesteps the background-clipboard restriction and carries richer payloads (text, images, PDFs, files).
 
 **Acceptance criteria:**
-- [ ] The app appears in the Android share sheet for `ACTION_SEND` / `ACTION_SEND_MULTIPLE` of any type; selecting it captures content, enforces the per-file 10 MB cap during the copy (even when the provider reports unknown size), enqueues it, and the activity finishes with no visible UI.
-- [ ] `android_<prefix>get_shared_content` drains the inbox (consume-on-read) and returns: text inline; images as downscaled `ImageContent` + original-URL text (flagged user-only); PDFs/binaries as capability-URL text; with the untrusted-content warning as the FIRST content block; empty inbox → guidance note.
-- [ ] Inbox is in-memory and respects 5 items / 50 MB total / 10 MB per file / 1 h TTL; stale blobs cleared on init.
+- [x] The app appears in the Android share sheet for `ACTION_SEND` / `ACTION_SEND_MULTIPLE` of any type; selecting it captures content, enforces the per-file 10 MB cap during the copy (even when the provider reports unknown size), enqueues it, and the activity finishes with no visible UI.
+- [x] `android_<prefix>get_shared_content` drains the inbox (consume-on-read) and returns: text inline; images as downscaled `ImageContent` + original-URL text (flagged user-only); PDFs/binaries as capability-URL text; with the untrusted-content warning as the FIRST content block; empty inbox → guidance note.
+- [x] Inbox is in-memory and respects 5 items / 50 MB total / 10 MB per file / 1 h TTL; stale blobs cleared on init.
 
 ### Task 2.1 — `SharedContentInbox` interface + implementation (in-memory)
 
@@ -223,7 +223,7 @@ data class SharedItem(
 **Action** — in the abstract `ServiceModule` class within `di/AppModule.kt`: `@Binds @Singleton abstract fun bindSharedContentInbox(impl: SharedContentInboxImpl): SharedContentInbox`.
 
 **Definition of Done:**
-- [ ] Caps enforced (item/total/per-file); `drainAll` empties under the lock; init clears stale blobs; `Mutex`-guarded.
+- [x] Caps enforced (item/total/per-file); `drainAll` empties under the lock; init clears stale blobs; `Mutex`-guarded.
 
 ### Task 2.2 — `ShareReceiverActivity` + manifest + label
 
@@ -254,7 +254,7 @@ data class SharedItem(
 ```
 
 **Definition of Done:**
-- [ ] App is a share target for any type; selecting it enqueues content with the 10 MB cap enforced during streaming (including unknown-size providers); the activity finishes with no visible UI.
+- [x] App is a share target for any type; selecting it enqueues content with the 10 MB cap enforced during streaming (including unknown-size providers); the activity finishes with no visible UI.
 
 ### Task 2.3 — Classifier + image downscaling
 
@@ -265,7 +265,9 @@ data class SharedItem(
 - `fun downscaleToInlineBase64(blob: File): String` — decode the image; if longest side ≤ 800 keep original, else proportionally resize so longest side = 800 (reuse `ScreenshotEncoder` resize); JPEG-encode and Base64-encode (reuse `ScreenshotEncoder` base64). Returns a base64 `String` suitable for `ImageContent.data`. Recycle bitmaps.
 
 **Definition of Done:**
-- [ ] `isTextual`/`isImage` correct for the allowlist + image types; `downscaleToInlineBase64` returns base64 of a ≤ 800 px JPEG for large images and of the original for small ones.
+- [x] `isTextual`/`isImage` correct for the allowlist + image types; `downscaleToInlineBase64` returns base64 of a ≤ 800 px JPEG for large images and of the original for small ones.
+
+**Implementation amendment (review finding):** `downscaleToInlineBase64(blob): String` was implemented as `downscaleToInline(blob, originalMime): InlineImage(base64, mimeType)`. Reason: the plan's `get_shared_content` image branch returned `ImageContent(data = downscaleToInlineBase64(blob), mimeType = item.mimeType)` — but a large image is re-encoded to JPEG, so declaring the original MIME (e.g. `image/png`) would mismatch the actual bytes. Returning `InlineImage` lets the helper report `image/jpeg` for re-encoded images and the original MIME for small (kept) images, keeping `ImageContent.data` and `ImageContent.mimeType` consistent.
 
 ### Task 2.4 — `McpToolUtils.untrustedResult(content)` helper
 
@@ -277,7 +279,7 @@ fun untrustedResult(content: List<ContentBlock>): CallToolResult =
 ```
 
 **Definition of Done:**
-- [ ] Returns a `CallToolResult` whose first content item is the warning `TextContent`, followed by [content] in order.
+- [x] Returns a `CallToolResult` whose first content item is the warning `TextContent`, followed by [content] in order.
 
 ### Task 2.5 — `android_get_shared_content` tool
 
@@ -299,7 +301,7 @@ fun untrustedResult(content: List<ContentBlock>): CallToolResult =
 **Action** — `services/mcp/McpServerService.kt` `registerAllTools(...)`: inject `SharedContentInbox`; call (exact canonical order) `registerSharingTools(sdkServer, inbox, ephemeralFileLinkService, fileOperationProvider, config.fileSizeLimitMb, ::currentBaseUrl, { tunnelManager.tunnelStatus.value is TunnelStatus.Connected }, applicationContext, toolNamePrefix, perms)`.
 
 **Definition of Done:**
-- [ ] Tool drains the inbox; text inline; images = downscaled `ImageContent` (base64) + URL text (user-only flag); pdf/binary = URL text; untrusted warning is the first content block; empty inbox → guidance; links registered in US1; reachability note when not tunneled.
+- [x] Tool drains the inbox; text inline; images = downscaled `ImageContent` (base64) + URL text (user-only flag); pdf/binary = URL text; untrusted warning is the first content block; empty inbox → guidance; links registered in US1; reachability note when not tunneled.
 
 ### Task 2.6 — US2 tests
 

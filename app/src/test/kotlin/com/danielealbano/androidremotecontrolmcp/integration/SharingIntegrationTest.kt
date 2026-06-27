@@ -1,0 +1,310 @@
+package com.danielealbano.androidremotecontrolmcp.integration
+
+import android.content.Context
+import android.graphics.BitmapFactory
+import android.util.Base64
+import android.util.Log
+import com.danielealbano.androidremotecontrolmcp.data.model.ToolPermissionsConfig
+import com.danielealbano.androidremotecontrolmcp.mcp.auth.BearerTokenAuthPlugin
+import com.danielealbano.androidremotecontrolmcp.mcp.mcpStreamableHttp
+import com.danielealbano.androidremotecontrolmcp.mcp.tools.McpToolUtils
+import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerSharingTools
+import com.danielealbano.androidremotecontrolmcp.services.sharing.EphemeralFileLinkService
+import com.danielealbano.androidremotecontrolmcp.services.sharing.EphemeralFileLinkServiceImpl
+import com.danielealbano.androidremotecontrolmcp.services.sharing.SharedContentInbox
+import com.danielealbano.androidremotecontrolmcp.services.sharing.SharedContentInboxImpl
+import com.danielealbano.androidremotecontrolmcp.services.sharing.SharedItem
+import com.danielealbano.androidremotecontrolmcp.services.storage.FileOperationProvider
+import io.ktor.client.request.get
+import io.ktor.client.statement.readRawBytes
+import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
+import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.application.install
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.response.respond
+import io.ktor.server.response.respondBytes
+import io.ktor.server.routing.get
+import io.ktor.server.routing.routing
+import io.ktor.server.testing.testApplication
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.mockkStatic
+import io.mockk.unmockkStatic
+import io.modelcontextprotocol.kotlin.sdk.client.Client
+import io.modelcontextprotocol.kotlin.sdk.client.StreamableHttpClientTransport
+import io.modelcontextprotocol.kotlin.sdk.server.Server
+import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
+import io.modelcontextprotocol.kotlin.sdk.types.ImageContent
+import io.modelcontextprotocol.kotlin.sdk.types.Implementation
+import io.modelcontextprotocol.kotlin.sdk.types.McpJson
+import io.modelcontextprotocol.kotlin.sdk.types.ServerCapabilities
+import io.modelcontextprotocol.kotlin.sdk.types.TextContent
+import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertArrayEquals
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import java.io.File
+
+@DisplayName("Sharing Integration Tests")
+class SharingIntegrationTest {
+    @TempDir
+    lateinit var tempDir: File
+
+    @BeforeEach
+    fun setUp() {
+        mockkStatic(Log::class, BitmapFactory::class, Base64::class)
+        every { Log.d(any(), any()) } returns 0
+        every { Log.i(any(), any()) } returns 0
+        every { Log.w(any<String>(), any<String>()) } returns 0
+        every { Log.w(any<String>(), any<Throwable>()) } returns 0
+        every { Log.e(any(), any()) } returns 0
+        every { Base64.encodeToString(any<ByteArray>(), any()) } returns INLINE_IMAGE_BASE64
+        // Bounds decode reports a small image so the classifier keeps the original bytes (no real bitmap decode).
+        every { BitmapFactory.decodeFile(any<String>(), any<BitmapFactory.Options>()) } answers {
+            secondArg<BitmapFactory.Options>().apply {
+                outWidth = 10
+                outHeight = 10
+            }
+            null
+        }
+    }
+
+    @AfterEach
+    fun tearDown() {
+        unmockkStatic(Log::class, BitmapFactory::class, Base64::class)
+    }
+
+    @Test
+    @DisplayName("text item: warning first, text inline, inbox emptied")
+    fun textItem() =
+        runTest {
+            val inbox = newInbox()
+            val linkService = newLinkService()
+            inbox.add(textItem("hello from share"))
+
+            runSharingApp(inbox, linkService) { client, _ ->
+                val result = client.callTool(name = "get_shared_content", arguments = emptyMap())
+                assertEquals(2, result.content.size)
+                assertWarningFirst(result.content)
+                assertEquals("hello from share", (result.content[1] as TextContent).text)
+
+                // Consume-on-read: a second call drains nothing and returns the empty-inbox guidance.
+                val second = client.callTool(name = "get_shared_content", arguments = emptyMap())
+                assertTrue((second.content[0] as TextContent).text.contains("no shared content available"))
+            }
+        }
+
+    @Test
+    @DisplayName("image: warning first, then ImageContent, then URL text with user-only flag")
+    fun imageItem() =
+        runTest {
+            val inbox = newInbox()
+            val linkService = newLinkService()
+            inbox.add(blobItem(inbox, "pic.png", "image/png", byteArrayOf(1, 2, 3, 4)))
+
+            runSharingApp(inbox, linkService) { client, _ ->
+                val result = client.callTool(name = "get_shared_content", arguments = emptyMap())
+                assertWarningFirst(result.content)
+                val image = result.content[1] as ImageContent
+                assertEquals(INLINE_IMAGE_BASE64, image.data)
+                assertEquals("image/png", image.mimeType)
+                val urlText = (result.content[2] as TextContent).text
+                assertTrue(urlText.contains("/s/"), "must contain a capability URL")
+                assertTrue(urlText.contains("Only share this URL"), "must flag the URL as user-only")
+            }
+        }
+
+    @Test
+    @DisplayName("pdf: URL text; token resolves via /s/{token}")
+    fun pdfItem() =
+        runTest {
+            val inbox = newInbox()
+            val linkService = newLinkService()
+            val bytes = byteArrayOf(0x25, 0x50, 0x44, 0x46) // %PDF
+            inbox.add(blobItem(inbox, "doc.pdf", "application/pdf", bytes))
+
+            runSharingApp(inbox, linkService) { client, httpClient ->
+                val result = client.callTool(name = "get_shared_content", arguments = emptyMap())
+                assertWarningFirst(result.content)
+                val urlText = (result.content[1] as TextContent).text
+                assertTrue(urlText.contains("web_fetch"), "file note must mention web_fetch")
+                val token = TOKEN_REGEX.find(urlText)?.groupValues?.get(1)
+                assertTrue(token != null, "URL must contain a token")
+
+                val response = httpClient.get("/s/$token")
+                assertEquals(HttpStatusCode.OK, response.status)
+                assertArrayEquals(bytes, response.readRawBytes())
+            }
+        }
+
+    @Test
+    @DisplayName("empty inbox returns guidance")
+    fun emptyInbox() =
+        runTest {
+            val inbox = newInbox()
+            val linkService = newLinkService()
+
+            runSharingApp(inbox, linkService) { client, _ ->
+                val result = client.callTool(name = "get_shared_content", arguments = emptyMap())
+                assertEquals(1, result.content.size)
+                assertTrue((result.content[0] as TextContent).text.contains("no shared content available"))
+            }
+        }
+
+    @Test
+    @DisplayName("reachability note appended only when no tunnel is connected")
+    fun reachabilityNote() =
+        runTest {
+            val noteFragment = "when a tunnel is active"
+
+            val inboxNoTunnel = newInbox()
+            val linkNoTunnel = newLinkService()
+            inboxNoTunnel.add(blobItem(inboxNoTunnel, "doc.pdf", "application/pdf", byteArrayOf(1)))
+            runSharingApp(inboxNoTunnel, linkNoTunnel, tunnelConnected = { false }) { client, _ ->
+                val result = client.callTool(name = "get_shared_content", arguments = emptyMap())
+                assertTrue(
+                    result.content.any { it is TextContent && it.text.contains(noteFragment) },
+                    "reachability note must be present without a tunnel",
+                )
+            }
+
+            val inboxTunnel = newInbox()
+            val linkTunnel = newLinkService()
+            inboxTunnel.add(blobItem(inboxTunnel, "doc.pdf", "application/pdf", byteArrayOf(1)))
+            runSharingApp(inboxTunnel, linkTunnel, tunnelConnected = { true }) { client, _ ->
+                val result = client.callTool(name = "get_shared_content", arguments = emptyMap())
+                assertFalse(
+                    result.content.any { it is TextContent && it.text.contains(noteFragment) },
+                    "reachability note must be absent with a tunnel",
+                )
+            }
+        }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Helpers
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private fun context(): Context = mockk<Context>().also { every { it.filesDir } returns tempDir }
+
+    private fun newInbox(): SharedContentInboxImpl = SharedContentInboxImpl(context())
+
+    private fun newLinkService(): EphemeralFileLinkServiceImpl = EphemeralFileLinkServiceImpl(context())
+
+    private fun textItem(text: String): SharedItem =
+        SharedItem(
+            id = text.hashCode().toString(),
+            kind = SharedItem.Kind.TEXT,
+            mimeType = "text/plain",
+            fileName = null,
+            text = text,
+            blob = null,
+            sizeBytes = text.toByteArray().size.toLong(),
+            createdAtMs = 0L,
+            expiresAtMs = Long.MAX_VALUE,
+        )
+
+    private fun blobItem(
+        inbox: SharedContentInboxImpl,
+        name: String,
+        mimeType: String,
+        bytes: ByteArray,
+    ): SharedItem {
+        val blob = File(inbox.blobDir, name).apply { writeBytes(bytes) }
+        return SharedItem(
+            id = name,
+            kind = SharedItem.Kind.BLOB,
+            mimeType = mimeType,
+            fileName = name,
+            text = null,
+            blob = blob,
+            sizeBytes = bytes.size.toLong(),
+            createdAtMs = 0L,
+            expiresAtMs = Long.MAX_VALUE,
+        )
+    }
+
+    private fun newServer(): Server =
+        Server(
+            serverInfo = Implementation(name = "sharing-test", version = "test"),
+            options =
+                ServerOptions(
+                    capabilities = ServerCapabilities(tools = ServerCapabilities.Tools(listChanged = false)),
+                ),
+        )
+
+    private fun assertWarningFirst(content: List<Any>) {
+        assertEquals(McpToolUtils.UNTRUSTED_CONTENT_WARNING, (content[0] as TextContent).text)
+    }
+
+    private suspend fun runSharingApp(
+        inbox: SharedContentInbox,
+        linkService: EphemeralFileLinkService,
+        tunnelConnected: () -> Boolean = { false },
+        block: suspend (Client, io.ktor.client.HttpClient) -> Unit,
+    ) {
+        val fileOperationProvider = mockk<FileOperationProvider>(relaxed = true)
+        val server = newServer()
+        registerSharingTools(
+            server,
+            inbox,
+            linkService,
+            fileOperationProvider,
+            FILE_SIZE_LIMIT_MB,
+            { BASE_URL },
+            tunnelConnected,
+            context(),
+            "",
+            ToolPermissionsConfig(),
+        )
+
+        testApplication {
+            application {
+                install(ContentNegotiation) { json(McpJson) }
+                install(BearerTokenAuthPlugin) {
+                    expectedToken = ""
+                    excludedPaths = setOf("/health")
+                    excludedPathPrefixes = setOf(EphemeralFileLinkService.PATH_PREFIX)
+                }
+                mcpStreamableHttp { server }
+                routing {
+                    get("${EphemeralFileLinkService.PATH_PREFIX}{token}") {
+                        val entry = linkService.resolve(call.parameters["token"].orEmpty())
+                        if (entry == null) {
+                            call.respond(HttpStatusCode.NotFound)
+                        } else {
+                            call.respondBytes(entry.blob.readBytes(), ContentType.parse(entry.mimeType), HttpStatusCode.OK)
+                        }
+                    }
+                }
+            }
+
+            val httpClient =
+                createClient {
+                    install(io.ktor.client.plugins.contentnegotiation.ContentNegotiation) { json(McpJson) }
+                    install(io.ktor.client.plugins.sse.SSE)
+                }
+            val transport = StreamableHttpClientTransport(client = httpClient, url = "/mcp")
+            val mcpClient = Client(clientInfo = Implementation(name = "test-client", version = "1.0.0"))
+            mcpClient.connect(transport)
+            try {
+                block(mcpClient, httpClient)
+            } finally {
+                mcpClient.close()
+            }
+        }
+    }
+
+    private companion object {
+        const val BASE_URL = "http://test.local"
+        const val FILE_SIZE_LIMIT_MB = 50
+        const val INLINE_IMAGE_BASE64 = "INLINEIMG"
+        val TOKEN_REGEX = Regex("/s/([0-9a-f]+)")
+    }
+}

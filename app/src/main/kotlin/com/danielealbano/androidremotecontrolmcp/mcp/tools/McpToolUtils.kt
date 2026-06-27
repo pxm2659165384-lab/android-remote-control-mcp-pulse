@@ -3,6 +3,7 @@ package com.danielealbano.androidremotecontrolmcp.mcp.tools
 import com.danielealbano.androidremotecontrolmcp.mcp.McpToolException
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.ElementInfo
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
+import io.modelcontextprotocol.kotlin.sdk.types.ContentBlock
 import io.modelcontextprotocol.kotlin.sdk.types.ImageContent
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.serialization.json.JsonObject
@@ -471,6 +472,14 @@ internal object McpToolUtils {
                     ImageContent(data = imageData, mimeType = imageMimeType),
                 ),
         )
+
+    /**
+     * Creates a [CallToolResult] whose content is [content] with [UNTRUSTED_CONTENT_WARNING] prepended
+     * as the first [TextContent] block. Use for tools that return a mixed list of device-derived
+     * content items (text/image) so the warning is always first.
+     */
+    fun untrustedResult(content: List<ContentBlock>): CallToolResult =
+        CallToolResult(content = listOf<ContentBlock>(TextContent(text = UNTRUSTED_CONTENT_WARNING)) + content)
 
     /** Maximum duration in milliseconds for any gesture/action. */
     const val MAX_DURATION_MS = 60000L
