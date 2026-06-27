@@ -429,6 +429,69 @@ object AndroidContainerSetup {
     }
 
     /**
+     * Launch the WebView test activity with the large, content-heavy page
+     * (hundreds of articles) used to exercise WebView node collapsing.
+     */
+    fun launchHeavyWebViewTestApp() {
+        val result = execAdb(
+            "shell", "am", "start", "-W",
+            "--es", "content", "heavy",
+            "-n", "$COMPOSE_TEST_PACKAGE/.WebViewActivity",
+        )
+        println("[E2E Setup] launchHeavyWebViewTestApp result: $result")
+        Thread.sleep(3_000)
+    }
+
+    /**
+     * Counts the accessibility nodes currently on screen via `uiautomator dump`. This is the raw,
+     * un-collapsed node count (every node the platform exposes), used as the baseline against the
+     * collapsed `get_screen_state` output.
+     *
+     * @return the number of `<node` elements in the dump, or 0 if the dump could not be produced.
+     */
+    fun uiAutomatorNodeCount(): Int {
+        execAdb("shell", "uiautomator", "dump", "/sdcard/uidump.xml")
+        val xml = execAdb("shell", "cat", "/sdcard/uidump.xml")
+        return Regex("<node ").findAll(xml).count()
+    }
+
+    /**
+     * Counts on-screen nodes that would survive `get_screen_state`'s keep-filter BEFORE the WebView
+     * merge: a node is kept if it has non-empty text / content-desc / resource-id, or is clickable /
+     * long-clickable / scrollable. Comparing the collapsed `get_screen_state` count against THIS
+     * baseline (rather than the raw total) isolates the merge's contribution from the structural-only
+     * filtering that `get_screen_state` always applies.
+     */
+    fun uiAutomatorKeptNodeCount(): Int {
+        execAdb("shell", "uiautomator", "dump", "/sdcard/uidump.xml")
+        val xml = execAdb("shell", "cat", "/sdcard/uidump.xml")
+        return NODE_TAG_REGEX.findAll(xml).count { match ->
+            val tag = match.value
+            attrNonEmpty(tag, "text") ||
+                attrNonEmpty(tag, "content-desc") ||
+                attrNonEmpty(tag, "resource-id") ||
+                attrTrue(tag, "clickable") ||
+                attrTrue(tag, "long-clickable") ||
+                attrTrue(tag, "scrollable")
+        }
+    }
+
+    private val NODE_TAG_REGEX = Regex("<node\\b[^>]*>")
+
+    private fun attrNonEmpty(
+        tag: String,
+        name: String,
+    ): Boolean {
+        val match = Regex("\\s$name=\"([^\"]*)\"").find(tag) ?: return false
+        return match.groupValues[1].isNotEmpty()
+    }
+
+    private fun attrTrue(
+        tag: String,
+        name: String,
+    ): Boolean = Regex("\\s$name=\"true\"").containsMatchIn(tag)
+
+    /**
      * Send an intent to the WebView test activity to update the displayed number.
      *
      * @param number the number to display
