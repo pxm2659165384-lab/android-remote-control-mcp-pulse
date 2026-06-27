@@ -14,6 +14,7 @@ import com.danielealbano.androidremotecontrolmcp.services.accessibility.CompactT
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.PaginationTestTrees
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.ScreenInfo
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.ScreenStateSnapshotCacheImpl
+import com.danielealbano.androidremotecontrolmcp.services.accessibility.WebViewNodeMerger
 import com.danielealbano.androidremotecontrolmcp.services.screencapture.ScreenCaptureProvider
 import com.danielealbano.androidremotecontrolmcp.services.screencapture.ScreenshotAnnotator
 import com.danielealbano.androidremotecontrolmcp.services.screencapture.ScreenshotEncoder
@@ -164,6 +165,7 @@ class ScreenIntrospectionToolsTest {
                     mockScreenshotEncoder,
                     mockNodeCache,
                     ScreenStateSnapshotCacheImpl(),
+                    WebViewNodeMerger(),
                 )
         }
 
@@ -440,6 +442,7 @@ class ScreenIntrospectionToolsTest {
                     mockScreenshotEncoder,
                     mockNodeCache,
                     realCache,
+                    WebViewNodeMerger(),
                 )
         }
 

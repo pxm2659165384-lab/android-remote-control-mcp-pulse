@@ -30,6 +30,7 @@ import com.danielealbano.androidremotecontrolmcp.services.accessibility.ScreenIn
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.ScreenStateSnapshotCache
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.ScreenStateSnapshotCacheImpl
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.TypeInputController
+import com.danielealbano.androidremotecontrolmcp.services.accessibility.WebViewNodeMerger
 import com.danielealbano.androidremotecontrolmcp.services.apps.AppManager
 import com.danielealbano.androidremotecontrolmcp.services.camera.CameraProvider
 import com.danielealbano.androidremotecontrolmcp.services.intents.IntentDispatcher
@@ -166,6 +167,7 @@ object McpIntegrationTestHelper {
             deps.screenshotEncoder,
             deps.nodeCache,
             deps.screenStateSnapshotCache,
+            WebViewNodeMerger(),
             toolNamePrefix,
             perms,
         )

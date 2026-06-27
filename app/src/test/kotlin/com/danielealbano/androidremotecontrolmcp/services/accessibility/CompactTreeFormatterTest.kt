@@ -514,6 +514,36 @@ class CompactTreeFormatterTest {
             val result = formatter.sanitizeText(text)
             assertEquals("a".repeat(100) + "...truncated", result)
         }
+
+        @Test
+        @DisplayName("does not truncate when truncate=false (merged WebView content)")
+        fun doesNotTruncateWhenTruncateFalse() {
+            val longText = "a".repeat(150)
+            assertEquals(longText, formatter.sanitizeText(longText, truncate = false))
+        }
+
+        @Test
+        @DisplayName("appendElementRow does not truncate web nodes but truncates native nodes")
+        fun appendElementRowSkipsTruncationForWebNodes() {
+            val longText = "b".repeat(150)
+            val webNode =
+                AccessibilityNodeData(
+                    id = "w",
+                    bounds = BoundsData(0, 0, 1, 1),
+                    text = longText,
+                    webRole = "article",
+                )
+            val nativeNode =
+                AccessibilityNodeData(
+                    id = "n",
+                    bounds = BoundsData(0, 0, 1, 1),
+                    text = longText,
+                )
+            val webRow = StringBuilder().also { formatter.appendElementRow(it, webNode) }.toString()
+            val nativeRow = StringBuilder().also { formatter.appendElementRow(it, nativeNode) }.toString()
+            assertTrue(webRow.contains(longText), "web node text must not be truncated")
+            assertTrue(nativeRow.contains("...truncated"), "native node text must still truncate")
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────
