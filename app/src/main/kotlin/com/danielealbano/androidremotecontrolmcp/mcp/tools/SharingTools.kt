@@ -56,50 +56,8 @@ class GetSharedContentHandler(
         val content = mutableListOf<ContentBlock>()
         var linkProduced = false
         for (item in items) {
-            when {
-                item.kind == SharedItem.Kind.TEXT -> {
-                    content += TextContent(text = item.text.orEmpty())
-                }
-
-                SharedContentClassifier.isImage(item.mimeType) && item.bytes != null -> {
-                    val name = item.fileName ?: "image"
-                    val inline =
-                        runCatching {
-                            SharedContentClassifier.downscaleToInline(item.bytes, item.mimeType)
-                        }.getOrNull()
-                    val token = linkService.register(item.bytes, item.mimeType, name)
-                    val url = baseUrlProvider() + linkService.pathFor(token)
-                    linkProduced = true
-                    if (inline != null) {
-                        content += ImageContent(data = inline.base64, mimeType = inline.mimeType)
-                        content +=
-                            TextContent(
-                                text =
-                                    "Image '$name' (${item.sizeBytes} bytes). Original (full-res) at $url " +
-                                        "(expires 1h). Only share this URL with the user if they ask for the original.",
-                            )
-                    } else {
-                        content +=
-                            TextContent(
-                                text =
-                                    "Image '$name' ${item.mimeType} (${item.sizeBytes} bytes) could not be decoded; " +
-                                        "download it at $url (expires 1h).",
-                            )
-                    }
-                }
-
-                item.bytes != null -> {
-                    val name = item.fileName ?: "file"
-                    val token = linkService.register(item.bytes, item.mimeType, name)
-                    val url = baseUrlProvider() + linkService.pathFor(token)
-                    linkProduced = true
-                    content +=
-                        TextContent(
-                            text =
-                                "File '$name' ${item.mimeType} (${item.sizeBytes} bytes) at $url (expires 1h). " +
-                                    "You can web_fetch text/PDF URLs to read them; other types are download-only.",
-                        )
-                }
+            if (appendItem(item, content)) {
+                linkProduced = true
             }
         }
 
@@ -108,6 +66,69 @@ class GetSharedContentHandler(
         }
 
         return McpToolUtils.untrustedResult(content)
+    }
+
+    /** Appends the rendering of [item] to [content]; returns true iff it registered a capability link. */
+    private suspend fun appendItem(
+        item: SharedItem,
+        content: MutableList<ContentBlock>,
+    ): Boolean {
+        var linkProduced = false
+        when {
+            item.kind == SharedItem.Kind.TEXT -> {
+                content += TextContent(text = item.text.orEmpty())
+            }
+
+            SharedContentClassifier.isImage(item.mimeType) && item.bytes != null -> {
+                val name = item.fileName ?: "image"
+                val inline =
+                    runCatching {
+                        SharedContentClassifier.downscaleToInline(item.bytes, item.mimeType)
+                    }.getOrNull()
+                val url = baseUrlProvider() + linkService.pathFor(linkService.register(item.bytes, item.mimeType, name))
+                linkProduced = true
+                if (inline != null) {
+                    content += ImageContent(data = inline.base64, mimeType = inline.mimeType)
+                    content +=
+                        TextContent(
+                            text =
+                                "Image '$name' (${item.sizeBytes} bytes). Original (full-res) at $url " +
+                                    "(expires 1h). Only share this URL with the user if they ask for the original.",
+                        )
+                } else {
+                    content +=
+                        TextContent(
+                            text =
+                                "Image '$name' ${item.mimeType} (${item.sizeBytes} bytes) could not be decoded; " +
+                                    "download it at $url (expires 1h).",
+                        )
+                }
+            }
+
+            item.bytes != null -> {
+                val name = item.fileName ?: "file"
+                val url = baseUrlProvider() + linkService.pathFor(linkService.register(item.bytes, item.mimeType, name))
+                linkProduced = true
+                content +=
+                    TextContent(
+                        text =
+                            "File '$name' ${item.mimeType} (${item.sizeBytes} bytes) at $url (expires 1h). " +
+                                "You can web_fetch text/PDF URLs to read them; other types are download-only.",
+                    )
+            }
+
+            else -> {
+                // Defensive: a non-text item carrying no bytes has nothing to serve. Surface it rather than
+                // dropping it silently (not reachable from the share receiver, which always attaches bytes).
+                content +=
+                    TextContent(
+                        text =
+                            "A shared item ('${item.fileName ?: "unknown"}', ${item.mimeType}) " +
+                                "had no readable content and was skipped.",
+                    )
+            }
+        }
+        return linkProduced
     }
 
     fun register(

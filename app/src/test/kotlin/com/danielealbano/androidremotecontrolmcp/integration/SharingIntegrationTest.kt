@@ -160,6 +160,35 @@ class SharingIntegrationTest {
         }
 
     @Test
+    @DisplayName("a non-text item carrying no bytes is surfaced as skipped, not dropped silently")
+    fun blobWithoutBytesSurfaced() =
+        runTest {
+            val inbox = newInbox()
+            val linkService = newLinkService()
+            inbox.add(
+                SharedItem(
+                    id = "ghost",
+                    kind = SharedItem.Kind.BLOB,
+                    mimeType = "application/pdf",
+                    fileName = "ghost.pdf",
+                    text = null,
+                    bytes = null,
+                    sizeBytes = 0L,
+                    createdAtMs = 0L,
+                    expiresAtMs = Long.MAX_VALUE,
+                ),
+            )
+
+            runSharingApp(inbox, linkService) { client, _ ->
+                val result = client.callTool(name = "get_shared_content", arguments = emptyMap())
+                assertTrue(
+                    result.content.any { it is TextContent && it.text.contains("had no readable content") },
+                    "an item with no bytes must be surfaced, not silently dropped",
+                )
+            }
+        }
+
+    @Test
     @DisplayName("reachability note appended only when no tunnel is connected")
     fun reachabilityNote() =
         runTest {
