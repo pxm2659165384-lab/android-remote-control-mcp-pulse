@@ -176,7 +176,11 @@ class McpServer(
                 if (entry == null) {
                     call.respond(HttpStatusCode.NotFound)
                 } else {
-                    call.respondBytes(entry.bytes, ContentType.parse(entry.mimeType), HttpStatusCode.OK)
+                    // A sharing app may supply a malformed MIME; fall back to octet-stream rather than 500.
+                    val contentType =
+                        runCatching { ContentType.parse(entry.mimeType) }
+                            .getOrDefault(ContentType.Application.OctetStream)
+                    call.respondBytes(entry.bytes, contentType, HttpStatusCode.OK)
                 }
             }
         }

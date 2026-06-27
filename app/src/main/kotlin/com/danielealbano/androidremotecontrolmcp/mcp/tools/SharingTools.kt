@@ -198,7 +198,8 @@ class ShareFileViaWebHandler(
             description =
                 "Exposes a device file (location_id + path) as a temporary fetch URL (expires 1h, " +
                     "multiple fetches allowed). Use to let the agent read a device PDF/text via web_fetch, " +
-                    "or to give the user a download link. Limited to the configured file size limit.",
+                    "or to give the user a download link. The file is served from memory, so it is limited to " +
+                    "64 MB or the configured file-size limit, whichever is smaller.",
             inputSchema =
                 ToolSchema(
                     properties =
