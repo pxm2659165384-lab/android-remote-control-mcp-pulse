@@ -15,6 +15,7 @@ import com.danielealbano.androidremotecontrolmcp.services.accessibility.MultiWin
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.ScreenInfo
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.ScreenStateSnapshot
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.ScreenStateSnapshotCache
+import com.danielealbano.androidremotecontrolmcp.services.accessibility.WebViewNodeMerger
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.WindowData
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.countKeptNodes
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.formatMultiWindowPage
@@ -60,6 +61,7 @@ class GetScreenStateHandler
         private val screenshotEncoder: ScreenshotEncoder,
         private val nodeCache: AccessibilityNodeCache,
         private val screenStateSnapshotCache: ScreenStateSnapshotCache,
+        private val webViewNodeMerger: WebViewNodeMerger,
     ) {
         @Volatile private var includeScreenshotEnabled: Boolean = true
 
@@ -88,7 +90,10 @@ class GetScreenStateHandler
             }
 
         private suspend fun handleFreshRequest(includeScreenshot: Boolean): CallToolResult {
-            val result = getFreshWindows(treeParser, accessibilityServiceProvider, nodeCache)
+            // The node cache (used by element/action tools) is populated by getFreshWindows from the
+            // original tree; the merge only collapses the tree shown to the LLM. Merged anchors keep
+            // their original ids, so taps still resolve.
+            val result = webViewNodeMerger.merge(getFreshWindows(treeParser, accessibilityServiceProvider, nodeCache))
             val screenInfo = accessibilityServiceProvider.getScreenInfo()
             val totalKept = compactTreeFormatter.countKeptNodes(result)
             val totalPages = ceilDiv(totalKept, CompactTreeFormatter.PAGE_SIZE)
@@ -346,6 +351,7 @@ fun registerScreenIntrospectionTools(
     screenshotEncoder: ScreenshotEncoder,
     nodeCache: AccessibilityNodeCache,
     screenStateSnapshotCache: ScreenStateSnapshotCache,
+    webViewNodeMerger: WebViewNodeMerger,
     toolNamePrefix: String,
     perms: ToolPermissionsConfig,
 ) {
@@ -359,6 +365,7 @@ fun registerScreenIntrospectionTools(
             screenshotEncoder,
             nodeCache,
             screenStateSnapshotCache,
+            webViewNodeMerger,
         ).register(
             server,
             toolNamePrefix,
