@@ -219,9 +219,11 @@ dependencies {
     implementation(libs.ktor.client.okhttp)
     implementation(libs.ktor.client.content.negotiation)
 
-    // Force patched Netty to fix CVE-2026-33870 (HTTP Request Smuggling)
-    // and CVE-2026-33871 (HTTP/2 CONTINUATION Frame Flood DoS).
-    // Ktor 3.4.2 ships netty 4.2.9 which is vulnerable.
+    // Force patched Netty: Ktor's server engine ships netty 4.2.9, which is vulnerable.
+    // Covers the HTTP Request Smuggling / HTTP/2 CONTINUATION-flood CVEs (CVE-2026-33870,
+    // CVE-2026-33871) plus the native-transport advisories that the engine also pulls onto the
+    // release classpath: epoll DoS (GHSA-rwm7-x88c-3g2p) and the epoll/kqueue fd leak
+    // (GHSA-w573-9ffj-6ff9). All netty modules are pinned to the same version to avoid skew.
     constraints {
         implementation("io.netty:netty-codec-http:4.2.15.Final")
         implementation("io.netty:netty-codec-http2:4.2.15.Final")
@@ -234,6 +236,9 @@ dependencies {
         implementation("io.netty:netty-resolver:4.2.15.Final")
         implementation("io.netty:netty-transport-native-unix-common:4.2.15.Final")
         implementation("io.netty:netty-transport-classes-epoll:4.2.15.Final")
+        implementation("io.netty:netty-transport-native-epoll:4.2.15.Final")
+        implementation("io.netty:netty-transport-classes-kqueue:4.2.15.Final")
+        implementation("io.netty:netty-transport-native-kqueue:4.2.15.Final")
     }
 
     // Certificate generation (Bouncy Castle for self-signed cert with SAN support)
