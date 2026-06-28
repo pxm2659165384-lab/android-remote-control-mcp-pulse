@@ -4,15 +4,19 @@ package com.danielealbano.androidremotecontrolmcp.ui.components
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -26,14 +30,84 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.danielealbano.androidremotecontrolmcp.R
 import com.danielealbano.androidremotecontrolmcp.data.model.BindingAddress
+import com.danielealbano.androidremotecontrolmcp.data.model.ServerStatus
+import com.danielealbano.androidremotecontrolmcp.data.model.TunnelProviderType
+import com.danielealbano.androidremotecontrolmcp.data.model.TunnelStatus
 import com.danielealbano.androidremotecontrolmcp.ui.theme.AndroidRemoteControlMcpTheme
 
 private const val TOKEN_MASK = "********-****-****-****-************"
+
+/**
+ * Visual content of the Public URL row when it is shown.
+ *
+ * A `null` row content (the return of [tunnelRowContent]) means the row is hidden,
+ * so no "hidden" case exists here and the renderer only handles displayable states.
+ */
+internal sealed interface TunnelRowContent {
+    /** Server started and remote access enabled, address not yet available — show a spinner. */
+    data object Loading : TunnelRowContent
+
+    /** Tunnel connected — show the public address. */
+    data class Connected(
+        val url: String,
+    ) : TunnelRowContent
+
+    /** Tunnel failed — show the error message in red. */
+    data class Failed(
+        val message: String,
+    ) : TunnelRowContent
+}
+
+/**
+ * Computes the Public URL row content from the combined server + tunnel state, or
+ * `null` when the row must stay hidden (remote access off, or server not Starting/Running).
+ *
+ * The row becomes visible as soon as the server is Starting or Running and remote
+ * access is enabled, showing [TunnelRowContent.Loading] (a spinner) until the tunnel
+ * reports [TunnelStatus.Connected] or [TunnelStatus.Error].
+ */
+internal fun tunnelRowContent(
+    tunnelEnabled: Boolean,
+    serverStatus: ServerStatus,
+    tunnelStatus: TunnelStatus,
+): TunnelRowContent? {
+    val serverActive =
+        serverStatus is ServerStatus.Running || serverStatus is ServerStatus.Starting
+    if (!tunnelEnabled || !serverActive) return null
+    return when (tunnelStatus) {
+        is TunnelStatus.Connected -> TunnelRowContent.Connected(tunnelStatus.url)
+        is TunnelStatus.Error -> TunnelRowContent.Failed(tunnelStatus.message)
+        TunnelStatus.Connecting, TunnelStatus.Disconnected -> TunnelRowContent.Loading
+    }
+}
+
+/**
+ * Builds the Copy-all / Share connection string. The tunnel line is included
+ * only when [tunnelUrl] is non-null (i.e. the tunnel is connected); the bearer
+ * token line is included only when [bearerToken] is non-empty.
+ */
+internal fun buildConnectionString(
+    serverUrl: String,
+    tunnelUrl: String?,
+    bearerToken: String,
+): String =
+    buildString {
+        append("URL: $serverUrl")
+        tunnelUrl?.let { append("\nTunnel: $it/mcp") }
+        if (bearerToken.isNotEmpty()) {
+            append("\nBearer Token: $bearerToken")
+        }
+    }
 
 @Composable
 fun ConnectionInfoCard(
@@ -43,7 +117,9 @@ fun ConnectionInfoCard(
     httpsEnabled: Boolean,
     bearerToken: String,
     onCopyAll: (String) -> Unit,
-    tunnelUrl: String? = null,
+    tunnelEnabled: Boolean = false,
+    serverStatus: ServerStatus = ServerStatus.Stopped,
+    tunnelStatus: TunnelStatus = TunnelStatus.Disconnected,
     onShare: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -58,6 +134,33 @@ fun ConnectionInfoCard(
     val serverUrl = "$scheme://$displayAddress:$port/mcp"
     val displayToken = if (showToken) bearerToken else TOKEN_MASK
 
+    val rowContent = tunnelRowContent(tunnelEnabled, serverStatus, tunnelStatus)
+
+    val labelStyle = MaterialTheme.typography.bodyMedium
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+
+    val ipLabel = stringResource(R.string.connection_info_ip)
+    val portLabel = stringResource(R.string.connection_info_port)
+    val urlLabel = stringResource(R.string.connection_info_url)
+    val publicUrlLabel = stringResource(R.string.remote_access_public_url_label)
+    val tokenLabel = stringResource(R.string.connection_info_token)
+
+    val visibleLabels =
+        buildList {
+            add(ipLabel)
+            add(portLabel)
+            add(urlLabel)
+            if (rowContent != null) add(publicUrlLabel)
+            if (bearerToken.isNotEmpty()) add(tokenLabel)
+        }
+    val labelColumnWidth: Dp =
+        remember(visibleLabels, labelStyle, density) {
+            with(density) {
+                visibleLabels.maxOf { measurer.measure(it, labelStyle).size.width }.toDp()
+            }
+        }
+
     ElevatedCard(
         modifier = modifier.fillMaxWidth(),
     ) {
@@ -71,34 +174,23 @@ fun ConnectionInfoCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            ConnectionInfoRow(
-                label = stringResource(R.string.connection_info_ip),
-                value = displayAddress,
-            )
-            ConnectionInfoRow(
-                label = stringResource(R.string.connection_info_port),
-                value = port.toString(),
-            )
-            ConnectionInfoRow(
-                label = stringResource(R.string.connection_info_url),
-                value = serverUrl,
-            )
-            tunnelUrl?.let { url ->
-                ConnectionInfoRow(
-                    label = stringResource(R.string.remote_access_public_url_label),
-                    value = "$url/mcp",
-                )
+            ConnectionInfoRow(label = ipLabel, labelWidth = labelColumnWidth) {
+                Text(text = displayAddress, style = MaterialTheme.typography.bodyMedium)
+            }
+            ConnectionInfoRow(label = portLabel, labelWidth = labelColumnWidth) {
+                Text(text = port.toString(), style = MaterialTheme.typography.bodyMedium)
+            }
+            ConnectionInfoRow(label = urlLabel, labelWidth = labelColumnWidth) {
+                Text(text = serverUrl, style = MaterialTheme.typography.bodyMedium)
+            }
+            if (rowContent != null) {
+                ConnectionInfoRow(label = publicUrlLabel, labelWidth = labelColumnWidth) {
+                    TunnelRowValue(content = rowContent)
+                }
             }
 
             if (bearerToken.isNotEmpty()) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = "${stringResource(R.string.connection_info_token)}: ",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                ConnectionInfoRow(label = tokenLabel, labelWidth = labelColumnWidth) {
                     Text(
                         text = displayToken,
                         style = MaterialTheme.typography.bodyMedium,
@@ -126,13 +218,11 @@ fun ConnectionInfoCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             val connectionString =
-                buildString {
-                    append("URL: $serverUrl")
-                    tunnelUrl?.let { append("\nTunnel: $it/mcp") }
-                    if (bearerToken.isNotEmpty()) {
-                        append("\nBearer Token: $bearerToken")
-                    }
-                }
+                buildConnectionString(
+                    serverUrl = serverUrl,
+                    tunnelUrl = (rowContent as? TunnelRowContent.Connected)?.url,
+                    bearerToken = bearerToken,
+                )
             Row(
                 modifier = Modifier.align(Alignment.End),
             ) {
@@ -162,22 +252,57 @@ fun ConnectionInfoCard(
 }
 
 @Composable
+private fun RowScope.TunnelRowValue(content: TunnelRowContent) {
+    when (content) {
+        TunnelRowContent.Loading -> {
+            val connectingDescription = stringResource(R.string.remote_access_status_connecting)
+            CircularProgressIndicator(
+                modifier =
+                    Modifier
+                        .size(16.dp)
+                        .semantics { contentDescription = connectingDescription },
+                strokeWidth = 2.dp,
+            )
+        }
+
+        is TunnelRowContent.Connected -> {
+            Text(
+                text = "${content.url}/mcp",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f),
+            )
+        }
+
+        is TunnelRowContent.Failed -> {
+            Text(
+                text = stringResource(R.string.remote_access_status_error, content.message),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
 private fun ConnectionInfoRow(
     label: String,
-    value: String,
+    labelWidth: Dp,
+    modifier: Modifier = Modifier,
+    value: @Composable RowScope.() -> Unit,
 ) {
     Row(
-        modifier = Modifier.padding(vertical = 2.dp),
+        modifier = modifier.padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = "$label: ",
+            text = label,
+            modifier = Modifier.width(labelWidth),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium,
-        )
+        Spacer(modifier = Modifier.width(12.dp))
+        value()
     }
 }
 
@@ -191,7 +316,13 @@ private fun ConnectionInfoCardPreview() {
             port = 8080,
             httpsEnabled = false,
             bearerToken = "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-            tunnelUrl = "https://random-words.trycloudflare.com",
+            tunnelEnabled = true,
+            serverStatus = ServerStatus.Running(port = 8080, bindingAddress = "127.0.0.1"),
+            tunnelStatus =
+                TunnelStatus.Connected(
+                    url = "https://random-words.trycloudflare.com",
+                    providerType = TunnelProviderType.CLOUDFLARE,
+                ),
             onCopyAll = {},
             onShare = {},
         )

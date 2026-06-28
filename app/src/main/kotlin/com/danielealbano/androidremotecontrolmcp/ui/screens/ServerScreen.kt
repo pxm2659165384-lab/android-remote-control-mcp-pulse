@@ -41,7 +41,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danielealbano.androidremotecontrolmcp.R
-import com.danielealbano.androidremotecontrolmcp.data.model.TunnelStatus
 import com.danielealbano.androidremotecontrolmcp.ui.components.ConnectionInfoCard
 import com.danielealbano.androidremotecontrolmcp.ui.components.ServerLogsSection
 import com.danielealbano.androidremotecontrolmcp.ui.components.ServerStatusCard
@@ -131,7 +130,9 @@ fun ServerScreen(
                 port = serverConfig.port,
                 httpsEnabled = serverConfig.httpsEnabled,
                 bearerToken = serverConfig.bearerToken,
-                tunnelUrl = (tunnelStatus as? TunnelStatus.Connected)?.url,
+                tunnelEnabled = serverConfig.tunnelEnabled,
+                serverStatus = serverStatus,
+                tunnelStatus = tunnelStatus,
                 onCopyAll = { text ->
                     clipboardManager.setText(AnnotatedString(text))
                     Toast.makeText(context, copiedToClipboardMessage, Toast.LENGTH_SHORT).show()
