@@ -315,10 +315,14 @@ val generateLocationDb =
         inputs.property("dbMonth", month)
         outputs.file(asset)
         commandLine(
-            "python3", script.asFile.absolutePath,
-            "--month", month,
-            "--cache-dir", cacheDir.asFile.absolutePath,
-            "--out", asset.asFile.absolutePath,
+            "python3",
+            script.asFile.absolutePath,
+            "--month",
+            month,
+            "--cache-dir",
+            cacheDir.asFile.absolutePath,
+            "--out",
+            asset.asFile.absolutePath,
         )
     }
 // Only the APK asset-packaging tasks need the DB — wiring it here (not to preBuild) keeps it out of the
