@@ -5,12 +5,13 @@ import com.danielealbano.androidremotecontrolmcp.data.model.TunnelProviderType
 import com.danielealbano.androidremotecontrolmcp.data.model.TunnelStatus
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
  * Unit tests verifying ConnectionInfoCard URL/connection-string logic and the
- * Public URL row state mapping ([tunnelRowState]). These exercise the pure
+ * Public URL row content mapping ([tunnelRowContent]). These exercise the pure
  * logic extracted from the composable without a Compose runtime.
  */
 class ConnectionInfoCardTest {
@@ -134,91 +135,114 @@ class ConnectionInfoCardTest {
     }
 
     @Test
-    fun `tunnelRowState hidden when remote access disabled`() {
+    fun `tunnelRowContent null when remote access disabled`() {
         val result =
-            tunnelRowState(
+            tunnelRowContent(
                 tunnelEnabled = false,
                 serverStatus = running,
                 tunnelStatus = connected("https://x.trycloudflare.com"),
             )
-        assertEquals(TunnelRowState.Hidden, result)
+        assertNull(result)
     }
 
     @Test
-    fun `tunnelRowState hidden when server stopped`() {
+    fun `tunnelRowContent null when server stopped`() {
         val result =
-            tunnelRowState(
+            tunnelRowContent(
                 tunnelEnabled = true,
                 serverStatus = ServerStatus.Stopped,
                 tunnelStatus = TunnelStatus.Connecting,
             )
-        assertEquals(TunnelRowState.Hidden, result)
+        assertNull(result)
     }
 
     @Test
-    fun `tunnelRowState hidden when server stopping`() {
+    fun `tunnelRowContent null when server stopping`() {
         val result =
-            tunnelRowState(
+            tunnelRowContent(
                 tunnelEnabled = true,
                 serverStatus = ServerStatus.Stopping,
                 tunnelStatus = connected("https://x.trycloudflare.com"),
             )
-        assertEquals(TunnelRowState.Hidden, result)
+        assertNull(result)
     }
 
     @Test
-    fun `tunnelRowState hidden when server error`() {
+    fun `tunnelRowContent null when server error`() {
         val result =
-            tunnelRowState(
+            tunnelRowContent(
                 tunnelEnabled = true,
                 serverStatus = ServerStatus.Error("x"),
                 tunnelStatus = connected("https://x.trycloudflare.com"),
             )
-        assertEquals(TunnelRowState.Hidden, result)
+        assertNull(result)
     }
 
     @Test
-    fun `tunnelRowState loading when starting and disconnected`() {
+    fun `tunnelRowContent loading when starting and disconnected`() {
         val result =
-            tunnelRowState(
+            tunnelRowContent(
                 tunnelEnabled = true,
                 serverStatus = ServerStatus.Starting,
                 tunnelStatus = TunnelStatus.Disconnected,
             )
-        assertEquals(TunnelRowState.Loading, result)
+        assertEquals(TunnelRowContent.Loading, result)
     }
 
     @Test
-    fun `tunnelRowState loading when running and connecting`() {
+    fun `tunnelRowContent loading when running and connecting`() {
         val result =
-            tunnelRowState(
+            tunnelRowContent(
                 tunnelEnabled = true,
                 serverStatus = running,
                 tunnelStatus = TunnelStatus.Connecting,
             )
-        assertEquals(TunnelRowState.Loading, result)
+        assertEquals(TunnelRowContent.Loading, result)
     }
 
     @Test
-    fun `tunnelRowState connected exposes url when running`() {
+    fun `tunnelRowContent loading when running and disconnected`() {
+        val result =
+            tunnelRowContent(
+                tunnelEnabled = true,
+                serverStatus = running,
+                tunnelStatus = TunnelStatus.Disconnected,
+            )
+        assertEquals(TunnelRowContent.Loading, result)
+    }
+
+    @Test
+    fun `tunnelRowContent connected exposes url when running`() {
         val url = "https://random-words.trycloudflare.com"
         val result =
-            tunnelRowState(
+            tunnelRowContent(
                 tunnelEnabled = true,
                 serverStatus = running,
                 tunnelStatus = connected(url),
             )
-        assertEquals(TunnelRowState.Connected(url), result)
+        assertEquals(TunnelRowContent.Connected(url), result)
     }
 
     @Test
-    fun `tunnelRowState failed exposes message when running`() {
+    fun `tunnelRowContent connected when starting and already connected`() {
+        val url = "https://random-words.trycloudflare.com"
         val result =
-            tunnelRowState(
+            tunnelRowContent(
+                tunnelEnabled = true,
+                serverStatus = ServerStatus.Starting,
+                tunnelStatus = connected(url),
+            )
+        assertEquals(TunnelRowContent.Connected(url), result)
+    }
+
+    @Test
+    fun `tunnelRowContent failed exposes message when running`() {
+        val result =
+            tunnelRowContent(
                 tunnelEnabled = true,
                 serverStatus = running,
                 tunnelStatus = TunnelStatus.Error("boom"),
             )
-        assertEquals(TunnelRowState.Failed("boom"), result)
+        assertEquals(TunnelRowContent.Failed("boom"), result)
     }
 }

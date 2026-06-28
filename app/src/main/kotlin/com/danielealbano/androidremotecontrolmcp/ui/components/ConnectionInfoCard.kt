@@ -32,6 +32,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
@@ -45,44 +47,47 @@ import com.danielealbano.androidremotecontrolmcp.ui.theme.AndroidRemoteControlMc
 
 private const val TOKEN_MASK = "********-****-****-****-************"
 
-/** Visual state of the Public URL row in [ConnectionInfoCard]. */
-internal sealed interface TunnelRowState {
-    /** Row hidden: remote access off, or server not Starting/Running. */
-    data object Hidden : TunnelRowState
-
+/**
+ * Visual content of the Public URL row when it is shown.
+ *
+ * A `null` row content (the return of [tunnelRowContent]) means the row is hidden,
+ * so no "hidden" case exists here and the renderer only handles displayable states.
+ */
+internal sealed interface TunnelRowContent {
     /** Server started and remote access enabled, address not yet available — show a spinner. */
-    data object Loading : TunnelRowState
+    data object Loading : TunnelRowContent
 
     /** Tunnel connected — show the public address. */
     data class Connected(
         val url: String,
-    ) : TunnelRowState
+    ) : TunnelRowContent
 
     /** Tunnel failed — show the error message in red. */
     data class Failed(
         val message: String,
-    ) : TunnelRowState
+    ) : TunnelRowContent
 }
 
 /**
- * Computes the Public URL row state from the combined server + tunnel state.
+ * Computes the Public URL row content from the combined server + tunnel state, or
+ * `null` when the row must stay hidden (remote access off, or server not Starting/Running).
  *
- * The row becomes visible as soon as the server is Starting or Running and
- * remote access is enabled, showing [TunnelRowState.Loading] (a spinner) until
- * the tunnel reports [TunnelStatus.Connected] or [TunnelStatus.Error].
+ * The row becomes visible as soon as the server is Starting or Running and remote
+ * access is enabled, showing [TunnelRowContent.Loading] (a spinner) until the tunnel
+ * reports [TunnelStatus.Connected] or [TunnelStatus.Error].
  */
-internal fun tunnelRowState(
+internal fun tunnelRowContent(
     tunnelEnabled: Boolean,
     serverStatus: ServerStatus,
     tunnelStatus: TunnelStatus,
-): TunnelRowState {
+): TunnelRowContent? {
     val serverActive =
         serverStatus is ServerStatus.Running || serverStatus is ServerStatus.Starting
-    if (!tunnelEnabled || !serverActive) return TunnelRowState.Hidden
+    if (!tunnelEnabled || !serverActive) return null
     return when (tunnelStatus) {
-        is TunnelStatus.Connected -> TunnelRowState.Connected(tunnelStatus.url)
-        is TunnelStatus.Error -> TunnelRowState.Failed(tunnelStatus.message)
-        TunnelStatus.Connecting, TunnelStatus.Disconnected -> TunnelRowState.Loading
+        is TunnelStatus.Connected -> TunnelRowContent.Connected(tunnelStatus.url)
+        is TunnelStatus.Error -> TunnelRowContent.Failed(tunnelStatus.message)
+        TunnelStatus.Connecting, TunnelStatus.Disconnected -> TunnelRowContent.Loading
     }
 }
 
@@ -129,7 +134,7 @@ fun ConnectionInfoCard(
     val serverUrl = "$scheme://$displayAddress:$port/mcp"
     val displayToken = if (showToken) bearerToken else TOKEN_MASK
 
-    val rowState = tunnelRowState(tunnelEnabled, serverStatus, tunnelStatus)
+    val rowContent = tunnelRowContent(tunnelEnabled, serverStatus, tunnelStatus)
 
     val labelStyle = MaterialTheme.typography.bodyMedium
     val measurer = rememberTextMeasurer()
@@ -146,7 +151,7 @@ fun ConnectionInfoCard(
             add(ipLabel)
             add(portLabel)
             add(urlLabel)
-            if (rowState != TunnelRowState.Hidden) add(publicUrlLabel)
+            if (rowContent != null) add(publicUrlLabel)
             if (bearerToken.isNotEmpty()) add(tokenLabel)
         }
     val labelColumnWidth: Dp =
@@ -178,9 +183,9 @@ fun ConnectionInfoCard(
             ConnectionInfoRow(label = urlLabel, labelWidth = labelColumnWidth) {
                 Text(text = serverUrl, style = MaterialTheme.typography.bodyMedium)
             }
-            if (rowState != TunnelRowState.Hidden) {
+            if (rowContent != null) {
                 ConnectionInfoRow(label = publicUrlLabel, labelWidth = labelColumnWidth) {
-                    TunnelRowValue(rowState = rowState)
+                    TunnelRowValue(content = rowContent)
                 }
             }
 
@@ -215,7 +220,7 @@ fun ConnectionInfoCard(
             val connectionString =
                 buildConnectionString(
                     serverUrl = serverUrl,
-                    tunnelUrl = (rowState as? TunnelRowState.Connected)?.url,
+                    tunnelUrl = (rowContent as? TunnelRowContent.Connected)?.url,
                     bearerToken = bearerToken,
                 )
             Row(
@@ -247,32 +252,34 @@ fun ConnectionInfoCard(
 }
 
 @Composable
-private fun TunnelRowValue(rowState: TunnelRowState) {
-    when (rowState) {
-        TunnelRowState.Loading -> {
+private fun RowScope.TunnelRowValue(content: TunnelRowContent) {
+    when (content) {
+        TunnelRowContent.Loading -> {
+            val connectingDescription = stringResource(R.string.remote_access_status_connecting)
             CircularProgressIndicator(
-                modifier = Modifier.size(16.dp),
+                modifier =
+                    Modifier
+                        .size(16.dp)
+                        .semantics { contentDescription = connectingDescription },
                 strokeWidth = 2.dp,
             )
         }
 
-        is TunnelRowState.Connected -> {
+        is TunnelRowContent.Connected -> {
             Text(
-                text = "${rowState.url}/mcp",
+                text = "${content.url}/mcp",
                 style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f),
             )
         }
 
-        is TunnelRowState.Failed -> {
+        is TunnelRowContent.Failed -> {
             Text(
-                text = stringResource(R.string.remote_access_status_error, rowState.message),
+                text = stringResource(R.string.remote_access_status_error, content.message),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.weight(1f),
             )
-        }
-
-        TunnelRowState.Hidden -> {
-            Unit
         }
     }
 }
