@@ -146,7 +146,17 @@ private suspend fun ApplicationCall.handleAuthorize(
         ),
         deps.nowMs(),
     )
-    respondText(consentPageHtml(approval.id, approval.matchCode, displayName), ContentType.Text.Html)
+    val expiresInSeconds = (approval.expiresAtMs - deps.nowMs()) / MILLIS_PER_SECOND
+    respondText(
+        consentPageHtml(
+            approval.id,
+            approval.matchCode,
+            displayName,
+            host(safeRedirectUri) ?: "Unknown",
+            expiresInSeconds,
+        ),
+        ContentType.Text.Html,
+    )
 }
 
 /** Validates the non-redirect authorize params; returns an OAuth error code, or null when valid. */
