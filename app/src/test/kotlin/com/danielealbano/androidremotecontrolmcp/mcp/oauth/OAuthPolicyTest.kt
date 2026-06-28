@@ -8,12 +8,15 @@ import org.junit.jupiter.api.Test
 @DisplayName("OAuthPolicy")
 class OAuthPolicyTest {
     @Test
-    @DisplayName("allows claude callback and localhost")
-    fun allowsClaudeAndLocalhost() {
+    @DisplayName("allows allowlisted uris and http loopback")
+    fun allowsAllowlistedAndLoopback() {
         assertTrue(OAuthPolicy.isAllowedRedirectUri(OAuthPolicy.CLAUDE_REDIRECT_URI))
+        OAuthPolicy.ALLOWED_REDIRECT_URIS.forEach { assertTrue(OAuthPolicy.isAllowedRedirectUri(it)) }
         assertTrue(OAuthPolicy.isAllowedRedirectUri("http://localhost/callback"))
         assertTrue(OAuthPolicy.isAllowedRedirectUri("http://localhost:8080/cb"))
         assertTrue(OAuthPolicy.isAllowedRedirectUri("http://127.0.0.1:1234/cb"))
+        assertTrue(OAuthPolicy.isAllowedRedirectUri("http://[::1]/cb"))
+        assertTrue(OAuthPolicy.isAllowedRedirectUri("http://[::1]:9000/cb"))
     }
 
     @Test
@@ -32,12 +35,13 @@ class OAuthPolicyTest {
     }
 
     @Test
-    @DisplayName("rejects other loopback and wildcard hosts")
-    fun rejectsLoopbackAndWildcard() {
-        assertFalse(OAuthPolicy.isAllowedRedirectUri("http://[::1]/cb"))
+    @DisplayName("rejects non-loopback and wildcard hosts")
+    fun rejectsNonLoopbackAndWildcard() {
         assertFalse(OAuthPolicy.isAllowedRedirectUri("http://0.0.0.0/cb"))
         assertFalse(OAuthPolicy.isAllowedRedirectUri("http://127.0.0.2/cb"))
+        assertFalse(OAuthPolicy.isAllowedRedirectUri("http://[::2]/cb"))
         assertFalse(OAuthPolicy.isAllowedRedirectUri("https://localhost/cb"))
+        assertFalse(OAuthPolicy.isAllowedRedirectUri("https://[::1]/cb"))
     }
 
     @Test

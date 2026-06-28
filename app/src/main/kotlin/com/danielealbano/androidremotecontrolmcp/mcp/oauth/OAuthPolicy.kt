@@ -11,6 +11,9 @@ object OAuthPolicy {
     /** The fixed Claude.ai connector callback. */
     const val CLAUDE_REDIRECT_URI = "https://claude.ai/api/mcp/auth_callback"
 
+    /** Exact non-loopback redirect URIs accepted by the allowlist (add other hosted connectors here). */
+    val ALLOWED_REDIRECT_URIS = setOf(CLAUDE_REDIRECT_URI)
+
     /** Maximum persisted OAuth clients before eviction. */
     const val MAX_OAUTH_CLIENTS = 20
 
@@ -33,19 +36,20 @@ object OAuthPolicy {
     const val MAX_PENDING_APPROVALS = 10
 
     private const val SCHEME_SEPARATOR = "://"
-    private val LOCALHOST_HOSTS = setOf("localhost", "127.0.0.1")
+    private val LOOPBACK_HOSTS = setOf("localhost", "127.0.0.1", "::1")
 
     /**
-     * CLOSED-SET redirect allowlist (the security boundary). Returns true ONLY for the exact Claude
-     * callback, or `http://localhost`/`http://127.0.0.1` (any/no port) for local test clients
-     * (MCP Inspector / mcp-remote / Claude Code). The host is compared via [URI.host] for EXACT
-     * equality — deceptive hosts (`localhost.evil.com`, `localhost@evil.com`), other loopback IPs,
-     * `[::1]`, `0.0.0.0`, and any https non-Claude host are rejected.
+     * CLOSED-SET redirect allowlist (the security boundary). Returns true ONLY for a URI in
+     * [ALLOWED_REDIRECT_URIS], or `http://` loopback (`localhost` / `127.0.0.1` / `[::1]`, any/no port)
+     * for local test clients (MCP Inspector / mcp-remote / Claude Code). The host is compared via
+     * [URI.host] for EXACT equality — deceptive hosts (`localhost.evil.com`, `localhost@evil.com`),
+     * other loopback IPs, `0.0.0.0`, and any https non-allowlisted host are rejected.
      */
     fun isAllowedRedirectUri(uri: String): Boolean {
-        if (uri == CLAUDE_REDIRECT_URI) return true
+        if (uri in ALLOWED_REDIRECT_URIS) return true
         val parsed = runCatching { URI(uri) }.getOrNull()
-        return parsed != null && parsed.scheme == "http" && parsed.host in LOCALHOST_HOSTS
+        val host = parsed?.host?.removePrefix("[")?.removeSuffix("]")
+        return parsed != null && parsed.scheme == "http" && host in LOOPBACK_HOSTS
     }
 
     /**
