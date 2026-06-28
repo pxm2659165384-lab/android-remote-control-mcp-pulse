@@ -1,13 +1,17 @@
 package com.danielealbano.androidremotecontrolmcp.ui.components
 
+import com.danielealbano.androidremotecontrolmcp.data.model.ServerStatus
+import com.danielealbano.androidremotecontrolmcp.data.model.TunnelProviderType
+import com.danielealbano.androidremotecontrolmcp.data.model.TunnelStatus
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
- * Unit tests verifying ConnectionInfoCard URL and connection string logic.
- * These test the data-formatting logic extracted from the composable.
+ * Unit tests verifying ConnectionInfoCard URL/connection-string logic and the
+ * Public URL row state mapping ([tunnelRowState]). These exercise the pure
+ * logic extracted from the composable without a Compose runtime.
  */
 class ConnectionInfoCardTest {
     private fun buildServerUrl(
@@ -16,16 +20,9 @@ class ConnectionInfoCardTest {
         port: Int,
     ): String = "$scheme://$displayAddress:$port/mcp"
 
-    private fun buildConnectionString(
-        serverUrl: String,
-        bearerToken: String,
-        tunnelUrl: String? = null,
-    ): String =
-        buildString {
-            append("URL: $serverUrl")
-            tunnelUrl?.let { append("\nTunnel: $it/mcp") }
-            append("\nBearer Token: $bearerToken")
-        }
+    private val running = ServerStatus.Running(port = 8080, bindingAddress = "127.0.0.1")
+
+    private fun connected(url: String) = TunnelStatus.Connected(url, TunnelProviderType.CLOUDFLARE)
 
     @Test
     fun `serverUrl includes mcp suffix`() {
@@ -47,8 +44,8 @@ class ConnectionInfoCardTest {
         val connectionString =
             buildConnectionString(
                 serverUrl = "http://127.0.0.1:8080/mcp",
-                bearerToken = "test-token",
                 tunnelUrl = tunnelUrl,
+                bearerToken = "test-token",
             )
         assertTrue(
             connectionString.contains("Tunnel: $tunnelUrl/mcp"),
@@ -62,6 +59,7 @@ class ConnectionInfoCardTest {
         val connectionString =
             buildConnectionString(
                 serverUrl = "http://127.0.0.1:8080/mcp",
+                tunnelUrl = null,
                 bearerToken = realToken,
             )
         assertTrue(
@@ -79,6 +77,7 @@ class ConnectionInfoCardTest {
         val connectionString =
             buildConnectionString(
                 serverUrl = "http://127.0.0.1:8080/mcp",
+                tunnelUrl = null,
                 bearerToken = "test-token-123",
             )
         assertEquals(
@@ -92,8 +91,8 @@ class ConnectionInfoCardTest {
         val connectionString =
             buildConnectionString(
                 serverUrl = "http://127.0.0.1:8080/mcp",
-                bearerToken = "test-token-123",
                 tunnelUrl = "https://example.trycloudflare.com",
+                bearerToken = "test-token-123",
             )
         assertEquals(
             "URL: http://127.0.0.1:8080/mcp\n" +
@@ -101,5 +100,125 @@ class ConnectionInfoCardTest {
                 "Bearer Token: test-token-123",
             connectionString,
         )
+    }
+
+    @Test
+    fun `connection string includes tunnel line only when connected`() {
+        val url = "https://random-words.trycloudflare.com"
+        val withTunnel =
+            buildConnectionString(
+                serverUrl = "http://127.0.0.1:8080/mcp",
+                tunnelUrl = url,
+                bearerToken = "test-token",
+            )
+        assertTrue(withTunnel.contains("\nTunnel: $url/mcp"))
+        val withoutTunnel =
+            buildConnectionString(
+                serverUrl = "http://127.0.0.1:8080/mcp",
+                tunnelUrl = null,
+                bearerToken = "test-token",
+            )
+        assertFalse(withoutTunnel.contains("Tunnel:"))
+    }
+
+    @Test
+    fun `connection string omits bearer token when empty`() {
+        val connectionString =
+            buildConnectionString(
+                serverUrl = "http://127.0.0.1:8080/mcp",
+                tunnelUrl = null,
+                bearerToken = "",
+            )
+        assertEquals("URL: http://127.0.0.1:8080/mcp", connectionString)
+        assertFalse(connectionString.contains("Bearer Token"))
+    }
+
+    @Test
+    fun `tunnelRowState hidden when remote access disabled`() {
+        val result =
+            tunnelRowState(
+                tunnelEnabled = false,
+                serverStatus = running,
+                tunnelStatus = connected("https://x.trycloudflare.com"),
+            )
+        assertEquals(TunnelRowState.Hidden, result)
+    }
+
+    @Test
+    fun `tunnelRowState hidden when server stopped`() {
+        val result =
+            tunnelRowState(
+                tunnelEnabled = true,
+                serverStatus = ServerStatus.Stopped,
+                tunnelStatus = TunnelStatus.Connecting,
+            )
+        assertEquals(TunnelRowState.Hidden, result)
+    }
+
+    @Test
+    fun `tunnelRowState hidden when server stopping`() {
+        val result =
+            tunnelRowState(
+                tunnelEnabled = true,
+                serverStatus = ServerStatus.Stopping,
+                tunnelStatus = connected("https://x.trycloudflare.com"),
+            )
+        assertEquals(TunnelRowState.Hidden, result)
+    }
+
+    @Test
+    fun `tunnelRowState hidden when server error`() {
+        val result =
+            tunnelRowState(
+                tunnelEnabled = true,
+                serverStatus = ServerStatus.Error("x"),
+                tunnelStatus = connected("https://x.trycloudflare.com"),
+            )
+        assertEquals(TunnelRowState.Hidden, result)
+    }
+
+    @Test
+    fun `tunnelRowState loading when starting and disconnected`() {
+        val result =
+            tunnelRowState(
+                tunnelEnabled = true,
+                serverStatus = ServerStatus.Starting,
+                tunnelStatus = TunnelStatus.Disconnected,
+            )
+        assertEquals(TunnelRowState.Loading, result)
+    }
+
+    @Test
+    fun `tunnelRowState loading when running and connecting`() {
+        val result =
+            tunnelRowState(
+                tunnelEnabled = true,
+                serverStatus = running,
+                tunnelStatus = TunnelStatus.Connecting,
+            )
+        assertEquals(TunnelRowState.Loading, result)
+    }
+
+    @Test
+    fun `tunnelRowState connected exposes url when running`() {
+        val url = "https://random-words.trycloudflare.com"
+        val result =
+            tunnelRowState(
+                tunnelEnabled = true,
+                serverStatus = running,
+                tunnelStatus = connected(url),
+            )
+        assertEquals(TunnelRowState.Connected(url), result)
+    }
+
+    @Test
+    fun `tunnelRowState failed exposes message when running`() {
+        val result =
+            tunnelRowState(
+                tunnelEnabled = true,
+                serverStatus = running,
+                tunnelStatus = TunnelStatus.Error("boom"),
+            )
+        assertEquals(TunnelRowState.Failed("boom"), result)
     }
 }

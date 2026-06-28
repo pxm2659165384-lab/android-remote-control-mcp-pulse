@@ -26,14 +26,14 @@ No new string resources are required. No SDK/dependency changes. JVM-only unit t
 **Why:** The visibility of the tunnel address must be driven by combined server + tunnel state (not just `Connected`), so the user gets immediate feedback (spinner) the moment the server starts and a clear red error on failure. Column alignment is a usability requirement for the whole card.
 
 **Acceptance criteria:**
-- [ ] Public URL row is hidden when `tunnelEnabled == false`.
-- [ ] Public URL row is hidden when server status is not `Starting` and not `Running`, regardless of tunnel state.
-- [ ] Public URL row appears with a spinner when `tunnelEnabled == true`, server is `Starting`/`Running`, and tunnel status is `Disconnected` or `Connecting`.
-- [ ] Public URL row shows `<url>/mcp` when tunnel status is `Connected`.
-- [ ] Public URL row shows red `Error: <message>` when tunnel status is `Error`.
-- [ ] Every visible row's value starts at the same horizontal position; the label column auto-fits the widest visible label.
-- [ ] The connecting spinner is left-aligned at the value column, not at the card's right edge.
-- [ ] Copy-all / Share string includes the tunnel line only when `Connected`, format `\nTunnel: <url>/mcp`.
+- [x] Public URL row is hidden when `tunnelEnabled == false`.
+- [x] Public URL row is hidden when server status is not `Starting` and not `Running`, regardless of tunnel state.
+- [x] Public URL row appears with a spinner when `tunnelEnabled == true`, server is `Starting`/`Running`, and tunnel status is `Disconnected` or `Connecting`.
+- [x] Public URL row shows `<url>/mcp` when tunnel status is `Connected`.
+- [x] Public URL row shows red `Error: <message>` when tunnel status is `Error`.
+- [x] Every visible row's value starts at the same horizontal position; the label column auto-fits the widest visible label.
+- [x] The connecting spinner is left-aligned at the value column, not at the card's right edge.
+- [x] Copy-all / Share string includes the tunnel line only when `Connected`, format `\nTunnel: <url>/mcp`.
 - [ ] `./gradlew build`, `make lint`, and the unit test suite pass with no warnings or errors.
 
 ### Task 1.1 — Add the tunnel-row presentation model and pure mapping function
@@ -117,9 +117,9 @@ internal fun buildConnectionString(
 ```
 
 **Definition of Done:**
-- [ ] `TunnelRowState` and `tunnelRowState(...)` exist exactly as specified; the `when` is exhaustive over `TunnelStatus`.
-- [ ] `buildConnectionString(...)` exists exactly as specified, with both the tunnel-line and bearer-token conditionals.
-- [ ] Imports added; no unused imports introduced.
+- [x] `TunnelRowState` and `tunnelRowState(...)` exist exactly as specified; the `when` is exhaustive over `TunnelStatus`.
+- [x] `buildConnectionString(...)` exists exactly as specified, with both the tunnel-line and bearer-token conditionals.
+- [x] Imports added; no unused imports introduced.
 
 ### Task 1.2 — Refactor the card to auto-fit aligned columns and render the tunnel row by state
 
@@ -305,13 +305,13 @@ ConnectionInfoCard(
 ```
 
 **Definition of Done:**
-- [ ] `tunnelUrl` parameter fully removed; card now takes `tunnelEnabled`, `serverStatus`, `tunnelStatus`.
-- [ ] All rows render through the aligned `ConnectionInfoRow(label, labelWidth) { value }` helper.
-- [ ] Label column width is computed by measuring the currently-visible labels; values left-align in one column.
-- [ ] Spinner uses `Modifier.size(16.dp)` + `strokeWidth = 2.dp` at the value-column left edge.
-- [ ] Error uses `R.string.remote_access_status_error` in `colorScheme.error`.
-- [ ] Connection string is produced by `buildConnectionString(...)` with `tunnelUrl` derived from `rowState` (non-null only for `Connected`).
-- [ ] `@Preview` compiles with the new parameters.
+- [x] `tunnelUrl` parameter fully removed; card now takes `tunnelEnabled`, `serverStatus`, `tunnelStatus`.
+- [x] All rows render through the aligned `ConnectionInfoRow(label, labelWidth) { value }` helper.
+- [x] Label column width is computed by measuring the currently-visible labels; values left-align in one column.
+- [x] Spinner uses `Modifier.size(16.dp)` + `strokeWidth = 2.dp` at the value-column left edge.
+- [x] Error uses `R.string.remote_access_status_error` in `colorScheme.error`.
+- [x] Connection string is produced by `buildConnectionString(...)` with `tunnelUrl` derived from `rowState` (non-null only for `Connected`).
+- [x] `@Preview` compiles with the new parameters.
 
 ### Task 1.3 — Update the ServerScreen call site
 
@@ -345,8 +345,8 @@ ConnectionInfoCard(
 **Action 1.3.2** — modify [ServerScreen.kt:44](../../app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/ui/screens/ServerScreen.kt#L44): remove the now-unused `import com.danielealbano.androidremotecontrolmcp.data.model.TunnelStatus` (the `TunnelStatus.Connected` cast is the only reference and it is being removed). The `serverStatus` and `tunnelStatus` values are already collected at lines 64 and 66 and need no new imports.
 
 **Definition of Done:**
-- [ ] ServerScreen passes `tunnelEnabled`, `serverStatus`, `tunnelStatus`; no `tunnelUrl` argument remains.
-- [ ] Unused `TunnelStatus` import removed; no other reference to it remains in the file.
+- [x] ServerScreen passes `tunnelEnabled`, `serverStatus`, `tunnelStatus`; no `tunnelUrl` argument remains.
+- [x] Unused `TunnelStatus` import removed; no other reference to it remains in the file.
 
 ### Task 1.4 — Unit tests for the tunnel-row mapping
 
@@ -374,9 +374,9 @@ Add the cases below as new `@Test` functions:
 | `connection string omits bearer token when empty` | Production `buildConnectionString(serverUrl, tunnelUrl = null, bearerToken = "")` equals `"URL: <serverUrl>"` and contains no `Bearer Token` line — covers the empty-token conditional that previously diverged |
 
 **Definition of Done:**
-- [ ] The test's private `buildConnectionString` re-implementation is removed; the four affected tests call the production `buildConnectionString` and pass.
-- [ ] New `tunnelRowState` and empty-token tests added and passing.
-- [ ] No test references the removed `tunnelUrl` composable parameter.
+- [x] The test's private `buildConnectionString` re-implementation is removed; the four affected tests call the production `buildConnectionString` and pass.
+- [x] New `tunnelRowState` and empty-token tests added and passing.
+- [x] No test references the removed `tunnelUrl` composable parameter.
 
 ---
 
