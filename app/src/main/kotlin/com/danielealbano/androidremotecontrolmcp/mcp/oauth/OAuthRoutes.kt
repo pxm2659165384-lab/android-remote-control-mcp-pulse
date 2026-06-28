@@ -12,6 +12,8 @@ import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -128,6 +130,8 @@ private suspend fun ApplicationCall.handleAuthorize(
     val redirectHost = host(safeRedirectUri) ?: "Unknown"
     val displayName = safeClient.clientName ?: redirectHost
     val clientIp = clientIp()
+    // Geolocation may inflate/mmap the bundled DB on first use — keep that disk I/O off the request thread.
+    val clientGeo = withContext(Dispatchers.IO) { deps.geoIpResolver.resolve(clientIp) }
     val approval =
         deps.approvalCoordinator.createPending(
             ApprovalRequest(
@@ -135,7 +139,7 @@ private suspend fun ApplicationCall.handleAuthorize(
                 redirectHost = redirectHost,
                 logoUri = safeClient.logoUri,
                 clientIp = clientIp,
-                clientGeo = deps.geoIpResolver.resolve(clientIp),
+                clientGeo = clientGeo,
             ),
             deps.nowMs(),
         )

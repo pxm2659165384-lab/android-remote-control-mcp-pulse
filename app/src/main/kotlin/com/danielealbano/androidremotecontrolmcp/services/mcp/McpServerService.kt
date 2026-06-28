@@ -265,6 +265,10 @@ class McpServerService : Service() {
                 )
             mcpServer?.start()
 
+            // Warm the geolocation DB off the request path so the first /authorize doesn't pay the
+            // one-time gzip-inflate + mmap cost. Best-effort; a failure just leaves it lazy.
+            coroutineScope.launch { geoIpResolver.resolve("8.8.8.8") }
+
             updateStatus(
                 ServerStatus.Running(
                     port = config.port,
