@@ -5,7 +5,7 @@ import android.util.Base64
 import android.util.Log
 import com.danielealbano.androidremotecontrolmcp.data.model.ToolPermissionsConfig
 import com.danielealbano.androidremotecontrolmcp.mcp.McpToolException
-import com.danielealbano.androidremotecontrolmcp.mcp.auth.BearerTokenAuthPlugin
+import com.danielealbano.androidremotecontrolmcp.mcp.auth.McpAuthPlugin
 import com.danielealbano.androidremotecontrolmcp.mcp.contentTypeOrOctetStream
 import com.danielealbano.androidremotecontrolmcp.mcp.mcpStreamableHttp
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.McpToolUtils
@@ -485,8 +485,9 @@ class SharingIntegrationTest {
         testApplication {
             application {
                 install(ContentNegotiation) { json(McpJson) }
-                install(BearerTokenAuthPlugin) {
-                    expectedToken = ""
+                install(McpAuthPlugin) {
+                    // Open /mcp for the sharing tests: bearer disabled (not empty-token), oauth off.
+                    bearerTokenEnabled = false
                     excludedPaths = setOf("/health")
                     excludedPathPrefixes = setOf(EphemeralFileLinkService.PATH_PREFIX)
                 }

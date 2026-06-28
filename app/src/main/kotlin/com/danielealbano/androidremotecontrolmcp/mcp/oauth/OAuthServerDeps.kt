@@ -1,0 +1,14 @@
+package com.danielealbano.androidremotecontrolmcp.mcp.oauth
+
+import com.danielealbano.androidremotecontrolmcp.data.repository.OAuthClientRepository
+
+/**
+ * Groups the OAuth collaborators passed into [com.danielealbano.androidremotecontrolmcp.mcp.McpServer]
+ * so its constructor stays within detekt's `LongParameterList` threshold (no `@Suppress` needed).
+ */
+class OAuthServerDeps(
+    val jwtTokenService: JwtTokenService,
+    val oauthClientRepository: OAuthClientRepository,
+    val authorizationCodeStore: AuthorizationCodeStore,
+    val approvalCoordinator: OAuthApprovalCoordinator,
+)

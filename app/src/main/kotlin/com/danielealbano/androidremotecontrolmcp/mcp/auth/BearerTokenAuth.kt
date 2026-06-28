@@ -1,11 +1,15 @@
 package com.danielealbano.androidremotecontrolmcp.mcp.auth
 
 import android.util.Log
+import com.danielealbano.androidremotecontrolmcp.mcp.canonicalResource
+import com.danielealbano.androidremotecontrolmcp.mcp.deriveBaseUrl
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
+import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.ApplicationCallPipeline
 import io.ktor.server.application.createApplicationPlugin
 import io.ktor.server.request.path
+import io.ktor.server.response.header
 import io.ktor.server.response.respondText
 import io.modelcontextprotocol.kotlin.sdk.types.McpJson
 import kotlinx.serialization.Serializable
@@ -21,133 +25,113 @@ data class AuthErrorResponse(
 )
 
 /**
- * Configuration for the [BearerTokenAuthPlugin].
+ * Configuration for the [McpAuthPlugin].
  *
- * @property expectedToken The bearer token that clients must present.
+ * Authentication is required iff `bearerTokenEnabled || oauthEnabled`. With both disabled the server is
+ * OPEN (explicit, allowed). A request is authorized when the static token matches OR a valid OAuth
+ * access token is presented (dual-accept).
+ *
+ * @property bearerTokenEnabled Whether static bearer-token authentication is active.
+ * @property expectedToken The static bearer token (empty + enabled = fail closed; no bearer path).
+ * @property oauthEnabled Whether OAuth access tokens are accepted.
+ * @property validateOAuthToken Validates an OAuth access token against the canonical resource (null when
+ *   OAuth is unavailable).
+ * @property baseUrlOf Derives the effective public base URL for the discovery header.
  * @property excludedPaths Paths that skip authentication via EXACT match (e.g., "/health").
- * @property excludedPathPrefixes Paths whose (normalized) request path STARTS WITH any of these
- *   prefixes skip authentication — used for the unauthenticated capability-link route, which cannot
- *   carry a bearer token. Use only for routes where the secret is in the path itself.
+ * @property excludedPathPrefixes Paths whose (normalized) request path STARTS WITH any of these prefixes
+ *   skip authentication. Use only for routes where the secret is in the path itself.
  */
-class BearerTokenAuthConfig {
+class McpAuthConfig {
+    var bearerTokenEnabled: Boolean = true
     var expectedToken: String = ""
+    var oauthEnabled: Boolean = false
+    var validateOAuthToken: (suspend (token: String, canonicalResource: String) -> Boolean)? = null
+    var baseUrlOf: (ApplicationCall) -> String = { deriveBaseUrl(it) }
     var excludedPaths: Set<String> = emptySet()
     var excludedPathPrefixes: Set<String> = emptySet()
 }
 
 /**
- * Ktor Application-level plugin that validates Bearer token authentication.
+ * Ktor Application-level plugin enforcing combined MCP authentication: static bearer token OR issued
+ * OAuth access token (dual-accept). Open when both methods are disabled.
  *
- * Install this plugin at the Application level to enforce authentication on
- * all incoming requests.
- *
- * Uses [MessageDigest.isEqual] for constant-time token comparison to prevent
- * timing side-channel attacks.
- *
- * Intercepts at [ApplicationCallPipeline.Plugins] and calls
- * [finish][io.ktor.util.pipeline.PipelineContext.finish] on authentication
- * failure to prevent downstream route handlers from executing side effects
- * (e.g., MCP tool dispatch) on unauthenticated requests.
- *
- * Usage:
- * ```kotlin
- * install(BearerTokenAuthPlugin) {
- *     expectedToken = "my-secret-token"
- * }
- * ```
+ * Uses [MessageDigest.isEqual] for constant-time token comparison. Intercepts at
+ * [ApplicationCallPipeline.Plugins] and calls [finish][io.ktor.util.pipeline.PipelineContext.finish] on
+ * failure so downstream handlers do not run on unauthenticated requests. A 401 carries the OAuth
+ * discovery `WWW-Authenticate: Bearer resource_metadata="…"` header ONLY when OAuth is enabled.
  */
-val BearerTokenAuthPlugin =
+val McpAuthPlugin =
     createApplicationPlugin(
-        name = "BearerTokenAuth",
-        createConfiguration = ::BearerTokenAuthConfig,
+        name = "McpAuth",
+        createConfiguration = ::McpAuthConfig,
     ) {
+        val bearerTokenEnabled = pluginConfig.bearerTokenEnabled
         val expectedToken = pluginConfig.expectedToken
+        val oauthEnabled = pluginConfig.oauthEnabled
+        val validateOAuthToken = pluginConfig.validateOAuthToken
+        val baseUrlOf = pluginConfig.baseUrlOf
         val excludedPaths = pluginConfig.excludedPaths
         val excludedPathPrefixes = pluginConfig.excludedPathPrefixes
 
         application.intercept(ApplicationCallPipeline.Plugins) {
-            // Skip authentication when no bearer token is configured
-            if (expectedToken.isEmpty()) {
+            // Open server: neither method enabled.
+            if (!bearerTokenEnabled && !oauthEnabled) {
                 return@intercept
             }
 
             val call = context
-
-            // Skip authentication for excluded paths (e.g., /health)
             val requestPath = call.request.path()
             if (excludedPaths.any { requestPath == it }) {
                 return@intercept
             }
-            // Skip authentication for prefix-excluded paths (e.g., the /s/{token} capability route,
-            // which cannot carry a bearer token — the unguessable token in the path is the credential).
             if (excludedPathPrefixes.any { requestPath.startsWith(it) }) {
                 return@intercept
             }
+
+            // Extract the Bearer token; an absent/malformed header yields an ABSENT token (no early 401).
             val authHeader = call.request.headers["Authorization"]
+            val providedToken =
+                if (authHeader != null && authHeader.startsWith(BEARER_PREFIX, ignoreCase = true)) {
+                    authHeader.substring(BEARER_PREFIX.length).trim()
+                } else {
+                    ""
+                }
 
-            if (authHeader == null) {
-                val remoteAddr = call.request.local.remoteAddress
-                val forwardedFor = call.request.headers["X-Forwarded-For"]
-                val addrInfo = if (forwardedFor != null) "$remoteAddr (forwarded-for: $forwardedFor)" else remoteAddr
-                Log.w(TAG, "Authentication failed: missing Authorization header from $addrInfo")
-                call.respondText(
-                    McpJson.encodeToString(
-                        AuthErrorResponse.serializer(),
-                        AuthErrorResponse(
-                            error = "unauthorized",
-                            message = "Missing Authorization header. Expected: Bearer <token>",
-                        ),
-                    ),
-                    ContentType.Application.Json,
-                    HttpStatusCode.Unauthorized,
-                )
-                finish()
+            // Static bearer path.
+            if (bearerTokenEnabled && expectedToken.isNotEmpty() && constantTimeEquals(expectedToken, providedToken)) {
                 return@intercept
             }
 
-            if (!authHeader.startsWith(BEARER_PREFIX, ignoreCase = true)) {
-                val remoteAddr = call.request.local.remoteAddress
-                val forwardedFor = call.request.headers["X-Forwarded-For"]
-                val addrInfo = if (forwardedFor != null) "$remoteAddr (forwarded-for: $forwardedFor)" else remoteAddr
-                Log.w(TAG, "Authentication failed: malformed Authorization header from $addrInfo")
-                call.respondText(
-                    McpJson.encodeToString(
-                        AuthErrorResponse.serializer(),
-                        AuthErrorResponse(
-                            error = "unauthorized",
-                            message = "Malformed Authorization header. Expected: Bearer <token>",
-                        ),
-                    ),
-                    ContentType.Application.Json,
-                    HttpStatusCode.Unauthorized,
-                )
-                finish()
+            // OAuth access-token path.
+            if (oauthEnabled && validateOAuthToken != null &&
+                validateOAuthToken(providedToken, canonicalResource(baseUrlOf(call)))
+            ) {
                 return@intercept
             }
 
-            // Use substring instead of removePrefix to handle case-insensitive "Bearer " prefix
-            val providedToken = authHeader.substring(BEARER_PREFIX.length).trim()
-            val isValid = constantTimeEquals(expectedToken, providedToken)
-
-            if (!isValid) {
-                val remoteAddr = call.request.local.remoteAddress
-                val forwardedFor = call.request.headers["X-Forwarded-For"]
-                val addrInfo = if (forwardedFor != null) "$remoteAddr (forwarded-for: $forwardedFor)" else remoteAddr
-                Log.w(TAG, "Authentication failed: invalid token from $addrInfo")
-                call.respondText(
-                    McpJson.encodeToString(
-                        AuthErrorResponse.serializer(),
-                        AuthErrorResponse(
-                            error = "unauthorized",
-                            message = "Invalid bearer token",
-                        ),
-                    ),
-                    ContentType.Application.Json,
-                    HttpStatusCode.Unauthorized,
+            // Fail closed.
+            val remoteAddr = call.request.local.remoteAddress
+            val forwardedFor = call.request.headers["X-Forwarded-For"]
+            val addrInfo = if (forwardedFor != null) "$remoteAddr (forwarded-for: $forwardedFor)" else remoteAddr
+            Log.w(TAG, "Authentication failed from $addrInfo")
+            if (oauthEnabled) {
+                call.response.header(
+                    "WWW-Authenticate",
+                    "Bearer resource_metadata=\"${baseUrlOf(call)}/.well-known/oauth-protected-resource/mcp\"",
                 )
-                finish()
-                return@intercept
             }
+            call.respondText(
+                McpJson.encodeToString(
+                    AuthErrorResponse.serializer(),
+                    AuthErrorResponse(
+                        error = "unauthorized",
+                        message = "Authentication required",
+                    ),
+                ),
+                ContentType.Application.Json,
+                HttpStatusCode.Unauthorized,
+            )
+            finish()
         }
     }
 
@@ -161,5 +145,5 @@ internal fun constantTimeEquals(
     return MessageDigest.isEqual(expectedHash, providedHash)
 }
 
-private const val TAG = "MCP:BearerTokenAuth"
+private const val TAG = "MCP:McpAuth"
 private const val BEARER_PREFIX = "Bearer "

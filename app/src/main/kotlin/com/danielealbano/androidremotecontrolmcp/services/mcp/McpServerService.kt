@@ -14,9 +14,14 @@ import com.danielealbano.androidremotecontrolmcp.data.model.ServerLogEntry
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerStatus
 import com.danielealbano.androidremotecontrolmcp.data.model.ToolPermissionsConfig
 import com.danielealbano.androidremotecontrolmcp.data.model.TunnelStatus
+import com.danielealbano.androidremotecontrolmcp.data.repository.OAuthClientRepository
 import com.danielealbano.androidremotecontrolmcp.data.repository.SettingsRepository
 import com.danielealbano.androidremotecontrolmcp.mcp.CertificateManager
 import com.danielealbano.androidremotecontrolmcp.mcp.McpServer
+import com.danielealbano.androidremotecontrolmcp.mcp.oauth.AuthorizationCodeStore
+import com.danielealbano.androidremotecontrolmcp.mcp.oauth.JwtTokenService
+import com.danielealbano.androidremotecontrolmcp.mcp.oauth.OAuthApprovalCoordinator
+import com.danielealbano.androidremotecontrolmcp.mcp.oauth.OAuthServerDeps
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.McpToolUtils
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerAppManagementTools
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerCameraTools
@@ -72,7 +77,6 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -140,6 +144,14 @@ class McpServerService : Service() {
 
     @Inject lateinit var sharedContentInbox: SharedContentInbox
 
+    @Inject lateinit var jwtTokenService: JwtTokenService
+
+    @Inject lateinit var oauthClientRepository: OAuthClientRepository
+
+    @Inject lateinit var authorizationCodeStore: AuthorizationCodeStore
+
+    @Inject lateinit var approvalCoordinator: OAuthApprovalCoordinator
+
     /** Config of the currently running server; used to build capability-link base URLs. */
     @Volatile
     private var activeConfig: ServerConfig? = null
@@ -187,7 +199,9 @@ class McpServerService : Service() {
         try {
             updateStatus(ServerStatus.Starting)
 
-            val config = settingsRepository.serverConfig.first()
+            // getServerConfig() guarantees ensureAuthModelMigrated() has run before the server reads
+            // the auth model (prevents the cleared-token-user open-server regression).
+            val config = settingsRepository.getServerConfig()
             activeConfig = config
             val toolNamePrefix = McpToolUtils.buildToolNamePrefix(config.deviceSlug)
             Log.i(
@@ -236,6 +250,13 @@ class McpServerService : Service() {
                     keyStorePassword = keyStorePassword,
                     mcpSdkServer = sdkServer,
                     ephemeralFileLinkService = ephemeralFileLinkService,
+                    oauth =
+                        OAuthServerDeps(
+                            jwtTokenService = jwtTokenService,
+                            oauthClientRepository = oauthClientRepository,
+                            authorizationCodeStore = authorizationCodeStore,
+                            approvalCoordinator = approvalCoordinator,
+                        ),
                 )
             mcpServer?.start()
 

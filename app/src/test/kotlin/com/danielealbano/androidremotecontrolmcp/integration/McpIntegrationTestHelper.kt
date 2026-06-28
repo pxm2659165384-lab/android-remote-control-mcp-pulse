@@ -2,9 +2,23 @@ package com.danielealbano.androidremotecontrolmcp.integration
 
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import com.danielealbano.androidremotecontrolmcp.data.model.ToolPermissionsConfig
-import com.danielealbano.androidremotecontrolmcp.mcp.auth.BearerTokenAuthPlugin
+import com.danielealbano.androidremotecontrolmcp.data.repository.OAuthClientRepository
+import com.danielealbano.androidremotecontrolmcp.data.repository.OAuthClientRepositoryImpl
+import com.danielealbano.androidremotecontrolmcp.data.repository.SettingsRepository
+import com.danielealbano.androidremotecontrolmcp.mcp.auth.McpAuthPlugin
+import com.danielealbano.androidremotecontrolmcp.mcp.effectiveBaseUrl
 import com.danielealbano.androidremotecontrolmcp.mcp.mcpStreamableHttp
+import com.danielealbano.androidremotecontrolmcp.mcp.oauth.AuthorizationCodeStoreImpl
+import com.danielealbano.androidremotecontrolmcp.mcp.oauth.JwtTokenService
+import com.danielealbano.androidremotecontrolmcp.mcp.oauth.JwtTokenServiceImpl
+import com.danielealbano.androidremotecontrolmcp.mcp.oauth.OAuthAccessValidator
+import com.danielealbano.androidremotecontrolmcp.mcp.oauth.OAuthApprovalCoordinator
+import com.danielealbano.androidremotecontrolmcp.mcp.oauth.OAuthApprovalCoordinatorImpl
+import com.danielealbano.androidremotecontrolmcp.mcp.oauth.OAuthRouteDeps
+import com.danielealbano.androidremotecontrolmcp.mcp.oauth.installOAuthRoutes
+import com.danielealbano.androidremotecontrolmcp.services.sharing.EphemeralFileLinkService
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.McpToolUtils
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerAppManagementTools
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerCameraTools
@@ -282,7 +296,7 @@ object McpIntegrationTestHelper {
         testApplication {
             application {
                 install(ContentNegotiation) { json(McpJson) }
-                install(BearerTokenAuthPlugin) { expectedToken = TEST_BEARER_TOKEN }
+                install(McpAuthPlugin) { expectedToken = TEST_BEARER_TOKEN }
                 mcpStreamableHttp { sdkServer }
             }
 
@@ -329,6 +343,8 @@ object McpIntegrationTestHelper {
         deps: MockDependencies = createMockDependencies(),
         deviceSlug: String = "",
         perms: ToolPermissionsConfig = ToolPermissionsConfig(),
+        bearerTokenEnabled: Boolean = true,
+        oauthEnabled: Boolean = false,
         testBlock: suspend io.ktor.server.testing.ApplicationTestBuilder.(MockDependencies) -> Unit,
     ) {
         val sdkServer = createSdkServer(deps, deviceSlug, perms)
@@ -336,13 +352,95 @@ object McpIntegrationTestHelper {
         testApplication {
             application {
                 install(ContentNegotiation) { json(McpJson) }
-                install(BearerTokenAuthPlugin) { expectedToken = TEST_BEARER_TOKEN }
+                install(McpAuthPlugin) {
+                    this.bearerTokenEnabled = bearerTokenEnabled
+                    expectedToken = if (bearerTokenEnabled) TEST_BEARER_TOKEN else ""
+                    this.oauthEnabled = oauthEnabled
+                }
                 mcpStreamableHttp { sdkServer }
             }
 
             testBlock(deps)
         }
     }
+
+    /** Test-side collaborators exposed to OAuth integration tests. */
+    class OAuthTestContext(
+        val httpClient: io.ktor.client.HttpClient,
+        val clientRepository: OAuthClientRepository,
+        val approvalCoordinator: OAuthApprovalCoordinator,
+        val tokenService: JwtTokenService,
+    )
+
+    /**
+     * Runs a test within a Ktor [testApplication] configured exactly like production with OAuth enabled:
+     * real [JwtTokenServiceImpl] (mocked signing secret), real in-memory code store + approval
+     * coordinator, real [OAuthClientRepositoryImpl] over a temp dedicated DataStore, the shared
+     * [OAuthAccessValidator], the production [McpAuthPlugin] exclusions, the mounted OAuth routes, and
+     * `mcpStreamableHttp`. The test drives the DCR→authorize→approve→token→/mcp dance itself.
+     *
+     * @param bearerTokenEnabled When true (with [bearerToken]), exercises dual-accept.
+     * @param publicUrlOverride Pins the metadata/`aud` host (empty = request-derived).
+     */
+    suspend fun withOAuthTestApplication(
+        deps: MockDependencies = createMockDependencies(),
+        bearerTokenEnabled: Boolean = false,
+        bearerToken: String = "",
+        publicUrlOverride: String = "",
+        testBlock: suspend io.ktor.server.testing.ApplicationTestBuilder.(OAuthTestContext) -> Unit,
+    ) {
+        val sdkServer = createSdkServer(deps)
+        val settingsRepository = mockk<SettingsRepository>()
+        io.mockk.coEvery { settingsRepository.getOrCreateJwtSigningSecret() } returns OAUTH_TEST_SIGNING_SECRET
+        val tokenService = JwtTokenServiceImpl(settingsRepository)
+        val tempDir = java.nio.file.Files.createTempDirectory("oauth_helper").toFile()
+        val clientsDataStore =
+            PreferenceDataStoreFactory.create(
+                produceFile = { java.io.File(tempDir, "oauth_clients.preferences_pb") },
+            )
+        // spyk wraps the real impl transparently so tests can coVerify last-used touches.
+        val clientRepository = io.mockk.spyk(OAuthClientRepositoryImpl(clientsDataStore))
+        val codeStore = AuthorizationCodeStoreImpl()
+        val approvalCoordinator = OAuthApprovalCoordinatorImpl()
+        val accessValidator = OAuthAccessValidator(tokenService, clientRepository)
+
+        testApplication {
+            application {
+                install(ContentNegotiation) { json(McpJson) }
+                install(McpAuthPlugin) {
+                    this.bearerTokenEnabled = bearerTokenEnabled
+                    expectedToken = bearerToken
+                    oauthEnabled = true
+                    baseUrlOf = { effectiveBaseUrl(it, publicUrlOverride) }
+                    validateOAuthToken = { token, resource -> accessValidator.validate(token, resource) }
+                    excludedPaths = setOf("/health", "/register", "/token", "/authorize", "/authorize/status")
+                    excludedPathPrefixes = setOf(EphemeralFileLinkService.PATH_PREFIX, "/.well-known/")
+                }
+                io.ktor.server.routing.routing {
+                    installOAuthRoutes(
+                        OAuthRouteDeps(
+                            clientRepository = clientRepository,
+                            tokenService = tokenService,
+                            authorizationCodeStore = codeStore,
+                            approvalCoordinator = approvalCoordinator,
+                            publicUrlOverride = publicUrlOverride,
+                        ),
+                    )
+                }
+                mcpStreamableHttp(publicUrlOverride = publicUrlOverride) { sdkServer }
+            }
+
+            val httpClient =
+                createClient {
+                    install(io.ktor.client.plugins.contentnegotiation.ContentNegotiation) { json(McpJson) }
+                    install(io.ktor.client.plugins.sse.SSE)
+                }
+
+            testBlock(OAuthTestContext(httpClient, clientRepository, approvalCoordinator, tokenService))
+        }
+    }
+
+    private const val OAUTH_TEST_SIGNING_SECRET = "oauth-test-signing-secret-0123456789-abc"
 }
 
 /**
