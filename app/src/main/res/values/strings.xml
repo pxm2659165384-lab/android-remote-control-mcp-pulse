@@ -182,7 +182,7 @@
 
     <!-- Access settings (OAuth + bearer) -->
     <string name="access_title">Access</string>
-    <string name="access_oauth_label">OAuth (remote MCP connectors)</string>
+    <string name="access_oauth_label">OAuth</string>
     <string name="access_oauth_supporting">Requires an active tunnel (HTTPS, public reachability)</string>
     <string name="access_connected_clients">Connected clients</string>
     <string name="access_bearer_label">Bearer token authentication</string>
