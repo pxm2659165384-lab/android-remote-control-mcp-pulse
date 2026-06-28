@@ -9,15 +9,16 @@ import java.io.File
 import java.io.RandomAccessFile
 import java.net.InetAddress
 import java.nio.channels.FileChannel
-import java.util.zip.GZIPInputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * [GeoIpResolver] backed by the bundled compact [LocationDb]. The gzipped asset is inflated to
- * [Context.getFilesDir] once per app version and memory-mapped, so the ~100 MB table is disk-backed paged
- * memory rather than heap. Private / loopback / link-local addresses are not geolocated. Any failure
- * (missing asset, parse error) degrades to null — the location is purely informational.
+ * [GeoIpResolver] backed by the bundled compact [LocationDb]. The asset is shipped gzipped
+ * (`location-db.bin.gz`); aapt stores it deflate-compressed in the APK and serves it DECOMPRESSED under
+ * the `.gz`-stripped name (`geo/location-db.bin`), so we copy that raw stream to [Context.getFilesDir]
+ * once per app version and memory-map it — the ~100 MB table is disk-backed paged memory, not heap.
+ * Private / loopback / link-local addresses are not geolocated. Any failure (missing asset, parse error)
+ * degrades to null — the location is purely informational.
  */
 @Singleton
 class DbIpGeoResolver
@@ -74,7 +75,8 @@ class DbIpGeoResolver
             target.parentFile?.mkdirs()
             cleanStaleCopies(target)
             val tmp = File(target.parentFile, "${target.name}.tmp")
-            GZIPInputStream(context.assets.open(ASSET)).use { input ->
+            // aapt already decompressed the .gz source, so the asset stream is the raw LDB1 blob.
+            context.assets.open(ASSET).use { input ->
                 tmp.outputStream().use { output -> input.copyTo(output) }
             }
             check(tmp.renameTo(target)) { "could not finalize location db" }
@@ -95,6 +97,8 @@ class DbIpGeoResolver
 
         private companion object {
             const val TAG = "MCP:GeoIpResolver"
-            const val ASSET = "geo/location-db.bin.gz"
+
+            // aapt strips the `.gz` and serves the decompressed bytes, so we open the `.bin` name.
+            const val ASSET = "geo/location-db.bin"
         }
     }
