@@ -1374,4 +1374,119 @@ class SettingsRepositoryImplTest {
                 assertTrue(json.contains("\"allowDelete\":false"))
             }
     }
+
+    @Nested
+    @DisplayName("auth model (oauth/bearer flags, signing secret, public URL override)")
+    inner class AuthModel {
+        private val bearerTokenKey = stringPreferencesKey("bearer_token")
+        private val bearerTokenInitializedKey = booleanPreferencesKey("bearer_token_initialized")
+        private val bearerTokenEnabledKey = booleanPreferencesKey("bearer_token_enabled")
+        private val bearerTokenEnabledInitializedKey = booleanPreferencesKey("bearer_token_enabled_initialized")
+
+        @Test
+        fun `fresh install enables bearer with generated token and oauth enabled`() =
+            testScope.runTest {
+                val config = repository.getServerConfig()
+                assertTrue(config.bearerTokenEnabled)
+                assertTrue(config.bearerToken.isNotEmpty())
+                assertTrue(config.oauthEnabled)
+            }
+
+        @Test
+        fun `migration preserves enabled when existing token present`() =
+            testScope.runTest {
+                dataStore.edit { prefs ->
+                    prefs[bearerTokenInitializedKey] = true
+                    prefs[bearerTokenKey] = "existing-token"
+                }
+                assertTrue(repository.getServerConfig().bearerTokenEnabled)
+            }
+
+        @Test
+        fun `migration disables when previously cleared`() =
+            testScope.runTest {
+                dataStore.edit { prefs ->
+                    prefs[bearerTokenInitializedKey] = true
+                    prefs[bearerTokenKey] = ""
+                }
+                val config = repository.getServerConfig()
+                assertFalse(config.bearerTokenEnabled)
+                assertEquals("", config.bearerToken)
+            }
+
+        @Test
+        fun `migration is idempotent`() =
+            testScope.runTest {
+                dataStore.edit { prefs ->
+                    prefs[bearerTokenEnabledInitializedKey] = true
+                    prefs[bearerTokenEnabledKey] = false
+                }
+                assertFalse(repository.getServerConfig().bearerTokenEnabled)
+            }
+
+        @Test
+        fun `migration with token but no initialized flag preserves token and enables`() =
+            testScope.runTest {
+                dataStore.edit { prefs -> prefs[bearerTokenKey] = "legacy-token" }
+                val config = repository.getServerConfig()
+                assertTrue(config.bearerTokenEnabled)
+                assertEquals("legacy-token", config.bearerToken)
+            }
+
+        @Test
+        fun `updateBearerTokenEnabled(true) generates token when empty`() =
+            testScope.runTest {
+                repository.updateBearerTokenEnabled(true)
+                val config = repository.serverConfig.first()
+                assertTrue(config.bearerTokenEnabled)
+                assertTrue(config.bearerToken.isNotEmpty())
+            }
+
+        @Test
+        fun `updateBearerTokenEnabled(false) keeps value`() =
+            testScope.runTest {
+                repository.updateBearerToken("keep-me")
+                repository.updateBearerTokenEnabled(false)
+                val config = repository.serverConfig.first()
+                assertFalse(config.bearerTokenEnabled)
+                assertEquals("keep-me", config.bearerToken)
+            }
+
+        @Test
+        fun `re-enabling bearer with existing value does not regenerate`() =
+            testScope.runTest {
+                repository.updateBearerToken("original")
+                repository.updateBearerTokenEnabled(false)
+                repository.updateBearerTokenEnabled(true)
+                assertEquals("original", repository.serverConfig.first().bearerToken)
+            }
+
+        @Test
+        fun `getOrCreateJwtSigningSecret is stable`() =
+            testScope.runTest {
+                val first = repository.getOrCreateJwtSigningSecret()
+                val second = repository.getOrCreateJwtSigningSecret()
+                assertTrue(first.isNotEmpty())
+                assertEquals(first, second)
+            }
+
+        @Test
+        fun `updateOauthEnabled persists`() =
+            testScope.runTest {
+                repository.updateOauthEnabled(true)
+                assertTrue(repository.serverConfig.first().oauthEnabled)
+            }
+
+        @Test
+        fun `publicUrlOverride round-trips and validates`() =
+            testScope.runTest {
+                repository.updatePublicUrlOverride("https://example.com")
+                assertEquals("https://example.com", repository.serverConfig.first().publicUrlOverride)
+
+                assertEquals("", repository.validatePublicUrlOverride("").getOrNull())
+                assertTrue(repository.validatePublicUrlOverride("https://host.example").isSuccess)
+                assertTrue(repository.validatePublicUrlOverride("ftp://host.example").isFailure)
+                assertTrue(repository.validatePublicUrlOverride("not a url").isFailure)
+            }
+    }
 }

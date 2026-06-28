@@ -107,7 +107,7 @@ class BearerTokenAuthTest {
         testApplication {
             application {
                 install(ContentNegotiation) { json() }
-                install(BearerTokenAuthPlugin) { expectedToken = TEST_TOKEN }
+                install(McpAuthPlugin) { expectedToken = TEST_TOKEN }
                 routing {
                     get("/protected/resource") { call.respondText("OK") }
                 }
@@ -122,7 +122,7 @@ class BearerTokenAuthTest {
         testApplication {
             application {
                 install(ContentNegotiation) { json() }
-                install(BearerTokenAuthPlugin) { expectedToken = TEST_TOKEN }
+                install(McpAuthPlugin) { expectedToken = TEST_TOKEN }
                 routing {
                     get("/protected/resource") { call.respondText("OK") }
                 }
@@ -140,7 +140,7 @@ class BearerTokenAuthTest {
         testApplication {
             application {
                 install(ContentNegotiation) { json() }
-                install(BearerTokenAuthPlugin) { expectedToken = TEST_TOKEN }
+                install(McpAuthPlugin) { expectedToken = TEST_TOKEN }
                 routing {
                     get("/protected/resource") { call.respondText("OK") }
                 }
@@ -159,7 +159,7 @@ class BearerTokenAuthTest {
             var routeHandlerCalled = false
             application {
                 install(ContentNegotiation) { json() }
-                install(BearerTokenAuthPlugin) { expectedToken = TEST_TOKEN }
+                install(McpAuthPlugin) { expectedToken = TEST_TOKEN }
                 routing {
                     get("/protected/resource") {
                         routeHandlerCalled = true
@@ -174,11 +174,14 @@ class BearerTokenAuthTest {
         }
 
     @Test
-    fun `plugin skips authentication when token is empty`() =
+    fun `plugin skips authentication when both methods disabled`() =
         testApplication {
             application {
                 install(ContentNegotiation) { json() }
-                install(BearerTokenAuthPlugin) { expectedToken = "" }
+                install(McpAuthPlugin) {
+                    bearerTokenEnabled = false
+                    oauthEnabled = false
+                }
                 routing {
                     get("/protected/resource") { call.respondText("OK") }
                 }
@@ -194,7 +197,7 @@ class BearerTokenAuthTest {
         testApplication {
             application {
                 install(ContentNegotiation) { json() }
-                install(BearerTokenAuthPlugin) { expectedToken = TEST_TOKEN }
+                install(McpAuthPlugin) { expectedToken = TEST_TOKEN }
                 routing {
                     get("/protected/resource") { call.respondText("OK") }
                 }
@@ -213,7 +216,7 @@ class BearerTokenAuthTest {
         testApplication {
             application {
                 install(ContentNegotiation) { json() }
-                install(BearerTokenAuthPlugin) {
+                install(McpAuthPlugin) {
                     expectedToken = TEST_TOKEN
                     excludedPaths = setOf("/health")
                 }
@@ -231,6 +234,104 @@ class BearerTokenAuthTest {
             // /protected/resource should still require auth
             val protectedResponse = client.get("/protected/resource")
             assertEquals(HttpStatusCode.Unauthorized, protectedResponse.status)
+        }
+
+    // --- Combined-auth (dual-accept) tests ---
+
+    @Test
+    fun `valid OAuth token allowed via validateOAuthToken`() =
+        testApplication {
+            application {
+                install(ContentNegotiation) { json() }
+                install(McpAuthPlugin) {
+                    bearerTokenEnabled = false
+                    oauthEnabled = true
+                    validateOAuthToken = { _, _ -> true }
+                }
+                routing { get("/protected/resource") { call.respondText("OK") } }
+            }
+
+            val response = client.get("/protected/resource") { header("Authorization", "Bearer any-jwt") }
+            assertEquals(HttpStatusCode.OK, response.status)
+        }
+
+    @Test
+    fun `401 has WWW-Authenticate only when oauth enabled`() =
+        testApplication {
+            application {
+                install(ContentNegotiation) { json() }
+                install(McpAuthPlugin) {
+                    expectedToken = TEST_TOKEN
+                    oauthEnabled = true
+                    validateOAuthToken = { _, _ -> false }
+                }
+                routing { get("/protected/resource") { call.respondText("OK") } }
+            }
+            val withOauth = client.get("/protected/resource")
+            assertEquals(HttpStatusCode.Unauthorized, withOauth.status)
+            assertTrue(withOauth.headers["WWW-Authenticate"]?.contains("resource_metadata") == true)
+        }
+
+    @Test
+    fun `401 has no WWW-Authenticate when only bearer enabled`() =
+        testApplication {
+            application {
+                install(ContentNegotiation) { json() }
+                install(McpAuthPlugin) { expectedToken = TEST_TOKEN }
+                routing { get("/protected/resource") { call.respondText("OK") } }
+            }
+            val response = client.get("/protected/resource")
+            assertEquals(HttpStatusCode.Unauthorized, response.status)
+            assertEquals(null, response.headers["WWW-Authenticate"])
+        }
+
+    @Test
+    fun `bearer enabled with empty token fails closed`() =
+        testApplication {
+            application {
+                install(ContentNegotiation) { json() }
+                install(McpAuthPlugin) {
+                    bearerTokenEnabled = true
+                    expectedToken = ""
+                    oauthEnabled = false
+                }
+                routing { get("/protected/resource") { call.respondText("OK") } }
+            }
+            val response = client.get("/protected/resource")
+            assertEquals(HttpStatusCode.Unauthorized, response.status)
+        }
+
+    @Test
+    fun `malformed Authorization header with oauth on returns single 401 with header`() =
+        testApplication {
+            application {
+                install(ContentNegotiation) { json() }
+                install(McpAuthPlugin) {
+                    expectedToken = TEST_TOKEN
+                    oauthEnabled = true
+                    validateOAuthToken = { _, _ -> false }
+                }
+                routing { get("/protected/resource") { call.respondText("OK") } }
+            }
+            val response = client.get("/protected/resource") { header("Authorization", "Basic abc123") }
+            assertEquals(HttpStatusCode.Unauthorized, response.status)
+            assertTrue(response.headers["WWW-Authenticate"]?.contains("resource_metadata") == true)
+        }
+
+    @Test
+    fun `static bearer rejected when only oauth enabled`() =
+        testApplication {
+            application {
+                install(ContentNegotiation) { json() }
+                install(McpAuthPlugin) {
+                    bearerTokenEnabled = false
+                    oauthEnabled = true
+                    validateOAuthToken = { _, _ -> false }
+                }
+                routing { get("/protected/resource") { call.respondText("OK") } }
+            }
+            val response = client.get("/protected/resource") { header("Authorization", "Bearer $TEST_TOKEN") }
+            assertEquals(HttpStatusCode.Unauthorized, response.status)
         }
 
     companion object {

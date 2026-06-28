@@ -35,9 +35,13 @@ class BearerTokenAuthPrefixTest {
         unmockkStatic(android.util.Log::class)
     }
 
-    private fun Application.installStubs(token: String) {
+    private fun Application.installStubs(
+        token: String,
+        bearerTokenEnabled: Boolean = true,
+    ) {
         install(ContentNegotiation) { json() }
-        install(BearerTokenAuthPlugin) {
+        install(McpAuthPlugin) {
+            this.bearerTokenEnabled = bearerTokenEnabled
             expectedToken = token
             excludedPaths = setOf("/health")
             excludedPathPrefixes = setOf("/s/")
@@ -96,10 +100,10 @@ class BearerTokenAuthPrefixTest {
         }
 
     @Test
-    @DisplayName("empty expectedToken makes all paths reachable")
-    fun emptyTokenAllowsAll() =
+    @DisplayName("disabling bearer (both methods off) makes all paths reachable")
+    fun bothMethodsOffAllowsAll() =
         testApplication {
-            application { installStubs("") }
+            application { installStubs("", bearerTokenEnabled = false) }
             assertEquals(HttpStatusCode.OK, client.get("/s/x").status)
             assertEquals(HttpStatusCode.OK, client.get("/mcp").status)
         }

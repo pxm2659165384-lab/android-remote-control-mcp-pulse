@@ -10,12 +10,14 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.danielealbano.androidremotecontrolmcp.ui.navigation.SettingsRoute
+import com.danielealbano.androidremotecontrolmcp.ui.screens.settings.AccessSettingsScreen
 import com.danielealbano.androidremotecontrolmcp.ui.screens.settings.ChannelSettingsScreen
 import com.danielealbano.androidremotecontrolmcp.ui.screens.settings.GeneralSettingsScreen
 import com.danielealbano.androidremotecontrolmcp.ui.screens.settings.GeofenceListScreen
 import com.danielealbano.androidremotecontrolmcp.ui.screens.settings.GeofenceMapScreen
 import com.danielealbano.androidremotecontrolmcp.ui.screens.settings.McpToolsSettingsScreen
 import com.danielealbano.androidremotecontrolmcp.ui.screens.settings.NotificationFilterScreen
+import com.danielealbano.androidremotecontrolmcp.ui.screens.settings.OAuthClientsScreen
 import com.danielealbano.androidremotecontrolmcp.ui.screens.settings.PermissionsSettingsScreen
 import com.danielealbano.androidremotecontrolmcp.ui.screens.settings.SecuritySettingsScreen
 import com.danielealbano.androidremotecontrolmcp.ui.screens.settings.SettingsIndexScreen
@@ -58,6 +60,15 @@ fun SettingsScreen(
         }
         composable(SettingsRoute.General.route) {
             GeneralSettingsScreen(onBack = { navController.popBackStack() }, viewModel = viewModel)
+        }
+        composable(SettingsRoute.Access.route) {
+            AccessSettingsScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateClients = { navController.navigate(SettingsRoute.OAuthClients.route) },
+            )
+        }
+        composable(SettingsRoute.OAuthClients.route) {
+            OAuthClientsScreen(onBack = { navController.popBackStack() })
         }
         composable(SettingsRoute.Security.route) {
             SecuritySettingsScreen(onBack = { navController.popBackStack() }, viewModel = viewModel)

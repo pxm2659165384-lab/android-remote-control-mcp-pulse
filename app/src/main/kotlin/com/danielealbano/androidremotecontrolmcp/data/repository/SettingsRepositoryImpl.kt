@@ -52,16 +52,81 @@ class SettingsRepositoryImpl
             }
 
         override suspend fun getServerConfig(): ServerConfig {
+            ensureAuthModelMigrated()
+            return mapPreferencesToServerConfig(dataStore.data.first())
+        }
+
+        override suspend fun ensureAuthModelMigrated() {
             dataStore.edit { prefs ->
+                // One-time bearer-enabled migration (idempotent; guarded).
+                if (prefs[BEARER_TOKEN_ENABLED_INITIALIZED_KEY] != true) {
+                    val wasInitialized = prefs[BEARER_TOKEN_INITIALIZED_KEY] == true
+                    val hadToken = !prefs[BEARER_TOKEN_KEY].isNullOrEmpty()
+                    prefs[BEARER_TOKEN_ENABLED_KEY] = if (wasInitialized) hadToken else true
+                    prefs[BEARER_TOKEN_ENABLED_INITIALIZED_KEY] = true
+                }
+                // Bearer-token auto-generation: only when bearer is enabled and empty.
                 if (prefs[BEARER_TOKEN_INITIALIZED_KEY] != true) {
-                    val existing = prefs[BEARER_TOKEN_KEY].orEmpty()
-                    if (existing.isEmpty()) {
+                    if (prefs[BEARER_TOKEN_ENABLED_KEY] == true && prefs[BEARER_TOKEN_KEY].isNullOrEmpty()) {
                         prefs[BEARER_TOKEN_KEY] = generateTokenString()
                     }
                     prefs[BEARER_TOKEN_INITIALIZED_KEY] = true
                 }
             }
-            return mapPreferencesToServerConfig(dataStore.data.first())
+        }
+
+        override suspend fun updateOauthEnabled(enabled: Boolean) {
+            dataStore.edit { prefs -> prefs[OAUTH_ENABLED_KEY] = enabled }
+        }
+
+        override suspend fun updateBearerTokenEnabled(enabled: Boolean) {
+            dataStore.edit { prefs ->
+                prefs[BEARER_TOKEN_ENABLED_KEY] = enabled
+                if (enabled && prefs[BEARER_TOKEN_KEY].isNullOrEmpty()) {
+                    prefs[BEARER_TOKEN_KEY] = generateTokenString()
+                }
+            }
+        }
+
+        override suspend fun updatePublicUrlOverride(url: String) {
+            dataStore.edit { prefs -> prefs[PUBLIC_URL_OVERRIDE_KEY] = url }
+        }
+
+        override fun validatePublicUrlOverride(url: String): Result<String> {
+            if (url.isBlank()) {
+                return Result.success("")
+            }
+            return try {
+                val parsed = URL(url)
+                if (parsed.protocol != "http" && parsed.protocol != "https") {
+                    Result.failure(IllegalArgumentException("URL must use http or https protocol"))
+                } else {
+                    Result.success(url)
+                }
+            } catch (
+                @Suppress("TooGenericExceptionCaught") e: Exception,
+            ) {
+                Result.failure(IllegalArgumentException("Invalid URL format: ${e.message}"))
+            }
+        }
+
+        override suspend fun getOrCreateJwtSigningSecret(): String {
+            dataStore.data
+                .first()[JWT_SIGNING_SECRET_KEY]
+                ?.takeIf { it.isNotEmpty() }
+                ?.let { return it }
+            dataStore.edit { prefs ->
+                if (prefs[JWT_SIGNING_SECRET_KEY].isNullOrEmpty()) {
+                    val raw = ByteArray(JWT_SECRET_BYTES).also { java.security.SecureRandom().nextBytes(it) }
+                    prefs[JWT_SIGNING_SECRET_KEY] =
+                        java.util.Base64
+                            .getUrlEncoder()
+                            .withoutPadding()
+                            .encodeToString(raw)
+                }
+            }
+            // read-AFTER-edit: key is guaranteed present, so !! is always safe
+            return dataStore.data.first()[JWT_SIGNING_SECRET_KEY]!!
         }
 
         override suspend fun updatePort(port: Int) {
@@ -448,6 +513,9 @@ class SettingsRepositoryImpl
                     prefs[DOWNLOAD_TIMEOUT_KEY]
                         ?: ServerConfig.DEFAULT_DOWNLOAD_TIMEOUT_SECONDS,
                 deviceSlug = prefs[DEVICE_SLUG_KEY] ?: "",
+                oauthEnabled = prefs[OAUTH_ENABLED_KEY] ?: true,
+                bearerTokenEnabled = prefs[BEARER_TOKEN_ENABLED_KEY] ?: true,
+                publicUrlOverride = prefs[PUBLIC_URL_OVERRIDE_KEY] ?: "",
                 toolPermissionsConfig = ToolPermissionsConfig.fromJsonOrDefault(prefs[TOOL_PERMISSIONS_KEY]),
             )
         }
@@ -653,6 +721,7 @@ class SettingsRepositoryImpl
         companion object {
             private const val TAG = "MCP:SettingsRepo"
             private const val MAX_LOCATION_ID_LOG_LENGTH = 200
+            private const val JWT_SECRET_BYTES = 32
             private val CONTROL_CHAR_REGEX = Regex("[\\p{Cntrl}]")
 
             private fun sanitizeLocationId(locationId: String): String =
@@ -662,6 +731,12 @@ class SettingsRepositoryImpl
             private val BINDING_ADDRESS_KEY = stringPreferencesKey("binding_address")
             private val BEARER_TOKEN_KEY = stringPreferencesKey("bearer_token")
             private val BEARER_TOKEN_INITIALIZED_KEY = booleanPreferencesKey("bearer_token_initialized")
+            private val OAUTH_ENABLED_KEY = booleanPreferencesKey("oauth_enabled")
+            private val BEARER_TOKEN_ENABLED_KEY = booleanPreferencesKey("bearer_token_enabled")
+            private val BEARER_TOKEN_ENABLED_INITIALIZED_KEY =
+                booleanPreferencesKey("bearer_token_enabled_initialized")
+            private val PUBLIC_URL_OVERRIDE_KEY = stringPreferencesKey("public_url_override")
+            private val JWT_SIGNING_SECRET_KEY = stringPreferencesKey("jwt_signing_secret")
             private val AUTO_START_KEY = booleanPreferencesKey("auto_start_on_boot")
             private val HTTPS_ENABLED_KEY = booleanPreferencesKey("https_enabled")
             private val CERTIFICATE_SOURCE_KEY = stringPreferencesKey("certificate_source")

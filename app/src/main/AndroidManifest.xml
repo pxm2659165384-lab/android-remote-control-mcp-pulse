@@ -160,6 +160,11 @@
             android:excludeFromRecents="true"
             android:noHistory="true" />
 
+        <activity
+            android:name=".ui.ApprovalActivity"
+            android:exported="false"
+            android:label="@string/approval_title" />
+
     </application>
 
 </manifest>

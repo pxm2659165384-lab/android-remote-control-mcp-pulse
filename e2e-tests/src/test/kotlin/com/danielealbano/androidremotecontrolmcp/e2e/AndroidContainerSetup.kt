@@ -34,6 +34,8 @@ object AndroidContainerSetup {
     private const val CALCULATOR_APK_RESOURCE = "/simple-calculator.apk"
     private const val E2E_CONFIG_RECEIVER_CLASS =
         "com.danielealbano.androidremotecontrolmcp.debug.E2EConfigReceiver"
+    private const val OAUTH_APPROVAL_RECEIVER_CLASS =
+        "com.danielealbano.androidremotecontrolmcp.debug.OAuthApprovalTestReceiver"
     private const val ACCESSIBILITY_SERVICE_CLASS =
         "com.danielealbano.androidremotecontrolmcp.services.accessibility.McpAccessibilityService"
     private const val MAIN_ACTIVITY_CLASS =
@@ -347,6 +349,17 @@ object AndroidContainerSetup {
         Thread.sleep(3_000)
 
         println("[E2E Setup] Server settings configured")
+    }
+
+    /** Approves all currently-pending OAuth authorizations via the debug-only approval receiver. */
+    fun approvePendingOAuth() {
+        val action = "$APP_PACKAGE.OAUTH_APPROVE"
+        execAdb(
+            "shell", "am", "broadcast",
+            "-a", action,
+            "-n", "$APP_PACKAGE/$OAUTH_APPROVAL_RECEIVER_CLASS",
+        )
+        Thread.sleep(1_000)
     }
 
     /**

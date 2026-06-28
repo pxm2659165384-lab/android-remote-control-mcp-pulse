@@ -85,6 +85,15 @@ class AdbConfigHandlerTest {
             }
         }
 
+        every { settingsRepository.validatePublicUrlOverride(any()) } answers {
+            val url = firstArg<String>()
+            when {
+                url.isBlank() -> Result.success("")
+                url.startsWith("http://") || url.startsWith("https://") -> Result.success(url)
+                else -> Result.failure(IllegalArgumentException("Invalid URL"))
+            }
+        }
+
         storageLocationProvider = mockk(relaxUnitFun = true)
         coEvery { storageLocationProvider.isLocationAuthorized(any()) } returns false
 
@@ -831,6 +840,69 @@ class AdbConfigHandlerTest {
                 handler.handle(context, intent)
                 coVerify { storageLocationProvider.updateLocationAllowWrite("builtin:downloads", true) }
                 coVerify { storageLocationProvider.updateLocationAllowDelete("builtin:downloads", true) }
+            }
+    }
+
+    @Nested
+    @DisplayName("Auth flags + public URL override")
+    inner class AuthFlagsTests {
+        @Test
+        @DisplayName("applies oauth_enabled extra")
+        fun appliesOauthEnabled() =
+            runTest {
+                val intent =
+                    createIntent(AdbConfigReceiver.ACTION_CONFIGURE) {
+                        boolean(AdbConfigHandler.EXTRA_OAUTH_ENABLED, true)
+                    }
+                handler.handle(context, intent)
+                coVerify { settingsRepository.updateOauthEnabled(true) }
+            }
+
+        @Test
+        @DisplayName("applies bearer_token_enabled extra")
+        fun appliesBearerTokenEnabled() =
+            runTest {
+                val intent =
+                    createIntent(AdbConfigReceiver.ACTION_CONFIGURE) {
+                        boolean(AdbConfigHandler.EXTRA_BEARER_TOKEN_ENABLED, false)
+                    }
+                handler.handle(context, intent)
+                coVerify { settingsRepository.updateBearerTokenEnabled(false) }
+            }
+
+        @Test
+        @DisplayName("applies valid public_url_override")
+        fun appliesValidPublicUrlOverride() =
+            runTest {
+                val intent =
+                    createIntent(AdbConfigReceiver.ACTION_CONFIGURE) {
+                        string(AdbConfigHandler.EXTRA_PUBLIC_URL_OVERRIDE, "https://pinned.example")
+                    }
+                handler.handle(context, intent)
+                coVerify { settingsRepository.updatePublicUrlOverride("https://pinned.example") }
+            }
+
+        @Test
+        @DisplayName("ignores invalid public_url_override")
+        fun ignoresInvalidPublicUrlOverride() =
+            runTest {
+                val intent =
+                    createIntent(AdbConfigReceiver.ACTION_CONFIGURE) {
+                        string(AdbConfigHandler.EXTRA_PUBLIC_URL_OVERRIDE, "not a url")
+                    }
+                handler.handle(context, intent)
+                coVerify(exactly = 0) { settingsRepository.updatePublicUrlOverride(any()) }
+            }
+
+        @Test
+        @DisplayName("absent auth-flag extras are no-ops")
+        fun absentAuthFlagsNoOp() =
+            runTest {
+                val intent = createIntent(AdbConfigReceiver.ACTION_CONFIGURE)
+                handler.handle(context, intent)
+                coVerify(exactly = 0) { settingsRepository.updateOauthEnabled(any()) }
+                coVerify(exactly = 0) { settingsRepository.updateBearerTokenEnabled(any()) }
+                coVerify(exactly = 0) { settingsRepository.updatePublicUrlOverride(any()) }
             }
     }
 

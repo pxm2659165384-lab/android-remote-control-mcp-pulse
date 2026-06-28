@@ -3,7 +3,11 @@ package com.danielealbano.androidremotecontrolmcp.mcp
 import android.util.Log
 import com.danielealbano.androidremotecontrolmcp.BuildConfig
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerConfig
-import com.danielealbano.androidremotecontrolmcp.mcp.auth.BearerTokenAuthPlugin
+import com.danielealbano.androidremotecontrolmcp.mcp.auth.McpAuthPlugin
+import com.danielealbano.androidremotecontrolmcp.mcp.oauth.OAuthAccessValidator
+import com.danielealbano.androidremotecontrolmcp.mcp.oauth.OAuthRouteDeps
+import com.danielealbano.androidremotecontrolmcp.mcp.oauth.OAuthServerDeps
+import com.danielealbano.androidremotecontrolmcp.mcp.oauth.installOAuthRoutes
 import com.danielealbano.androidremotecontrolmcp.services.sharing.EphemeralFileLinkService
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
@@ -40,6 +44,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * @param keyStorePassword The KeyStore password (null when HTTPS is disabled).
  * @param mcpSdkServer The MCP SDK Server instance with registered tools.
  * @param ephemeralFileLinkService Backs the unauthenticated `/s/{token}` capability-link route.
+ * @param oauth The OAuth authorization-server collaborators (used only when `config.oauthEnabled`).
  */
 class McpServer(
     private val config: ServerConfig,
@@ -47,10 +52,13 @@ class McpServer(
     private val keyStorePassword: CharArray?,
     private val mcpSdkServer: io.modelcontextprotocol.kotlin.sdk.server.Server,
     private val ephemeralFileLinkService: EphemeralFileLinkService,
+    private val oauth: OAuthServerDeps,
 ) {
     @Volatile
     private var server: EmbeddedServer<NettyApplicationEngine, NettyApplicationEngine.Configuration>? = null
     private val running = AtomicBoolean(false)
+
+    private val accessValidator = OAuthAccessValidator(oauth.jwtTokenService, oauth.oauthClientRepository)
 
     /**
      * Starts the server. Non-blocking — the server runs on its own threads.
@@ -147,14 +155,18 @@ class McpServer(
             json(McpJson)
         }
 
-        // Global bearer token authentication (all requests except /health and the /s/ capability route)
-        install(BearerTokenAuthPlugin) {
+        // Combined MCP authentication: static bearer OR issued OAuth access token (dual-accept).
+        // Excludes /health, the unauthenticated OAuth endpoints, the /.well-known/ namespace, and the
+        // /s/ capability route. Exact paths are used for the OAuth endpoints (not prefixes) so sibling
+        // routes are not silently exempted.
+        install(McpAuthPlugin) {
+            bearerTokenEnabled = config.bearerTokenEnabled
             expectedToken = config.bearerToken
-            excludedPaths = setOf("/health")
-            // The /s/{token} download route cannot carry a bearer token (it is fetched by web_fetch /
-            // a browser); the unguessable capability token is the credential. No other route is
-            // mounted under /s/, so prefix-exempting it does not expose /mcp.
-            excludedPathPrefixes = setOf(EphemeralFileLinkService.PATH_PREFIX)
+            oauthEnabled = config.oauthEnabled
+            baseUrlOf = { effectiveBaseUrl(it, config.publicUrlOverride) }
+            validateOAuthToken = { token, resource -> accessValidator.validate(token, resource) }
+            excludedPaths = setOf("/health", "/register", "/token", "/authorize", "/authorize/status")
+            excludedPathPrefixes = setOf(EphemeralFileLinkService.PATH_PREFIX, "/.well-known/")
         }
 
         // Health check endpoint — unauthenticated, installed before MCP routes.
@@ -180,10 +192,25 @@ class McpServer(
                     call.respondBytes(entry.bytes, contentTypeOrOctetStream(entry.mimeType), HttpStatusCode.OK)
                 }
             }
+
+            // OAuth authorization-server endpoints — mounted only when OAuth is enabled (so the
+            // metadata/endpoints are absent otherwise). All are unauthenticated (excluded above).
+            if (config.oauthEnabled) {
+                installOAuthRoutes(
+                    OAuthRouteDeps(
+                        clientRepository = oauth.oauthClientRepository,
+                        tokenService = oauth.jwtTokenService,
+                        authorizationCodeStore = oauth.authorizationCodeStore,
+                        approvalCoordinator = oauth.approvalCoordinator,
+                        publicUrlOverride = config.publicUrlOverride,
+                        geoIpResolver = oauth.geoIpResolver,
+                    ),
+                )
+            }
         }
 
         // MCP Streamable HTTP transport at /mcp (JSON-only mode, no SSE)
-        mcpStreamableHttp {
+        mcpStreamableHttp(publicUrlOverride = config.publicUrlOverride) {
             mcpSdkServer
         }
     }

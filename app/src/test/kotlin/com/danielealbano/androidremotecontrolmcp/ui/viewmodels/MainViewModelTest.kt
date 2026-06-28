@@ -216,28 +216,6 @@ class MainViewModelTest {
         }
 
     @Test
-    fun `generateNewBearerToken calls repository`() =
-        runTest {
-            advanceUntilIdle()
-
-            viewModel.generateNewBearerToken()
-            advanceUntilIdle()
-
-            coVerify { settingsRepository.generateNewBearerToken() }
-        }
-
-    @Test
-    fun `clearBearerToken delegates to repository with empty string`() =
-        runTest {
-            advanceUntilIdle()
-
-            viewModel.clearBearerToken()
-            advanceUntilIdle()
-
-            coVerify(exactly = 1) { settingsRepository.updateBearerToken("") }
-        }
-
-    @Test
     fun `updateAutoStartOnBoot calls repository`() =
         runTest {
             advanceUntilIdle()

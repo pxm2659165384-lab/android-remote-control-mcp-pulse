@@ -10,21 +10,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -44,13 +35,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -66,8 +52,6 @@ fun GeneralSettingsScreen(
     modifier: Modifier = Modifier,
     viewModel: MainViewModel = hiltViewModel(),
 ) {
-    val context = LocalContext.current
-
     val serverConfig by viewModel.serverConfig.collectAsStateWithLifecycle()
     val serverStatus by viewModel.serverStatus.collectAsStateWithLifecycle()
     val portInput by viewModel.portInput.collectAsStateWithLifecycle()
@@ -80,7 +64,6 @@ fun GeneralSettingsScreen(
             serverStatus !is ServerStatus.Starting
 
     var showNetworkWarningDialog by remember { mutableStateOf(false) }
-    var showBearerToken by remember { mutableStateOf(false) }
 
     if (showNetworkWarningDialog) {
         AlertDialog(
@@ -185,122 +168,6 @@ fun GeneralSettingsScreen(
                 supportingText = deviceSlugError?.let { { Text(it) } },
                 singleLine = true,
                 enabled = isEnabled,
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Bearer Token Display
-            if (serverConfig.bearerToken.isEmpty()) {
-                Card(
-                    colors =
-                        CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer,
-                        ),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Warning,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onErrorContainer,
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = stringResource(R.string.config_bearer_token_empty_warning_title),
-                                style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.onErrorContainer,
-                            )
-                            Text(
-                                text = stringResource(R.string.config_bearer_token_empty_warning_body),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onErrorContainer,
-                            )
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-            Text(
-                text = stringResource(R.string.config_bearer_token_label),
-                style = MaterialTheme.typography.labelLarge,
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            OutlinedTextField(
-                value = serverConfig.bearerToken,
-                onValueChange = {},
-                readOnly = true,
-                singleLine = true,
-                visualTransformation =
-                    if (showBearerToken) {
-                        VisualTransformation.None
-                    } else {
-                        PasswordVisualTransformation()
-                    },
-                trailingIcon = {
-                    Row {
-                        IconButton(
-                            onClick = { showBearerToken = !showBearerToken },
-                        ) {
-                            Icon(
-                                imageVector =
-                                    if (showBearerToken) {
-                                        Icons.Default.VisibilityOff
-                                    } else {
-                                        Icons.Default.Visibility
-                                    },
-                                contentDescription =
-                                    if (showBearerToken) {
-                                        stringResource(R.string.config_token_hide)
-                                    } else {
-                                        stringResource(R.string.config_token_show)
-                                    },
-                            )
-                        }
-                        IconButton(
-                            onClick = { viewModel.copyToClipboard(context, serverConfig.bearerToken) },
-                            modifier =
-                                Modifier.semantics {
-                                    contentDescription = "Copy bearer token"
-                                },
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.ContentCopy,
-                                contentDescription = stringResource(R.string.config_token_copy),
-                            )
-                        }
-                        IconButton(
-                            onClick = viewModel::clearBearerToken,
-                            enabled = isEnabled && serverConfig.bearerToken.isNotEmpty(),
-                            modifier =
-                                Modifier.semantics {
-                                    contentDescription = "Clear bearer token"
-                                },
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Clear,
-                                contentDescription = stringResource(R.string.config_token_clear),
-                            )
-                        }
-                        IconButton(
-                            onClick = viewModel::generateNewBearerToken,
-                            enabled = isEnabled,
-                            modifier =
-                                Modifier.semantics {
-                                    contentDescription = "Regenerate bearer token"
-                                },
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Refresh,
-                                contentDescription = stringResource(R.string.config_token_regenerate),
-                            )
-                        }
-                    }
-                },
                 modifier = Modifier.fillMaxWidth(),
             )
 

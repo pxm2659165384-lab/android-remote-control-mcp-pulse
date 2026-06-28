@@ -102,6 +102,11 @@ fun ServerScreen(
                 Spacer(Modifier.height(16.dp))
             }
 
+            if (!serverConfig.oauthEnabled && !serverConfig.bearerTokenEnabled) {
+                NoAuthWarningCard()
+                Spacer(Modifier.height(16.dp))
+            }
+
             ServerStatusCard(
                 serverStatus = serverStatus,
                 channelStatus = channelStatus,
@@ -160,6 +165,28 @@ fun ServerScreen(
                 }
             },
         )
+    }
+}
+
+@Composable
+private fun NoAuthWarningCard() {
+    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = Icons.Default.Warning,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+            )
+            Spacer(Modifier.width(12.dp))
+            Text(
+                text = stringResource(R.string.access_no_auth_warning_body),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
     }
 }
 

@@ -74,3 +74,6 @@ app/src/main/jniLibs/
 channel-plugin/node_modules/
 app/hs_err_*.log
 app/replay_*.log
+
+# Cached DB-IP source CSV for the geolocation DB generator (the DB itself is generated under build/)
+.dbip-cache/

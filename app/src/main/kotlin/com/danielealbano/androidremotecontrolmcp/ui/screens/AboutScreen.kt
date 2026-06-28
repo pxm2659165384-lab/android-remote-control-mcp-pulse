@@ -50,6 +50,7 @@ private const val LICENSE_URL = "https://github.com/danielealbano/android-remote
 private const val ISSUES_URL = "https://github.com/danielealbano/android-remote-control-mcp/issues"
 private const val LINKEDIN_URL = "https://linkedin.com/in/danielesalvatorealbano"
 private const val X_URL = "https://x.com/daniele_dll"
+private const val DBIP_URL = "https://db-ip.com"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -203,6 +204,26 @@ fun AboutScreen(modifier: Modifier = Modifier) {
                 modifier =
                     Modifier.clickable {
                         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(ISSUES_URL)))
+                    },
+            )
+
+            Spacer(Modifier.height(16.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(16.dp))
+
+            // Attributions section
+            Text(
+                text = stringResource(R.string.about_attributions_section),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.about_attribution_dbip),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier =
+                    Modifier.clickable {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(DBIP_URL)))
                     },
             )
 

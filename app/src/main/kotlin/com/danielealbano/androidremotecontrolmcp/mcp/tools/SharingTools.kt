@@ -4,6 +4,7 @@ package com.danielealbano.androidremotecontrolmcp.mcp.tools
 
 import com.danielealbano.androidremotecontrolmcp.data.model.ToolPermissionsConfig
 import com.danielealbano.androidremotecontrolmcp.mcp.McpToolException
+import com.danielealbano.androidremotecontrolmcp.mcp.currentRequestBaseUrl
 import com.danielealbano.androidremotecontrolmcp.services.sharing.EphemeralFileLinkService
 import com.danielealbano.androidremotecontrolmcp.services.sharing.SharedContentClassifier
 import com.danielealbano.androidremotecontrolmcp.services.sharing.SharedContentInbox
@@ -20,14 +21,6 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
 
-/**
- * Reachability note appended when a capability link is produced but no tunnel is connected: a remote
- * client (Claude.ai / Claude Desktop) can only fetch a LAN URL when a tunnel is active.
- */
-private const val REACHABILITY_NOTE =
-    "note:download URLs use the device's local network address; a remote client " +
-        "(Claude.ai / Claude Desktop) can only fetch them when a tunnel is active."
-
 // ─────────────────────────────────────────────────────────────────────────────
 // get_shared_content
 // ─────────────────────────────────────────────────────────────────────────────
@@ -43,7 +36,6 @@ class GetSharedContentHandler(
     private val inbox: SharedContentInbox,
     private val linkService: EphemeralFileLinkService,
     private val baseUrlProvider: () -> String,
-    private val tunnelConnected: () -> Boolean,
 ) {
     suspend fun execute(): CallToolResult {
         val items = inbox.drainAll()
@@ -54,26 +46,18 @@ class GetSharedContentHandler(
         }
 
         val content = mutableListOf<ContentBlock>()
-        var linkProduced = false
         for (item in items) {
-            if (appendItem(item, content)) {
-                linkProduced = true
-            }
-        }
-
-        if (linkProduced && !tunnelConnected()) {
-            content += TextContent(text = REACHABILITY_NOTE)
+            appendItem(item, content)
         }
 
         return McpToolUtils.untrustedResult(content)
     }
 
-    /** Appends the rendering of [item] to [content]; returns true iff it registered a capability link. */
+    /** Appends the rendering of [item] to [content]. */
     private suspend fun appendItem(
         item: SharedItem,
         content: MutableList<ContentBlock>,
-    ): Boolean {
-        var linkProduced = false
+    ) {
         when {
             item.kind == SharedItem.Kind.TEXT -> {
                 content += TextContent(text = item.text.orEmpty())
@@ -81,7 +65,6 @@ class GetSharedContentHandler(
 
             SharedContentClassifier.isImage(item.mimeType) && item.bytes != null -> {
                 appendImageItem(item, item.bytes, content)
-                linkProduced = true
             }
 
             SharedContentClassifier.isTextual(item.mimeType) && item.bytes != null -> {
@@ -97,8 +80,9 @@ class GetSharedContentHandler(
 
             item.bytes != null -> {
                 val name = item.fileName ?: "file"
-                val url = baseUrlProvider() + linkService.pathFor(linkService.register(item.bytes, item.mimeType, name))
-                linkProduced = true
+                val url =
+                    currentRequestBaseUrl { baseUrlProvider() } +
+                        linkService.pathFor(linkService.register(item.bytes, item.mimeType, name))
                 content +=
                     TextContent(
                         text =
@@ -118,7 +102,6 @@ class GetSharedContentHandler(
                     )
             }
         }
-        return linkProduced
     }
 
     /** Appends a downscaled inline image plus a full-res capability URL for [bytes] to [content]. */
@@ -129,7 +112,9 @@ class GetSharedContentHandler(
     ) {
         val name = item.fileName ?: "image"
         val inline = runCatching { SharedContentClassifier.downscaleToInline(bytes, item.mimeType) }.getOrNull()
-        val url = baseUrlProvider() + linkService.pathFor(linkService.register(bytes, item.mimeType, name))
+        val url =
+            currentRequestBaseUrl { baseUrlProvider() } +
+                linkService.pathFor(linkService.register(bytes, item.mimeType, name))
         if (inline != null) {
             content += ImageContent(data = inline.base64, mimeType = inline.mimeType)
             content +=
@@ -185,7 +170,6 @@ class ShareFileViaWebHandler(
     private val linkService: EphemeralFileLinkService,
     private val fileSizeLimitMb: Int,
     private val baseUrlProvider: () -> String,
-    private val tunnelConnected: () -> Boolean,
 ) {
     suspend fun execute(arguments: JsonObject?): CallToolResult {
         val locationId = McpToolUtils.requireString(arguments, "location_id")
@@ -193,19 +177,11 @@ class ShareFileViaWebHandler(
 
         val result = readOrThrow(locationId, path)
         val token = linkService.register(result.bytes, result.mimeType, result.fileName)
-        val url = baseUrlProvider() + linkService.pathFor(token)
+        val url = currentRequestBaseUrl { baseUrlProvider() } + linkService.pathFor(token)
 
         val message =
-            buildString {
-                append(
-                    "File '${result.fileName}' ${result.mimeType} (${result.sizeBytes} bytes) at $url " +
-                        "(expires 1h). web_fetch can read text/PDF; other types are download-only.",
-                )
-                if (!tunnelConnected()) {
-                    append("\n")
-                    append(REACHABILITY_NOTE)
-                }
-            }
+            "File '${result.fileName}' ${result.mimeType} (${result.sizeBytes} bytes) at $url " +
+                "(expires 1h). web_fetch can read text/PDF; other types are download-only."
         return McpToolUtils.untrustedTextResult(message)
     }
 
@@ -278,12 +254,11 @@ fun registerSharingTools(
     fileOperationProvider: FileOperationProvider,
     fileSizeLimitMb: Int,
     baseUrlProvider: () -> String,
-    tunnelConnected: () -> Boolean,
     toolNamePrefix: String,
     perms: ToolPermissionsConfig,
 ) {
     if (perms.isToolEnabled(GetSharedContentHandler.TOOL_NAME)) {
-        GetSharedContentHandler(inbox, linkService, baseUrlProvider, tunnelConnected)
+        GetSharedContentHandler(inbox, linkService, baseUrlProvider)
             .register(server, toolNamePrefix)
     }
     if (perms.isToolEnabled(ShareFileViaWebHandler.TOOL_NAME)) {
@@ -292,7 +267,6 @@ fun registerSharingTools(
             linkService,
             fileSizeLimitMb,
             baseUrlProvider,
-            tunnelConnected,
         ).register(server, toolNamePrefix)
     }
 }

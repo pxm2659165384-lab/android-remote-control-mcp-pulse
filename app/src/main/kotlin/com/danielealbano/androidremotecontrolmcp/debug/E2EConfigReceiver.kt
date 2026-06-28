@@ -102,6 +102,7 @@ class E2EConfigReceiver : BroadcastReceiver() {
                 settingsRepository.updateAutoStartOnBoot(autoStart)
                 Log.i(TAG, "Auto-start on boot updated to $autoStart")
             }
+            applyAuthFlags(intent)
             val storageLocationId = intent.getStringExtra(EXTRA_STORAGE_LOCATION_ID)
             if (!storageLocationId.isNullOrEmpty()) {
                 if (storageLocationProvider.isLocationAuthorized(storageLocationId)) {
@@ -123,6 +124,19 @@ class E2EConfigReceiver : BroadcastReceiver() {
         }
     }
 
+    private suspend fun applyAuthFlags(intent: Intent) {
+        if (intent.hasExtra(EXTRA_OAUTH_ENABLED)) {
+            val oauthEnabled = intent.getBooleanExtra(EXTRA_OAUTH_ENABLED, false)
+            settingsRepository.updateOauthEnabled(oauthEnabled)
+            Log.i(TAG, "OAuth enabled updated to $oauthEnabled")
+        }
+        if (intent.hasExtra(EXTRA_BEARER_TOKEN_ENABLED)) {
+            val bearerEnabled = intent.getBooleanExtra(EXTRA_BEARER_TOKEN_ENABLED, false)
+            settingsRepository.updateBearerTokenEnabled(bearerEnabled)
+            Log.i(TAG, "Bearer token enabled updated to $bearerEnabled")
+        }
+    }
+
     private fun handleStartServer(context: Context) {
         Log.i(TAG, "Received E2E start server broadcast")
         val intent =
@@ -138,6 +152,8 @@ class E2EConfigReceiver : BroadcastReceiver() {
         const val ACTION_E2E_CONFIGURE = "com.danielealbano.androidremotecontrolmcp.debug.E2E_CONFIGURE"
         const val ACTION_E2E_START_SERVER = "com.danielealbano.androidremotecontrolmcp.debug.E2E_START_SERVER"
         private const val EXTRA_BEARER_TOKEN = "bearer_token"
+        private const val EXTRA_OAUTH_ENABLED = "oauth_enabled"
+        private const val EXTRA_BEARER_TOKEN_ENABLED = "bearer_token_enabled"
         private const val EXTRA_BINDING_ADDRESS = "binding_address"
         private const val EXTRA_PORT = "port"
         private const val EXTRA_AUTO_START_ON_BOOT = "auto_start_on_boot"

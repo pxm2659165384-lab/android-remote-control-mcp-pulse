@@ -168,7 +168,23 @@ jobs:
           JAVA_11_HOME: ${{ env.JAVA_HOME }}
           JAVA_17_HOME: ${{ env.JAVA_HOME }}
 
-      # ── 7. Build APKs with version from tag ──
+      # ── 7. Geolocation DB toolchain (generated at build time from DB-IP City Lite) ──
+      - name: Set up Python (geolocation DB generator)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Compute DB-IP month
+        id: dbip-month
+        run: echo "month=$(date +%Y-%m)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache DB-IP source CSV
+        uses: actions/cache@v4
+        with:
+          path: .dbip-cache
+          key: dbip-csv-${{ steps.dbip-month.outputs.month }}
+
+      # ── 8. Build APKs with version from tag ──
       - name: Build APKs
         env:
           VERSION_NAME: ${{ steps.parse-tag.outputs.version }}

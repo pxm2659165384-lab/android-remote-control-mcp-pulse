@@ -14,9 +14,15 @@ import com.danielealbano.androidremotecontrolmcp.data.model.ServerLogEntry
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerStatus
 import com.danielealbano.androidremotecontrolmcp.data.model.ToolPermissionsConfig
 import com.danielealbano.androidremotecontrolmcp.data.model.TunnelStatus
+import com.danielealbano.androidremotecontrolmcp.data.repository.OAuthClientRepository
 import com.danielealbano.androidremotecontrolmcp.data.repository.SettingsRepository
+import com.danielealbano.androidremotecontrolmcp.geo.GeoIpResolver
 import com.danielealbano.androidremotecontrolmcp.mcp.CertificateManager
 import com.danielealbano.androidremotecontrolmcp.mcp.McpServer
+import com.danielealbano.androidremotecontrolmcp.mcp.oauth.AuthorizationCodeStore
+import com.danielealbano.androidremotecontrolmcp.mcp.oauth.JwtTokenService
+import com.danielealbano.androidremotecontrolmcp.mcp.oauth.OAuthApprovalCoordinator
+import com.danielealbano.androidremotecontrolmcp.mcp.oauth.OAuthServerDeps
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.McpToolUtils
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerAppManagementTools
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerCameraTools
@@ -72,7 +78,6 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -140,6 +145,16 @@ class McpServerService : Service() {
 
     @Inject lateinit var sharedContentInbox: SharedContentInbox
 
+    @Inject lateinit var jwtTokenService: JwtTokenService
+
+    @Inject lateinit var oauthClientRepository: OAuthClientRepository
+
+    @Inject lateinit var authorizationCodeStore: AuthorizationCodeStore
+
+    @Inject lateinit var approvalCoordinator: OAuthApprovalCoordinator
+
+    @Inject lateinit var geoIpResolver: GeoIpResolver
+
     /** Config of the currently running server; used to build capability-link base URLs. */
     @Volatile
     private var activeConfig: ServerConfig? = null
@@ -148,6 +163,7 @@ class McpServerService : Service() {
     private val serverActive = AtomicBoolean(false)
     private var mcpServer: McpServer? = null
     private var tunnelObserverJob: Job? = null
+    private var approvalObserverJob: Job? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -187,7 +203,9 @@ class McpServerService : Service() {
         try {
             updateStatus(ServerStatus.Starting)
 
-            val config = settingsRepository.serverConfig.first()
+            // getServerConfig() guarantees ensureAuthModelMigrated() has run before the server reads
+            // the auth model (prevents the cleared-token-user open-server regression).
+            val config = settingsRepository.getServerConfig()
             activeConfig = config
             val toolNamePrefix = McpToolUtils.buildToolNamePrefix(config.deviceSlug)
             Log.i(
@@ -236,8 +254,20 @@ class McpServerService : Service() {
                     keyStorePassword = keyStorePassword,
                     mcpSdkServer = sdkServer,
                     ephemeralFileLinkService = ephemeralFileLinkService,
+                    oauth =
+                        OAuthServerDeps(
+                            jwtTokenService = jwtTokenService,
+                            oauthClientRepository = oauthClientRepository,
+                            authorizationCodeStore = authorizationCodeStore,
+                            approvalCoordinator = approvalCoordinator,
+                            geoIpResolver = geoIpResolver,
+                        ),
                 )
             mcpServer?.start()
+
+            // Warm the geolocation DB off the request path so the first /authorize doesn't pay the
+            // one-time gzip-inflate + mmap cost. Best-effort; a failure just leaves it lazy.
+            coroutineScope.launch { geoIpResolver.resolve("8.8.8.8") }
 
             updateStatus(
                 ServerStatus.Running(
@@ -288,6 +318,19 @@ class McpServerService : Service() {
                             is TunnelStatus.Disconnected -> {
                                 // No-op for initial state; logged at stop time
                             }
+                        }
+                    }
+                }
+
+            // Observe pending OAuth approvals and surface a single heads-up notification (the service
+            // is already foregrounded by onStartCommand; this is a separate, collapsed notification).
+            approvalObserverJob =
+                coroutineScope.launch {
+                    approvalCoordinator.observePending().collect { pending ->
+                        if (pending.isEmpty()) {
+                            OAuthApprovalNotifier.cancel(this@McpServerService)
+                        } else {
+                            OAuthApprovalNotifier.post(this@McpServerService, pending.size)
                         }
                     }
                 }
@@ -392,7 +435,6 @@ class McpServerService : Service() {
             fileOperationProvider,
             fileSizeLimitMb,
             currentBaseUrl,
-            { tunnelManager.tunnelStatus.value is TunnelStatus.Connected },
             toolNamePrefix,
             perms,
         )
@@ -406,6 +448,11 @@ class McpServerService : Service() {
         // Cancel tunnel status observer before stopping the tunnel
         tunnelObserverJob?.cancel()
         tunnelObserverJob = null
+
+        // Cancel the OAuth approval observer and clear any pending approval notification.
+        approvalObserverJob?.cancel()
+        approvalObserverJob = null
+        OAuthApprovalNotifier.cancel(this)
 
         // Stop tunnel first (with ANR-safe timeout).
         // Worst-case blocking time: TUNNEL_STOP_TIMEOUT_MS (3s) + SHUTDOWN_GRACE_PERIOD_MS (1s)

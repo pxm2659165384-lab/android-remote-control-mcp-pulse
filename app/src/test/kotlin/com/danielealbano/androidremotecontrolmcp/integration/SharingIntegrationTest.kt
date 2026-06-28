@@ -5,7 +5,7 @@ import android.util.Base64
 import android.util.Log
 import com.danielealbano.androidremotecontrolmcp.data.model.ToolPermissionsConfig
 import com.danielealbano.androidremotecontrolmcp.mcp.McpToolException
-import com.danielealbano.androidremotecontrolmcp.mcp.auth.BearerTokenAuthPlugin
+import com.danielealbano.androidremotecontrolmcp.mcp.auth.McpAuthPlugin
 import com.danielealbano.androidremotecontrolmcp.mcp.contentTypeOrOctetStream
 import com.danielealbano.androidremotecontrolmcp.mcp.mcpStreamableHttp
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.McpToolUtils
@@ -18,6 +18,7 @@ import com.danielealbano.androidremotecontrolmcp.services.sharing.SharedItem
 import com.danielealbano.androidremotecontrolmcp.services.storage.FileBytesResult
 import com.danielealbano.androidremotecontrolmcp.services.storage.FileOperationProvider
 import io.ktor.client.request.get
+import io.ktor.client.request.header
 import io.ktor.client.statement.readRawBytes
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
@@ -231,35 +232,6 @@ class SharingIntegrationTest {
         }
 
     @Test
-    @DisplayName("reachability note appended only when no tunnel is connected")
-    fun reachabilityNote() =
-        runTest {
-            val noteFragment = "when a tunnel is active"
-
-            val inboxNoTunnel = newInbox()
-            val linkNoTunnel = newLinkService()
-            inboxNoTunnel.add(blobItem("doc.pdf", "application/pdf", byteArrayOf(1)))
-            runSharingApp(inboxNoTunnel, linkNoTunnel, tunnelConnected = { false }) { client, _ ->
-                val result = client.callTool(name = "get_shared_content", arguments = emptyMap())
-                assertTrue(
-                    result.content.any { it is TextContent && it.text.contains(noteFragment) },
-                    "reachability note must be present without a tunnel",
-                )
-            }
-
-            val inboxTunnel = newInbox()
-            val linkTunnel = newLinkService()
-            inboxTunnel.add(blobItem("doc.pdf", "application/pdf", byteArrayOf(1)))
-            runSharingApp(inboxTunnel, linkTunnel, tunnelConnected = { true }) { client, _ ->
-                val result = client.callTool(name = "get_shared_content", arguments = emptyMap())
-                assertFalse(
-                    result.content.any { it is TextContent && it.text.contains(noteFragment) },
-                    "reachability note must be absent with a tunnel",
-                )
-            }
-        }
-
-    @Test
     @DisplayName("share_file_via_web returns a capability url that resolves via /s/{token}")
     fun shareFileViaWebResolves() =
         runTest {
@@ -270,7 +242,7 @@ class SharingIntegrationTest {
             coEvery { fop.readFileBytes("loc1", "doc.pdf", any()) } returns
                 FileBytesResult(bytes, "application/pdf", "doc.pdf", bytes.size.toLong())
 
-            runSharingApp(inbox, linkService, fileOperationProvider = fop) { client, httpClient ->
+            runSharingApp(inbox, linkService, SharingTestConfig(fileOperationProvider = fop)) { client, httpClient ->
                 val result =
                     client.callTool(
                         name = "share_file_via_web",
@@ -298,7 +270,7 @@ class SharingIntegrationTest {
             coEvery { fop.readFileBytes(any(), any(), any()) } throws
                 McpToolException.ActionFailed("File size (999 bytes) exceeds the limit of 1 bytes.")
 
-            runSharingApp(inbox, linkService, fileOperationProvider = fop) { client, _ ->
+            runSharingApp(inbox, linkService, SharingTestConfig(fileOperationProvider = fop)) { client, _ ->
                 val result =
                     client.callTool(
                         name = "share_file_via_web",
@@ -322,7 +294,7 @@ class SharingIntegrationTest {
                 FileBytesResult(data, "application/octet-stream", path, data.size.toLong())
             }
 
-            runSharingApp(inbox, linkService, fileOperationProvider = fop) { client, httpClient ->
+            runSharingApp(inbox, linkService, SharingTestConfig(fileOperationProvider = fop)) { client, httpClient ->
                 val tokens = mutableListOf<String>()
                 repeat(EphemeralFileLinkService.MAX_LINKS + 1) { i ->
                     val result =
@@ -343,6 +315,70 @@ class SharingIntegrationTest {
                     HttpStatusCode.OK,
                     httpClient.get("/s/${tokens.last()}").status,
                     "the newest link must resolve",
+                )
+            }
+        }
+
+    @Test
+    @DisplayName("share_file_via_web URL reflects X-Forwarded-Host and -Proto")
+    fun shareFileViaWebReflectsForwardedHeaders() =
+        runTest {
+            val inbox = newInbox()
+            val linkService = newLinkService()
+            val fop = mockk<FileOperationProvider>(relaxed = true)
+            val bytes = byteArrayOf(0x25, 0x50, 0x44, 0x46)
+            coEvery { fop.readFileBytes("loc1", "doc.pdf", any()) } returns
+                FileBytesResult(bytes, "application/pdf", "doc.pdf", bytes.size.toLong())
+
+            runSharingApp(
+                inbox,
+                linkService,
+                SharingTestConfig(
+                    fileOperationProvider = fop,
+                    requestHeaders =
+                        mapOf(
+                            "X-Forwarded-Host" to "tunnel.example.com",
+                            "X-Forwarded-Proto" to "https",
+                        ),
+                ),
+            ) { client, _ ->
+                val result =
+                    client.callTool(
+                        name = "share_file_via_web",
+                        arguments = mapOf("location_id" to "loc1", "path" to "doc.pdf"),
+                    )
+                val text = (result.content[0] as TextContent).text
+                assertTrue(
+                    text.contains("https://tunnel.example.com/s/"),
+                    "share URL must reflect X-Forwarded-Host and -Proto",
+                )
+            }
+        }
+
+    @Test
+    @DisplayName("share URL falls back to request host when no forwarded headers")
+    fun shareUrlFallsBackWithoutForwardedHeaders() =
+        runTest {
+            val inbox = newInbox()
+            val linkService = newLinkService()
+            val fop = mockk<FileOperationProvider>(relaxed = true)
+            val bytes = byteArrayOf(0x25, 0x50, 0x44, 0x46)
+            coEvery { fop.readFileBytes("loc1", "doc.pdf", any()) } returns
+                FileBytesResult(bytes, "application/pdf", "doc.pdf", bytes.size.toLong())
+
+            runSharingApp(inbox, linkService, SharingTestConfig(fileOperationProvider = fop)) { client, httpClient ->
+                val result =
+                    client.callTool(
+                        name = "share_file_via_web",
+                        arguments = mapOf("location_id" to "loc1", "path" to "doc.pdf"),
+                    )
+                val text = (result.content[0] as TextContent).text
+                assertFalse(text.contains("tunnel.example.com"), "no forwarded host must not leak into the URL")
+                val token = TOKEN_REGEX.find(text)!!.groupValues[1]
+                assertEquals(
+                    HttpStatusCode.OK,
+                    httpClient.get("/s/$token").status,
+                    "default behavior unchanged: link still resolves",
                 )
             }
         }
@@ -398,11 +434,15 @@ class SharingIntegrationTest {
         assertEquals(McpToolUtils.UNTRUSTED_CONTENT_WARNING, (content[0] as TextContent).text)
     }
 
+    private data class SharingTestConfig(
+        val fileOperationProvider: FileOperationProvider = mockk(relaxed = true),
+        val requestHeaders: Map<String, String> = emptyMap(),
+    )
+
     private suspend fun runSharingApp(
         inbox: SharedContentInbox,
         linkService: EphemeralFileLinkService,
-        tunnelConnected: () -> Boolean = { false },
-        fileOperationProvider: FileOperationProvider = mockk(relaxed = true),
+        config: SharingTestConfig = SharingTestConfig(),
         block: suspend (Client, io.ktor.client.HttpClient) -> Unit,
     ) {
         val server = newServer()
@@ -410,10 +450,9 @@ class SharingIntegrationTest {
             server,
             inbox,
             linkService,
-            fileOperationProvider,
+            config.fileOperationProvider,
             FILE_SIZE_LIMIT_MB,
             { BASE_URL },
-            tunnelConnected,
             "",
             ToolPermissionsConfig(),
         )
@@ -421,8 +460,9 @@ class SharingIntegrationTest {
         testApplication {
             application {
                 install(ContentNegotiation) { json(McpJson) }
-                install(BearerTokenAuthPlugin) {
-                    expectedToken = ""
+                install(McpAuthPlugin) {
+                    // Open /mcp for the sharing tests: bearer disabled (not empty-token), oauth off.
+                    bearerTokenEnabled = false
                     excludedPaths = setOf("/health")
                     excludedPathPrefixes = setOf(EphemeralFileLinkService.PATH_PREFIX)
                 }
@@ -448,7 +488,12 @@ class SharingIntegrationTest {
                     install(io.ktor.client.plugins.contentnegotiation.ContentNegotiation) { json(McpJson) }
                     install(io.ktor.client.plugins.sse.SSE)
                 }
-            val transport = StreamableHttpClientTransport(client = httpClient, url = "/mcp")
+            val transport =
+                StreamableHttpClientTransport(
+                    client = httpClient,
+                    url = "/mcp",
+                    requestBuilder = { config.requestHeaders.forEach { (k, v) -> header(k, v) } },
+                )
             val mcpClient = Client(clientInfo = Implementation(name = "test-client", version = "1.0.0"))
             mcpClient.connect(transport)
             try {

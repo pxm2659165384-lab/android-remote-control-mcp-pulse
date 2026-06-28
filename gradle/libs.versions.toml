@@ -23,6 +23,12 @@ ktor = "3.4.0"
 # MCP SDK
 mcp-kotlin-sdk = "0.8.3"
 
+# OAuth (JWT signing/verification)
+java-jwt = "4.5.2"
+
+# Image loading (OAuth client logos)
+coil = "3.2.0"
+
 # SLF4J (routes SDK logs to android.util.Log)
 slf4j-android = "1.7.36"
 
@@ -113,6 +119,13 @@ ktor-server-test-host = { group = "io.ktor", name = "ktor-server-test-host", ver
 # Certificate generation (Bouncy Castle for self-signed cert with SAN support)
 bouncy-castle-pkix = { group = "org.bouncycastle", name = "bcpkix-jdk18on", version.ref = "bouncy-castle" }
 bouncy-castle-prov = { group = "org.bouncycastle", name = "bcprov-jdk18on", version.ref = "bouncy-castle" }
+
+# OAuth (JWT signing/verification)
+java-jwt = { group = "com.auth0", name = "java-jwt", version.ref = "java-jwt" }
+
+# Image loading (OAuth client logos)
+coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
+coil-network = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil" }
 
 # MCP SDK
 mcp-kotlin-sdk-server = { group = "io.modelcontextprotocol", name = "kotlin-sdk-server", version.ref = "mcp-kotlin-sdk" }
