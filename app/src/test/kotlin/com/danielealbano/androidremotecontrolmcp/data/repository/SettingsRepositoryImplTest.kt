@@ -1384,12 +1384,12 @@ class SettingsRepositoryImplTest {
         private val bearerTokenEnabledInitializedKey = booleanPreferencesKey("bearer_token_enabled_initialized")
 
         @Test
-        fun `fresh install enables bearer with generated token and oauth disabled`() =
+        fun `fresh install enables bearer with generated token and oauth enabled`() =
             testScope.runTest {
                 val config = repository.getServerConfig()
                 assertTrue(config.bearerTokenEnabled)
                 assertTrue(config.bearerToken.isNotEmpty())
-                assertFalse(config.oauthEnabled)
+                assertTrue(config.oauthEnabled)
             }
 
         @Test

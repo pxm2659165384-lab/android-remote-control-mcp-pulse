@@ -351,24 +351,6 @@ object AndroidContainerSetup {
         println("[E2E Setup] Server settings configured")
     }
 
-    /**
-     * Enables OAuth (and disables the static bearer) on the running app via the E2E config receiver.
-     * The server must be (re)started afterwards for the new auth model to take effect.
-     */
-    fun configureOAuthEnabled() {
-        println("[E2E Setup] Enabling OAuth (bearer disabled) for the OAuth e2e flow...")
-        val configAction = "$APP_PACKAGE.E2E_CONFIGURE"
-        execAdb(
-            "shell", "am", "broadcast",
-            "--include-stopped-packages",
-            "-a", configAction,
-            "-n", "$APP_PACKAGE/$E2E_CONFIG_RECEIVER_CLASS",
-            "--ez", "oauth_enabled", "true",
-            "--ez", "bearer_token_enabled", "false",
-        )
-        Thread.sleep(3_000)
-    }
-
     /** Approves all currently-pending OAuth authorizations via the debug-only approval receiver. */
     fun approvePendingOAuth() {
         val action = "$APP_PACKAGE.OAUTH_APPROVE"

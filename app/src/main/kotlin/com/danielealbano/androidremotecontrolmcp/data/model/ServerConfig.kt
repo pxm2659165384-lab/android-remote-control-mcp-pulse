@@ -25,7 +25,7 @@ package com.danielealbano.androidremotecontrolmcp.data.model
  * @property deviceSlug Optional device identifier slug for tool name prefix
  *   (letters, digits, underscores; max 20 chars).
  * @property oauthEnabled Whether the self-contained OAuth 2.1 authorization server is enabled
- *   (default false). When enabled, `/mcp` additionally accepts issued OAuth access tokens.
+ *   (default true). When enabled, `/mcp` additionally accepts issued OAuth access tokens.
  * @property bearerTokenEnabled Whether static bearer-token authentication is enabled (default true).
  *   Decoupled from the token value: disabling keeps the value; enabling with an empty value
  *   auto-generates a token.
@@ -49,7 +49,7 @@ data class ServerConfig(
     val allowUnverifiedHttpsCerts: Boolean = false,
     val downloadTimeoutSeconds: Int = DEFAULT_DOWNLOAD_TIMEOUT_SECONDS,
     val deviceSlug: String = "",
-    val oauthEnabled: Boolean = false,
+    val oauthEnabled: Boolean = true,
     val bearerTokenEnabled: Boolean = true,
     val publicUrlOverride: String = "",
     val toolPermissionsConfig: ToolPermissionsConfig = ToolPermissionsConfig(),

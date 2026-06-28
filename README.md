@@ -141,7 +141,7 @@ Replace `DEVICE_IP`, `PORT`, and `YOUR_TOKEN` with the values shown in the app's
 
 Claude.ai (web) and Claude Desktop connect as a **custom connector** (remote MCP) using OAuth 2.1 — the app is its own OAuth Authorization Server, so no external account or pre-registration is needed. This requires the server to be reachable over a **public HTTPS URL**, so you must first enable a [remote access tunnel](#using-remote-access-tunnels) — a `localhost`/LAN address or `adb` port-forward will **not** work.
 
-1. In the app, open **Settings → Access** and enable **OAuth**. (You can keep the bearer token enabled too — both are accepted.)
+1. **OAuth is enabled by default** — no action needed (if you previously disabled it, re-enable it under **Settings → Access**). The bearer token stays enabled too; both are accepted.
 2. Open **Settings → Tunnel**, enable **Remote Access** (Cloudflare Quick Tunnels needs no account), and start the server. Copy the public `https://…` URL from the Server tab and append `/mcp` (e.g. `https://your-tunnel.trycloudflare.com/mcp`).
 3. In Claude, open **[Customize → Connectors → Add custom connector](https://claude.ai/customize/connectors?modal=add-custom-connector)**, paste the `https://…/mcp` URL, and **leave the OAuth Client ID and Client Secret blank** (the app uses Dynamic Client Registration). Click **Add**.
 4. Claude opens a browser approval page showing a **2-digit code**. On the device, a heads-up notification appears — tap it to open the in-app approval screen, confirm the code matches, and **Approve**.
@@ -222,7 +222,7 @@ The bearer token is shown in the app's connection info and can be copied directl
 | Port | `8080` | HTTP/HTTPS server port |
 | Binding Address | `127.0.0.1` | `127.0.0.1` (localhost, use with adb port forwarding) or `0.0.0.0` (network, all interfaces) |
 | Bearer Token | Enabled, auto-generated UUID | Static token for MCP requests (Settings → Access). Enforcement is set by the Bearer toggle, not by clearing the value. |
-| OAuth | Disabled | Self-contained OAuth 2.1 server for Claude.ai / Claude Desktop custom connectors (Settings → Access). |
+| OAuth | Enabled | Self-contained OAuth 2.1 server for Claude.ai / Claude Desktop custom connectors (Settings → Access). |
 | Public URL override | Empty (auto-detect) | Pin the public host used for OAuth metadata and share links. |
 | HTTPS | Disabled | Enable HTTPS with auto-generated self-signed certificate (configurable hostname) or upload custom .p12/.pfx |
 | Auto-start on Boot | Disabled | Start MCP server automatically when device boots |
@@ -395,7 +395,7 @@ The application runs entirely within Android's standard permission model. No roo
 
 ### Authentication
 
-Authentication is combined (dual-accept): a `/mcp` request is authorized by a valid static bearer token OR a valid issued OAuth access token. Enforcement is controlled by two independent toggles in **Settings → Access** — `bearer_token_enabled` (default on) and `oauth_enabled` (default off) — not by the token value. The bearer token is auto-generated once on first launch (UUID, preserved across app upgrades) and can be viewed, copied, or regenerated in the app. Clearing the value while bearer is enabled makes the server fail CLOSED (401). The server accepts unauthenticated requests only when BOTH toggles are off (the app shows a warning and a confirmation before that happens) — see the security note in the Connect section.
+Authentication is combined (dual-accept): a `/mcp` request is authorized by a valid static bearer token OR a valid issued OAuth access token. Enforcement is controlled by two independent toggles in **Settings → Access** — `bearer_token_enabled` (default on) and `oauth_enabled` (default on) — not by the token value. The bearer token is auto-generated once on first launch (UUID, preserved across app upgrades) and can be viewed, copied, or regenerated in the app. Clearing the value while bearer is enabled makes the server fail CLOSED (401). The server accepts unauthenticated requests only when BOTH toggles are off (the app shows a warning and a confirmation before that happens) — see the security note in the Connect section.
 
 ### Network Security
 

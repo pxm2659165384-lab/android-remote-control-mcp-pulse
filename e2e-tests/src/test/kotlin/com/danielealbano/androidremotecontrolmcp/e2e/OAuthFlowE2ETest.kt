@@ -37,8 +37,7 @@ class OAuthFlowE2ETest {
 
     @Test
     fun `full OAuth flow issues a token that authorizes a tool call`() {
-        AndroidContainerSetup.configureOAuthEnabled()
-        AndroidContainerSetup.startMcpServer()
+        // OAuth is enabled by default, so the container's server already mounts the OAuth endpoints.
         waitForHealth()
 
         // 1. Dynamic Client Registration
@@ -54,10 +53,12 @@ class OAuthFlowE2ETest {
         val clientId = Json.parseToJsonElement(regBody).jsonObject["client_id"]!!.jsonPrimitive.content
 
         // 2. Authorize (creates a pending approval). Parse the approval id from the consent page JS.
+        // The optional `resource` param is omitted so the server defaults it to its own request-derived
+        // canonical resource (avoids host/port ambiguity through the container port-forward); the token
+        // aud and the /mcp check then use the SAME server-side derivation.
         val authorizeUrl =
             "$base/authorize?response_type=code&client_id=${enc(clientId)}&redirect_uri=${enc(REDIRECT)}" +
-                "&code_challenge=${enc(CHALLENGE)}&code_challenge_method=S256&state=xyz&scope=mcp" +
-                "&resource=${enc(mcpUrl)}"
+                "&code_challenge=${enc(CHALLENGE)}&code_challenge_method=S256&state=xyz&scope=mcp"
         val (authStatus, authBody) = httpGet(authorizeUrl)
         assertEquals(HttpURLConnection.HTTP_OK, authStatus, "authorize failed: $authBody")
         val approvalId = APPROVAL_ID_REGEX.find(authBody)?.groupValues?.get(1)
@@ -80,7 +81,6 @@ class OAuthFlowE2ETest {
                     "redirect_uri" to REDIRECT,
                     "client_id" to clientId,
                     "code_verifier" to VERIFIER,
-                    "resource" to mcpUrl,
                 ),
             )
         assertEquals(HttpURLConnection.HTTP_OK, tokenStatus, "token failed: $tokenBody")

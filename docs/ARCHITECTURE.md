@@ -199,7 +199,7 @@ sequenceDiagram
 
 ### Combined Authentication (dual-accept)
 
-- The global Application-level `McpAuthPlugin` authorizes a `/mcp` request when it presents the static bearer token OR a valid issued OAuth access token. Two independent toggles control it: `bearer_token_enabled` (default true) and `oauth_enabled` (default false).
+- The global Application-level `McpAuthPlugin` authorizes a `/mcp` request when it presents the static bearer token OR a valid issued OAuth access token. Two independent toggles control it: `bearer_token_enabled` (default true) and `oauth_enabled` (default true).
 - Auth is required iff at least one toggle is on; with BOTH off the server is OPEN (explicit — the UI shows a warning and a confirm dialog before the last method is disabled). An enabled-but-empty bearer fails CLOSED (401).
 - Bearer token validated with constant-time comparison; auto-generated (UUID) once on first launch (existing tokens preserved on upgrade), persisted in DataStore. The enabled flags are decoupled from the value (disabling keeps the value; enabling with an empty value auto-generates one). A one-time migration initializes `bearer_token_enabled` from whether a non-empty token already existed.
 - A 401 carries `WWW-Authenticate: Bearer resource_metadata="…/.well-known/oauth-protected-resource/mcp"` ONLY when OAuth is enabled (triggers Claude's discovery).

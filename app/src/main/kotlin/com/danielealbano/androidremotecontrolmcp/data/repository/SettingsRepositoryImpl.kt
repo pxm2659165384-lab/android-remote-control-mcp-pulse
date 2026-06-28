@@ -513,7 +513,7 @@ class SettingsRepositoryImpl
                     prefs[DOWNLOAD_TIMEOUT_KEY]
                         ?: ServerConfig.DEFAULT_DOWNLOAD_TIMEOUT_SECONDS,
                 deviceSlug = prefs[DEVICE_SLUG_KEY] ?: "",
-                oauthEnabled = prefs[OAUTH_ENABLED_KEY] ?: false,
+                oauthEnabled = prefs[OAUTH_ENABLED_KEY] ?: true,
                 bearerTokenEnabled = prefs[BEARER_TOKEN_ENABLED_KEY] ?: true,
                 publicUrlOverride = prefs[PUBLIC_URL_OVERRIDE_KEY] ?: "",
                 toolPermissionsConfig = ToolPermissionsConfig.fromJsonOrDefault(prefs[TOOL_PERMISSIONS_KEY]),
