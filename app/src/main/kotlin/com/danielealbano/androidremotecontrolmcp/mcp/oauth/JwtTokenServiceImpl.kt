@@ -36,7 +36,14 @@ class JwtTokenServiceImpl
         override suspend fun issueAccessToken(
             clientId: String,
             resource: String,
-        ): String = sign(clientId, resource, TYPE_ACCESS, UUID.randomUUID().toString(), OAuthPolicy.ACCESS_TOKEN_TTL_SECONDS)
+        ): String =
+            sign(
+                clientId = clientId,
+                resource = resource,
+                type = TYPE_ACCESS,
+                jti = UUID.randomUUID().toString(),
+                ttlSeconds = OAuthPolicy.ACCESS_TOKEN_TTL_SECONDS,
+            )
 
         override suspend fun issueRefreshToken(
             clientId: String,
@@ -52,7 +59,8 @@ class JwtTokenServiceImpl
             ttlSeconds: Long,
         ): String {
             val now = System.currentTimeMillis()
-            return JWT.create()
+            return JWT
+                .create()
                 .withIssuer(ISS)
                 .withSubject(clientId)
                 .withClaim(CLAIM_CLIENT_ID, clientId)
@@ -66,16 +74,24 @@ class JwtTokenServiceImpl
 
         override suspend fun verifyAccessToken(token: String): AccessTokenClaims? {
             val decoded = verify(token, TYPE_ACCESS) ?: return null
-            val clientId = decoded.getClaim(CLAIM_CLIENT_ID).asString() ?: return null
-            val audience = decoded.audience?.firstOrNull() ?: return null
-            return AccessTokenClaims(clientId = clientId, audience = audience)
+            val clientId = decoded.getClaim(CLAIM_CLIENT_ID).asString()
+            val audience = decoded.audience?.firstOrNull()
+            return if (clientId != null && audience != null) {
+                AccessTokenClaims(clientId = clientId, audience = audience)
+            } else {
+                null
+            }
         }
 
         override suspend fun verifyRefreshToken(token: String): RefreshTokenClaims? {
             val decoded = verify(token, TYPE_REFRESH) ?: return null
-            val clientId = decoded.getClaim(CLAIM_CLIENT_ID).asString() ?: return null
-            val jti = decoded.id ?: return null
-            return RefreshTokenClaims(clientId = clientId, jti = jti)
+            val clientId = decoded.getClaim(CLAIM_CLIENT_ID).asString()
+            val jti = decoded.id
+            return if (clientId != null && jti != null) {
+                RefreshTokenClaims(clientId = clientId, jti = jti)
+            } else {
+                null
+            }
         }
 
         private suspend fun verify(
@@ -83,7 +99,8 @@ class JwtTokenServiceImpl
             expectedType: String,
         ): DecodedJWT? =
             runCatching {
-                JWT.require(algorithm())
+                JWT
+                    .require(algorithm())
                     .withIssuer(ISS)
                     .withClaim(CLAIM_TYPE, expectedType)
                     .build()

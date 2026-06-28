@@ -23,17 +23,19 @@ class OAuthAccessValidator(
         canonicalResource: String,
     ): Boolean {
         val claims = tokenService.verifyAccessToken(token) ?: return false
-        if (!OAuthPolicy.resourceMatches(claims.audience, canonicalResource)) return false
-        if (clientRepository.getClient(claims.clientId) == null) return false
-
-        val now = nowMs()
-        val last = lastTouched[claims.clientId]
-        if (last == null || now - last >= debounceMs) {
-            lastTouched[claims.clientId] = now
-            clientRepository.touchLastUsed(claims.clientId, now)
-            pruneDebounceMap()
+        val valid =
+            OAuthPolicy.resourceMatches(claims.audience, canonicalResource) &&
+                clientRepository.getClient(claims.clientId) != null
+        if (valid) {
+            val now = nowMs()
+            val last = lastTouched[claims.clientId]
+            if (last == null || now - last >= debounceMs) {
+                lastTouched[claims.clientId] = now
+                clientRepository.touchLastUsed(claims.clientId, now)
+                pruneDebounceMap()
+            }
         }
-        return true
+        return valid
     }
 
     /** Bounds the debounce map so revoked/re-registered clients (each a new id) cannot grow it forever. */

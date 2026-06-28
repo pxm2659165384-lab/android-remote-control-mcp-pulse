@@ -70,7 +70,8 @@ class JwtTokenServiceImplTest {
     fun rejectsExpired() =
         runTest {
             val expired =
-                JWT.create()
+                JWT
+                    .create()
                     .withIssuer("android-remote-control-mcp")
                     .withSubject("client-1")
                     .withClaim("client_id", "client-1")

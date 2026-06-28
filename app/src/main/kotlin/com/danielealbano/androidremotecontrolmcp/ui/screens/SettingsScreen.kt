@@ -13,11 +13,11 @@ import com.danielealbano.androidremotecontrolmcp.ui.navigation.SettingsRoute
 import com.danielealbano.androidremotecontrolmcp.ui.screens.settings.AccessSettingsScreen
 import com.danielealbano.androidremotecontrolmcp.ui.screens.settings.ChannelSettingsScreen
 import com.danielealbano.androidremotecontrolmcp.ui.screens.settings.GeneralSettingsScreen
-import com.danielealbano.androidremotecontrolmcp.ui.screens.settings.OAuthClientsScreen
 import com.danielealbano.androidremotecontrolmcp.ui.screens.settings.GeofenceListScreen
 import com.danielealbano.androidremotecontrolmcp.ui.screens.settings.GeofenceMapScreen
 import com.danielealbano.androidremotecontrolmcp.ui.screens.settings.McpToolsSettingsScreen
 import com.danielealbano.androidremotecontrolmcp.ui.screens.settings.NotificationFilterScreen
+import com.danielealbano.androidremotecontrolmcp.ui.screens.settings.OAuthClientsScreen
 import com.danielealbano.androidremotecontrolmcp.ui.screens.settings.PermissionsSettingsScreen
 import com.danielealbano.androidremotecontrolmcp.ui.screens.settings.SecuritySettingsScreen
 import com.danielealbano.androidremotecontrolmcp.ui.screens.settings.SettingsIndexScreen

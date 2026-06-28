@@ -18,7 +18,10 @@ import javax.inject.Singleton
 class OAuthApprovalCoordinatorImpl
     @Inject
     constructor() : OAuthApprovalCoordinator {
-        private class Entry(val approval: PendingApproval, var state: ApprovalState)
+        private class Entry(
+            val approval: PendingApproval,
+            var state: ApprovalState,
+        )
 
         private val mutex = Mutex()
         private val entries = LinkedHashMap<String, Entry>()
@@ -96,7 +99,11 @@ class OAuthApprovalCoordinatorImpl
         }
 
         private fun drawUniqueMatchCodeLocked(): String {
-            val used = entries.values.filter { it.state == ApprovalState.PENDING }.map { it.approval.matchCode }.toSet()
+            val used =
+                entries.values
+                    .filter { it.state == ApprovalState.PENDING }
+                    .map { it.approval.matchCode }
+                    .toSet()
             var code: String
             do {
                 code = "%02d".format(secureRandom.nextInt(OAuthPolicy.MATCH_CODE_MODULO))

@@ -32,6 +32,7 @@ object OAuthPolicy {
     /** Maximum concurrently-pending approvals (caps notification flooding). */
     const val MAX_PENDING_APPROVALS = 10
 
+    private const val SCHEME_SEPARATOR = "://"
     private val LOCALHOST_HOSTS = setOf("localhost", "127.0.0.1")
 
     /**
@@ -43,9 +44,8 @@ object OAuthPolicy {
      */
     fun isAllowedRedirectUri(uri: String): Boolean {
         if (uri == CLAUDE_REDIRECT_URI) return true
-        val parsed = runCatching { URI(uri) }.getOrNull() ?: return false
-        val host = parsed.host ?: return false
-        return parsed.scheme == "http" && host in LOCALHOST_HOSTS
+        val parsed = runCatching { URI(uri) }.getOrNull()
+        return parsed != null && parsed.scheme == "http" && parsed.host in LOCALHOST_HOSTS
     }
 
     /**
@@ -62,10 +62,10 @@ object OAuthPolicy {
 
     private fun normalize(resource: String): String {
         val trimmed = resource.trim().removeSuffix("/")
-        val schemeSep = trimmed.indexOf("://")
+        val schemeSep = trimmed.indexOf(SCHEME_SEPARATOR)
         if (schemeSep < 0) return trimmed.lowercase()
         val scheme = trimmed.substring(0, schemeSep).lowercase()
-        val rest = trimmed.substring(schemeSep + 3)
+        val rest = trimmed.substring(schemeSep + SCHEME_SEPARATOR.length)
         val slash = rest.indexOf('/')
         return if (slash < 0) {
             "$scheme://${rest.lowercase()}"

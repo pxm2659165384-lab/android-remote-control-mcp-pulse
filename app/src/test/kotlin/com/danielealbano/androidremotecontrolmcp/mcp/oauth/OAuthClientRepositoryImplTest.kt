@@ -67,7 +67,8 @@ class OAuthClientRepositoryImplTest {
     @DisplayName("persists across new instance")
     fun persistsAcrossInstance() =
         testScope.runTest {
-            val created = repository.register("Claude", listOf("https://claude.ai/api/mcp/auth_callback"), "web", null, 1L)
+            val created =
+                repository.register("Claude", listOf("https://claude.ai/api/mcp/auth_callback"), "web", null, 1L)
             val newRepo = OAuthClientRepositoryImpl(dataStore)
             assertNotNull(newRepo.getClient(created.clientId))
         }
@@ -76,7 +77,8 @@ class OAuthClientRepositoryImplTest {
     @DisplayName("getClient served from snapshot after first load")
     fun getClientFromSnapshot() =
         testScope.runTest {
-            val created = repository.register("Claude", listOf("https://claude.ai/api/mcp/auth_callback"), "web", null, 1L)
+            val created =
+                repository.register("Claude", listOf("https://claude.ai/api/mcp/auth_callback"), "web", null, 1L)
             assertEquals(repository.getClient(created.clientId), repository.getClient(created.clientId))
         }
 
@@ -109,7 +111,8 @@ class OAuthClientRepositoryImplTest {
     @DisplayName("revoke removes client")
     fun revokeRemoves() =
         testScope.runTest {
-            val created = repository.register("Claude", listOf("https://claude.ai/api/mcp/auth_callback"), "web", null, 1L)
+            val created =
+                repository.register("Claude", listOf("https://claude.ai/api/mcp/auth_callback"), "web", null, 1L)
             repository.revoke(created.clientId)
             assertNull(repository.getClient(created.clientId))
         }
@@ -118,7 +121,8 @@ class OAuthClientRepositoryImplTest {
     @DisplayName("touchLastUsed and setRefreshJti update")
     fun touchAndSetJtiUpdate() =
         testScope.runTest {
-            val created = repository.register("Claude", listOf("https://claude.ai/api/mcp/auth_callback"), "web", null, 1L)
+            val created =
+                repository.register("Claude", listOf("https://claude.ai/api/mcp/auth_callback"), "web", null, 1L)
             repository.touchLastUsed(created.clientId, 999L)
             repository.setRefreshJti(created.clientId, "jti-1")
             val updated = repository.getClient(created.clientId)

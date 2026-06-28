@@ -18,7 +18,6 @@ import com.danielealbano.androidremotecontrolmcp.mcp.oauth.OAuthApprovalCoordina
 import com.danielealbano.androidremotecontrolmcp.mcp.oauth.OAuthApprovalCoordinatorImpl
 import com.danielealbano.androidremotecontrolmcp.mcp.oauth.OAuthRouteDeps
 import com.danielealbano.androidremotecontrolmcp.mcp.oauth.installOAuthRoutes
-import com.danielealbano.androidremotecontrolmcp.services.sharing.EphemeralFileLinkService
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.McpToolUtils
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerAppManagementTools
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerCameraTools
@@ -53,11 +52,13 @@ import com.danielealbano.androidremotecontrolmcp.services.notifications.Notifica
 import com.danielealbano.androidremotecontrolmcp.services.screencapture.ScreenCaptureProvider
 import com.danielealbano.androidremotecontrolmcp.services.screencapture.ScreenshotAnnotator
 import com.danielealbano.androidremotecontrolmcp.services.screencapture.ScreenshotEncoder
+import com.danielealbano.androidremotecontrolmcp.services.sharing.EphemeralFileLinkService
 import com.danielealbano.androidremotecontrolmcp.services.storage.FileOperationProvider
 import com.danielealbano.androidremotecontrolmcp.services.storage.StorageLocationProvider
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import io.mockk.every
 import io.mockk.mockk
@@ -341,13 +342,11 @@ object McpIntegrationTestHelper {
      */
     suspend fun withRawTestApplication(
         deps: MockDependencies = createMockDependencies(),
-        deviceSlug: String = "",
-        perms: ToolPermissionsConfig = ToolPermissionsConfig(),
         bearerTokenEnabled: Boolean = true,
         oauthEnabled: Boolean = false,
         testBlock: suspend io.ktor.server.testing.ApplicationTestBuilder.(MockDependencies) -> Unit,
     ) {
-        val sdkServer = createSdkServer(deps, deviceSlug, perms)
+        val sdkServer = createSdkServer(deps)
 
         testApplication {
             application {
@@ -393,7 +392,10 @@ object McpIntegrationTestHelper {
         val settingsRepository = mockk<SettingsRepository>()
         io.mockk.coEvery { settingsRepository.getOrCreateJwtSigningSecret() } returns OAUTH_TEST_SIGNING_SECRET
         val tokenService = JwtTokenServiceImpl(settingsRepository)
-        val tempDir = java.nio.file.Files.createTempDirectory("oauth_helper").toFile()
+        val tempDir =
+            java.nio.file.Files
+                .createTempDirectory("oauth_helper")
+                .toFile()
         val clientsDataStore =
             PreferenceDataStoreFactory.create(
                 produceFile = { java.io.File(tempDir, "oauth_clients.preferences_pb") },
@@ -416,7 +418,7 @@ object McpIntegrationTestHelper {
                     excludedPaths = setOf("/health", "/register", "/token", "/authorize", "/authorize/status")
                     excludedPathPrefixes = setOf(EphemeralFileLinkService.PATH_PREFIX, "/.well-known/")
                 }
-                io.ktor.server.routing.routing {
+                routing {
                     installOAuthRoutes(
                         OAuthRouteDeps(
                             clientRepository = clientRepository,

@@ -1,10 +1,16 @@
 package com.danielealbano.androidremotecontrolmcp.mcp.oauth
 
 /** Claims recovered from a verified OAuth access token. */
-data class AccessTokenClaims(val clientId: String, val audience: String)
+data class AccessTokenClaims(
+    val clientId: String,
+    val audience: String,
+)
 
 /** Claims recovered from a verified OAuth refresh token. */
-data class RefreshTokenClaims(val clientId: String, val jti: String)
+data class RefreshTokenClaims(
+    val clientId: String,
+    val jti: String,
+)
 
 /**
  * Issues and verifies HS256 OAuth tokens for the self-contained authorization server. The signing

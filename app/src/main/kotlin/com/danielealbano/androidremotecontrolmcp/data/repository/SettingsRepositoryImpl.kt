@@ -111,12 +111,18 @@ class SettingsRepositoryImpl
         }
 
         override suspend fun getOrCreateJwtSigningSecret(): String {
-            dataStore.data.first()[JWT_SIGNING_SECRET_KEY]?.takeIf { it.isNotEmpty() }?.let { return it }
+            dataStore.data
+                .first()[JWT_SIGNING_SECRET_KEY]
+                ?.takeIf { it.isNotEmpty() }
+                ?.let { return it }
             dataStore.edit { prefs ->
                 if (prefs[JWT_SIGNING_SECRET_KEY].isNullOrEmpty()) {
                     val raw = ByteArray(JWT_SECRET_BYTES).also { java.security.SecureRandom().nextBytes(it) }
                     prefs[JWT_SIGNING_SECRET_KEY] =
-                        java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(raw)
+                        java.util.Base64
+                            .getUrlEncoder()
+                            .withoutPadding()
+                            .encodeToString(raw)
                 }
             }
             // read-AFTER-edit: key is guaranteed present, so !! is always safe

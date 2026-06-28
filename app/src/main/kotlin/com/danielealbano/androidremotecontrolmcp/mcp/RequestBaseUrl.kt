@@ -24,6 +24,7 @@ import kotlin.coroutines.coroutineContext
 
 private const val HTTP_DEFAULT_PORT = 80
 private const val HTTPS_DEFAULT_PORT = 443
+private const val SCHEME_SEPARATOR = "://"
 
 /** Returns a normalized `scheme://host[:port]` from forwarded/Host headers. */
 fun deriveBaseUrl(call: ApplicationCall): String {
@@ -48,10 +49,10 @@ fun deriveBaseUrl(call: ApplicationCall): String {
  */
 fun normalizeBaseUrl(raw: String): String {
     val trimmed = raw.trim().removeSuffix("/")
-    val schemeSep = trimmed.indexOf("://")
+    val schemeSep = trimmed.indexOf(SCHEME_SEPARATOR)
     if (schemeSep < 0) return trimmed.lowercase()
     val scheme = trimmed.substring(0, schemeSep).lowercase()
-    val authority = trimmed.substring(schemeSep + 3)
+    val authority = trimmed.substring(schemeSep + SCHEME_SEPARATOR.length)
     val colon = authority.lastIndexOf(':')
     val host: String
     val port: Int?
@@ -84,13 +85,17 @@ fun effectiveBaseUrl(
 ): String = override.trim().ifEmpty { null }?.let { normalizeBaseUrl(it) } ?: deriveBaseUrl(call)
 
 /** Coroutine-context element carrying the per-request base URL into MCP tool handlers. */
-class RequestBaseUrlElement(val baseUrl: String) : AbstractCoroutineContextElement(Key) {
+class RequestBaseUrlElement(
+    val baseUrl: String,
+) : AbstractCoroutineContextElement(Key) {
     companion object Key : CoroutineContext.Key<RequestBaseUrlElement>
 }
 
 /** Reads the request base URL from the coroutine context, falling back when no request context is present. */
-suspend fun currentRequestBaseUrl(fallback: suspend () -> String): String =
-    coroutineContext[RequestBaseUrlElement]?.baseUrl ?: fallback()
+suspend fun currentRequestBaseUrl(fallback: suspend () -> String): String {
+    val element = coroutineContext[RequestBaseUrlElement]
+    return element?.baseUrl ?: fallback()
+}
 
 /** The canonical MCP resource identifier (`<base>/mcp`) used as the OAuth `aud`/`resource`. */
 fun canonicalResource(baseUrl: String): String = "$baseUrl/mcp"

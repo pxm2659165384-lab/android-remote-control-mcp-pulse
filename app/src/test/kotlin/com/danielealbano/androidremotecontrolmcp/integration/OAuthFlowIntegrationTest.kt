@@ -15,11 +15,11 @@ import io.ktor.http.Url
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.testing.ApplicationTestBuilder
+import io.mockk.coEvery
+import io.mockk.coVerify
 import io.modelcontextprotocol.kotlin.sdk.client.Client
 import io.modelcontextprotocol.kotlin.sdk.client.StreamableHttpClientTransport
 import io.modelcontextprotocol.kotlin.sdk.types.Implementation
-import io.mockk.coEvery
-import io.mockk.coVerify
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -77,7 +77,11 @@ class OAuthFlowIntegrationTest {
                 val bare = client.get("/.well-known/oauth-protected-resource")
                 assertEquals(HttpStatusCode.OK, suffixed.status)
                 assertEquals(HttpStatusCode.OK, bare.status)
-                val resource = Json.parseToJsonElement(suffixed.bodyAsText()).jsonObject["resource"]!!.jsonPrimitive.content
+                val resource =
+                    Json
+                        .parseToJsonElement(suffixed.bodyAsText())
+                        .jsonObject["resource"]!!
+                        .jsonPrimitive.content
                 assertTrue(resource.endsWith("/mcp"))
             }
         }
@@ -87,12 +91,14 @@ class OAuthFlowIntegrationTest {
     fun servesAsMetadata() =
         runTest {
             McpIntegrationTestHelper.withOAuthTestApplication { _ ->
-                for (path in
-                    listOf(
-                        "/.well-known/oauth-authorization-server",
-                        "/.well-known/openid-configuration",
-                        "/.well-known/oauth-authorization-server/mcp",
-                    )) {
+                for (
+                path in
+                listOf(
+                    "/.well-known/oauth-authorization-server",
+                    "/.well-known/openid-configuration",
+                    "/.well-known/oauth-authorization-server/mcp",
+                )
+                ) {
                     val resp = client.get(path)
                     assertEquals(HttpStatusCode.OK, resp.status, "expected 200 for $path")
                     val obj = Json.parseToJsonElement(resp.bodyAsText()).jsonObject
@@ -114,7 +120,11 @@ class OAuthFlowIntegrationTest {
                         header("X-Forwarded-Host", "tunnel.example")
                         header("X-Forwarded-Proto", "https")
                     }
-                val resource = Json.parseToJsonElement(resp.bodyAsText()).jsonObject["resource"]!!.jsonPrimitive.content
+                val resource =
+                    Json
+                        .parseToJsonElement(resp.bodyAsText())
+                        .jsonObject["resource"]!!
+                        .jsonPrimitive.content
                 assertEquals("https://tunnel.example/mcp", resource)
             }
         }
@@ -129,7 +139,11 @@ class OAuthFlowIntegrationTest {
                         header("X-Forwarded-Host", "tunnel.example")
                         header("X-Forwarded-Proto", "https")
                     }
-                val resource = Json.parseToJsonElement(resp.bodyAsText()).jsonObject["resource"]!!.jsonPrimitive.content
+                val resource =
+                    Json
+                        .parseToJsonElement(resp.bodyAsText())
+                        .jsonObject["resource"]!!
+                        .jsonPrimitive.content
                 assertEquals("https://pinned.host/mcp", resource)
             }
         }
@@ -149,7 +163,7 @@ class OAuthFlowIntegrationTest {
 
                 val mcpClient = connectMcp(access)
                 try {
-                    val result = mcpClient.callTool(name = "tap", arguments = mapOf("x" to 1, "y" to 1))
+                    val result = mcpClient.callTool(name = "android_tap", arguments = mapOf("x" to 1, "y" to 1))
                     assertNotEquals(true, result.isError)
                 } finally {
                     mcpClient.close()
@@ -179,7 +193,7 @@ class OAuthFlowIntegrationTest {
             McpIntegrationTestHelper.withOAuthTestApplication(publicUrlOverride = OVERRIDE) { _ ->
                 val clientId = register(client)
                 val noRedirect = createNoRedirectClient()
-                val resp = authorize(noRedirect, clientId, challengeMethod = "plain")
+                val resp = authorize(noRedirect, clientId, AuthorizeOptions(challengeMethod = "plain"))
                 assertEquals(HttpStatusCode.Found, resp.status)
                 assertTrue(resp.headers["Location"]!!.contains("error="))
             }
@@ -336,7 +350,8 @@ class OAuthFlowIntegrationTest {
             McpIntegrationTestHelper.withOAuthTestApplication(publicUrlOverride = OVERRIDE) { _ ->
                 val clientId = register(client)
                 val noRedirect = createNoRedirectClient()
-                val resp = authorize(noRedirect, clientId, resourceOverride = "https://wrong.host/mcp")
+                val resp =
+                    authorize(noRedirect, clientId, AuthorizeOptions(resourceOverride = "https://wrong.host/mcp"))
                 assertEquals(HttpStatusCode.Found, resp.status)
                 assertTrue(resp.headers["Location"]!!.contains("error="))
             }
@@ -353,7 +368,7 @@ class OAuthFlowIntegrationTest {
                 val tokens = danceToTokens(ctx, clientId, includeResource = false)
                 val mcpClient = connectMcp(tokens.access)
                 try {
-                    val result = mcpClient.callTool(name = "tap", arguments = mapOf("x" to 1, "y" to 1))
+                    val result = mcpClient.callTool(name = "android_tap", arguments = mapOf("x" to 1, "y" to 1))
                     assertNotEquals(true, result.isError)
                 } finally {
                     mcpClient.close()
@@ -396,7 +411,7 @@ class OAuthFlowIntegrationTest {
                 // Register with a localhost redirect, then request authorize for the Claude callback (not registered).
                 val clientId = register(client, redirectUri = "http://localhost/cb")
                 val noRedirect = createNoRedirectClient()
-                val resp = authorize(noRedirect, clientId, redirectUri = REDIRECT)
+                val resp = authorize(noRedirect, clientId, AuthorizeOptions(redirectUri = REDIRECT))
                 assertEquals(HttpStatusCode.BadRequest, resp.status)
                 assertNull(resp.headers["Location"])
                 assertTrue(resp.headers["Content-Type"]?.contains("html") == true)
@@ -428,19 +443,29 @@ class OAuthFlowIntegrationTest {
             McpIntegrationTestHelper.withOAuthTestApplication(publicUrlOverride = OVERRIDE) { ctx ->
                 val clientId = register(client)
                 val rawState = "a&b=c d"
-                authorize(client, clientId, state = rawState)
-                val approval = ctx.approvalCoordinator.observePending().value.single()
+                authorize(client, clientId, AuthorizeOptions(state = rawState))
+                val approval =
+                    ctx.approvalCoordinator
+                        .observePending()
+                        .value
+                        .single()
                 ctx.approvalCoordinator.approve(approval.id)
                 val status = client.get("/authorize/status?id=${approval.id}")
                 val redirect =
-                    Json.parseToJsonElement(status.bodyAsText()).jsonObject["redirect"]!!.jsonPrimitive.content
+                    Json
+                        .parseToJsonElement(status.bodyAsText())
+                        .jsonObject["redirect"]!!
+                        .jsonPrimitive.content
                 assertEquals(rawState, Url(redirect).parameters["state"])
             }
         }
 
     // ── helpers ─────────────────────────────────────────────────────────────
 
-    private data class Tokens(val access: String, val refresh: String)
+    private data class Tokens(
+        val access: String,
+        val refresh: String,
+    )
 
     private suspend fun register(
         client: HttpClient,
@@ -455,30 +480,37 @@ class OAuthFlowIntegrationTest {
                         """"scope":"mcp","client_name":"Claude","application_type":"web"}""",
                 )
             }
-        return Json.parseToJsonElement(resp.bodyAsText()).jsonObject["client_id"]!!.jsonPrimitive.content
+        return Json
+            .parseToJsonElement(resp.bodyAsText())
+            .jsonObject["client_id"]!!
+            .jsonPrimitive.content
     }
+
+    private data class AuthorizeOptions(
+        val redirectUri: String = REDIRECT,
+        val challengeMethod: String = "S256",
+        val resourceOverride: String? = null,
+        val includeResource: Boolean = true,
+        val state: String = "xyz",
+    )
 
     private suspend fun authorize(
         client: HttpClient,
         clientId: String,
-        redirectUri: String = REDIRECT,
-        challengeMethod: String = "S256",
-        resourceOverride: String? = null,
-        includeResource: Boolean = true,
-        state: String = "xyz",
+        options: AuthorizeOptions = AuthorizeOptions(),
     ): HttpResponse =
         client.get("/authorize") {
             url {
                 parameters.append("response_type", "code")
                 parameters.append("client_id", clientId)
-                parameters.append("redirect_uri", redirectUri)
+                parameters.append("redirect_uri", options.redirectUri)
                 parameters.append("code_challenge", CHALLENGE)
-                parameters.append("code_challenge_method", challengeMethod)
-                parameters.append("state", state)
+                parameters.append("code_challenge_method", options.challengeMethod)
+                parameters.append("state", options.state)
                 parameters.append("scope", "mcp")
-                if (resourceOverride != null) {
-                    parameters.append("resource", resourceOverride)
-                } else if (includeResource) {
+                if (options.resourceOverride != null) {
+                    parameters.append("resource", options.resourceOverride)
+                } else if (options.includeResource) {
                     parameters.append("resource", CANONICAL)
                 }
             }
@@ -489,11 +521,19 @@ class OAuthFlowIntegrationTest {
         clientId: String,
         includeResource: Boolean,
     ): String {
-        authorize(ctx.httpClient, clientId, includeResource = includeResource)
-        val approval = ctx.approvalCoordinator.observePending().value.single()
+        authorize(ctx.httpClient, clientId, AuthorizeOptions(includeResource = includeResource))
+        val approval =
+            ctx.approvalCoordinator
+                .observePending()
+                .value
+                .single()
         ctx.approvalCoordinator.approve(approval.id)
         val status = ctx.httpClient.get("/authorize/status?id=${approval.id}")
-        val redirect = Json.parseToJsonElement(status.bodyAsText()).jsonObject["redirect"]!!.jsonPrimitive.content
+        val redirect =
+            Json
+                .parseToJsonElement(status.bodyAsText())
+                .jsonObject["redirect"]!!
+                .jsonPrimitive.content
         return Url(redirect).parameters["code"]!!
     }
 

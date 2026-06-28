@@ -14,11 +14,7 @@ class AuthorizationCodeStoreImpl
         private val secureRandom = SecureRandom()
 
         override suspend fun create(
-            clientId: String,
-            redirectUri: String,
-            codeChallenge: String,
-            resource: String,
-            scope: String,
+            request: AuthorizationCodeRequest,
             nowMs: Long,
         ): String =
             mutex.withLock {
@@ -27,11 +23,11 @@ class AuthorizationCodeStoreImpl
                 codes[code] =
                     AuthorizationCode(
                         code = code,
-                        clientId = clientId,
-                        redirectUri = redirectUri,
-                        codeChallenge = codeChallenge,
-                        resource = resource,
-                        scope = scope,
+                        clientId = request.clientId,
+                        redirectUri = request.redirectUri,
+                        codeChallenge = request.codeChallenge,
+                        resource = request.resource,
+                        scope = request.scope,
                         expiresAtMs = nowMs + OAuthPolicy.AUTH_CODE_TTL_MS,
                     )
                 code

@@ -7,8 +7,6 @@ import android.content.Intent
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat
 import com.danielealbano.androidremotecontrolmcp.McpApplication
 import com.danielealbano.androidremotecontrolmcp.R
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerConfig
@@ -61,7 +59,6 @@ import com.danielealbano.androidremotecontrolmcp.services.sharing.SharedContentI
 import com.danielealbano.androidremotecontrolmcp.services.storage.FileOperationProvider
 import com.danielealbano.androidremotecontrolmcp.services.storage.StorageLocationProvider
 import com.danielealbano.androidremotecontrolmcp.services.tunnel.TunnelManager
-import com.danielealbano.androidremotecontrolmcp.ui.ApprovalActivity
 import com.danielealbano.androidremotecontrolmcp.ui.MainActivity
 import com.danielealbano.androidremotecontrolmcp.utils.NetworkUtils
 import dagger.hilt.android.AndroidEntryPoint
@@ -323,9 +320,9 @@ class McpServerService : Service() {
                 coroutineScope.launch {
                     approvalCoordinator.observePending().collect { pending ->
                         if (pending.isEmpty()) {
-                            NotificationManagerCompat.from(this@McpServerService).cancel(APPROVAL_NOTIFICATION_ID)
+                            OAuthApprovalNotifier.cancel(this@McpServerService)
                         } else {
-                            postApprovalNotification(pending.size)
+                            OAuthApprovalNotifier.post(this@McpServerService, pending.size)
                         }
                     }
                 }
@@ -448,7 +445,7 @@ class McpServerService : Service() {
         // Cancel the OAuth approval observer and clear any pending approval notification.
         approvalObserverJob?.cancel()
         approvalObserverJob = null
-        NotificationManagerCompat.from(this).cancel(APPROVAL_NOTIFICATION_ID)
+        OAuthApprovalNotifier.cancel(this)
 
         // Stop tunnel first (with ANR-safe timeout).
         // Worst-case blocking time: TUNNEL_STOP_TIMEOUT_MS (3s) + SHUTDOWN_GRACE_PERIOD_MS (1s)
@@ -502,35 +499,6 @@ class McpServerService : Service() {
         _serverLogEvents.tryEmit(entry)
     }
 
-    private fun postApprovalNotification(count: Int) {
-        if (ContextCompat.checkSelfPermission(
-                this,
-                android.Manifest.permission.POST_NOTIFICATIONS,
-            ) != android.content.pm.PackageManager.PERMISSION_GRANTED
-        ) {
-            return
-        }
-        val pendingIntent =
-            PendingIntent.getActivity(
-                this,
-                1,
-                Intent(this, ApprovalActivity::class.java),
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-            )
-        val notification =
-            NotificationCompat
-                .Builder(this, McpApplication.OAUTH_APPROVAL_CHANNEL_ID)
-                .setContentTitle(getString(R.string.notification_oauth_approval_title))
-                .setContentText(getString(R.string.notification_oauth_approval_body, count))
-                .setSmallIcon(R.drawable.ic_notification)
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setCategory(NotificationCompat.CATEGORY_CALL)
-                .setAutoCancel(true)
-                .setContentIntent(pendingIntent)
-                .build()
-        NotificationManagerCompat.from(this).notify(APPROVAL_NOTIFICATION_ID, notification)
-    }
-
     private fun createNotification(): Notification {
         val pendingIntent =
             PendingIntent.getActivity(
@@ -554,7 +522,6 @@ class McpServerService : Service() {
         const val ACTION_START = "com.danielealbano.androidremotecontrolmcp.ACTION_START_MCP_SERVER"
         const val ACTION_STOP = "com.danielealbano.androidremotecontrolmcp.ACTION_STOP_MCP_SERVER"
         const val NOTIFICATION_ID = 1001
-        const val APPROVAL_NOTIFICATION_ID = 1002
         const val SHUTDOWN_GRACE_PERIOD_MS = 1000L
         const val SHUTDOWN_TIMEOUT_MS = 5000L
         const val TUNNEL_STOP_TIMEOUT_MS = 3_000L

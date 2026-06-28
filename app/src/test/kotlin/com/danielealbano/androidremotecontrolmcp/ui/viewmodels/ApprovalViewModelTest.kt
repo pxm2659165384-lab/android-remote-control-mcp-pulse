@@ -25,7 +25,14 @@ class ApprovalViewModelTest {
     private lateinit var coordinator: OAuthApprovalCoordinator
     private lateinit var viewModel: ApprovalViewModel
 
-    private val sample = PendingApproval(id = "abc", clientName = "Claude", redirectHost = "claude.ai", matchCode = "42", expiresAtMs = 0L)
+    private val sample =
+        PendingApproval(
+            id = "abc",
+            clientName = "Claude",
+            redirectHost = "claude.ai",
+            matchCode = "42",
+            expiresAtMs = 0L,
+        )
 
     @BeforeEach
     fun setUp() {

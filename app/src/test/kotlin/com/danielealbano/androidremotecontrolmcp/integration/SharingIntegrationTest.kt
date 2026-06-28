@@ -240,7 +240,7 @@ class SharingIntegrationTest {
             val inboxNoTunnel = newInbox()
             val linkNoTunnel = newLinkService()
             inboxNoTunnel.add(blobItem("doc.pdf", "application/pdf", byteArrayOf(1)))
-            runSharingApp(inboxNoTunnel, linkNoTunnel, tunnelConnected = { false }) { client, _ ->
+            runSharingApp(inboxNoTunnel, linkNoTunnel, SharingTestConfig(tunnelConnected = { false })) { client, _ ->
                 val result = client.callTool(name = "get_shared_content", arguments = emptyMap())
                 assertTrue(
                     result.content.any { it is TextContent && it.text.contains(noteFragment) },
@@ -251,7 +251,7 @@ class SharingIntegrationTest {
             val inboxTunnel = newInbox()
             val linkTunnel = newLinkService()
             inboxTunnel.add(blobItem("doc.pdf", "application/pdf", byteArrayOf(1)))
-            runSharingApp(inboxTunnel, linkTunnel, tunnelConnected = { true }) { client, _ ->
+            runSharingApp(inboxTunnel, linkTunnel, SharingTestConfig(tunnelConnected = { true })) { client, _ ->
                 val result = client.callTool(name = "get_shared_content", arguments = emptyMap())
                 assertFalse(
                     result.content.any { it is TextContent && it.text.contains(noteFragment) },
@@ -271,7 +271,7 @@ class SharingIntegrationTest {
             coEvery { fop.readFileBytes("loc1", "doc.pdf", any()) } returns
                 FileBytesResult(bytes, "application/pdf", "doc.pdf", bytes.size.toLong())
 
-            runSharingApp(inbox, linkService, fileOperationProvider = fop) { client, httpClient ->
+            runSharingApp(inbox, linkService, SharingTestConfig(fileOperationProvider = fop)) { client, httpClient ->
                 val result =
                     client.callTool(
                         name = "share_file_via_web",
@@ -299,7 +299,7 @@ class SharingIntegrationTest {
             coEvery { fop.readFileBytes(any(), any(), any()) } throws
                 McpToolException.ActionFailed("File size (999 bytes) exceeds the limit of 1 bytes.")
 
-            runSharingApp(inbox, linkService, fileOperationProvider = fop) { client, _ ->
+            runSharingApp(inbox, linkService, SharingTestConfig(fileOperationProvider = fop)) { client, _ ->
                 val result =
                     client.callTool(
                         name = "share_file_via_web",
@@ -323,7 +323,7 @@ class SharingIntegrationTest {
                 FileBytesResult(data, "application/octet-stream", path, data.size.toLong())
             }
 
-            runSharingApp(inbox, linkService, fileOperationProvider = fop) { client, httpClient ->
+            runSharingApp(inbox, linkService, SharingTestConfig(fileOperationProvider = fop)) { client, httpClient ->
                 val tokens = mutableListOf<String>()
                 repeat(EphemeralFileLinkService.MAX_LINKS + 1) { i ->
                     val result =
@@ -362,12 +362,14 @@ class SharingIntegrationTest {
             runSharingApp(
                 inbox,
                 linkService,
-                fileOperationProvider = fop,
-                requestHeaders =
-                    mapOf(
-                        "X-Forwarded-Host" to "tunnel.example.com",
-                        "X-Forwarded-Proto" to "https",
-                    ),
+                SharingTestConfig(
+                    fileOperationProvider = fop,
+                    requestHeaders =
+                        mapOf(
+                            "X-Forwarded-Host" to "tunnel.example.com",
+                            "X-Forwarded-Proto" to "https",
+                        ),
+                ),
             ) { client, _ ->
                 val result =
                     client.callTool(
@@ -393,7 +395,7 @@ class SharingIntegrationTest {
             coEvery { fop.readFileBytes("loc1", "doc.pdf", any()) } returns
                 FileBytesResult(bytes, "application/pdf", "doc.pdf", bytes.size.toLong())
 
-            runSharingApp(inbox, linkService, fileOperationProvider = fop) { client, httpClient ->
+            runSharingApp(inbox, linkService, SharingTestConfig(fileOperationProvider = fop)) { client, httpClient ->
                 val result =
                     client.callTool(
                         name = "share_file_via_web",
@@ -461,12 +463,16 @@ class SharingIntegrationTest {
         assertEquals(McpToolUtils.UNTRUSTED_CONTENT_WARNING, (content[0] as TextContent).text)
     }
 
+    private data class SharingTestConfig(
+        val tunnelConnected: () -> Boolean = { false },
+        val fileOperationProvider: FileOperationProvider = mockk(relaxed = true),
+        val requestHeaders: Map<String, String> = emptyMap(),
+    )
+
     private suspend fun runSharingApp(
         inbox: SharedContentInbox,
         linkService: EphemeralFileLinkService,
-        tunnelConnected: () -> Boolean = { false },
-        fileOperationProvider: FileOperationProvider = mockk(relaxed = true),
-        requestHeaders: Map<String, String> = emptyMap(),
+        config: SharingTestConfig = SharingTestConfig(),
         block: suspend (Client, io.ktor.client.HttpClient) -> Unit,
     ) {
         val server = newServer()
@@ -474,10 +480,10 @@ class SharingIntegrationTest {
             server,
             inbox,
             linkService,
-            fileOperationProvider,
+            config.fileOperationProvider,
             FILE_SIZE_LIMIT_MB,
             { BASE_URL },
-            tunnelConnected,
+            config.tunnelConnected,
             "",
             ToolPermissionsConfig(),
         )
@@ -517,7 +523,7 @@ class SharingIntegrationTest {
                 StreamableHttpClientTransport(
                     client = httpClient,
                     url = "/mcp",
-                    requestBuilder = { requestHeaders.forEach { (k, v) -> header(k, v) } },
+                    requestBuilder = { config.requestHeaders.forEach { (k, v) -> header(k, v) } },
                 )
             val mcpClient = Client(clientInfo = Implementation(name = "test-client", version = "1.0.0"))
             mcpClient.connect(transport)

@@ -60,7 +60,7 @@ fun consentPageHtml(
         </script>
         </body>
         </html>
-    """.trimIndent()
+        """.trimIndent()
 }
 
 private fun escapeHtml(value: String): String =

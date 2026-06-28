@@ -187,7 +187,10 @@ fun AccessSettingsScreen(
                             onClick = { viewModel.copyBearerToken(context) },
                             enabled = serverConfig.bearerToken.isNotEmpty(),
                         ) {
-                            Icon(Icons.Default.ContentCopy, contentDescription = stringResource(R.string.access_token_copy))
+                            Icon(
+                                Icons.Default.ContentCopy,
+                                contentDescription = stringResource(R.string.access_token_copy),
+                            )
                         }
                         IconButton(
                             onClick = viewModel::regenerateBearerToken,

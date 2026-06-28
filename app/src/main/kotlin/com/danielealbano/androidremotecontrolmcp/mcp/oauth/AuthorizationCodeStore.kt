@@ -11,6 +11,15 @@ data class AuthorizationCode(
     val expiresAtMs: Long,
 )
 
+/** The minted-code fields supplied when creating an authorization code. */
+data class AuthorizationCodeRequest(
+    val clientId: String,
+    val redirectUri: String,
+    val codeChallenge: String,
+    val resource: String,
+    val scope: String,
+)
+
 /**
  * Single-use, TTL-bounded store of authorization codes minted at `/authorize` approval and redeemed
  * once at `/token`.
@@ -18,11 +27,7 @@ data class AuthorizationCode(
 interface AuthorizationCodeStore {
     /** Creates and stores a code, returning the opaque code value. */
     suspend fun create(
-        clientId: String,
-        redirectUri: String,
-        codeChallenge: String,
-        resource: String,
-        scope: String,
+        request: AuthorizationCodeRequest,
         nowMs: Long,
     ): String
 

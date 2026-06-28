@@ -8,33 +8,39 @@ import java.net.URI
  * follow redirects and MUST cap size/timeout; this predicate is the host-allowlist part.
  */
 object LogoUrlPolicy {
+    private const val IPV4_OCTETS = 4
+    private const val MAX_OCTET = 255
+    private const val NET_10 = 10
+    private const val NET_127 = 127
+    private const val NET_172 = 172
+    private const val NET_172_LO = 16
+    private const val NET_172_HI = 31
+    private const val NET_192 = 192
+    private const val NET_192_SECOND = 168
+    private const val NET_169 = 169
+    private const val NET_169_SECOND = 254
+
     fun isSafeLogoUrl(url: String?): Boolean {
-        if (url.isNullOrBlank()) return false
-        val uri = runCatching { URI(url) }.getOrNull() ?: return false
-        if (uri.scheme?.lowercase() != "https") return false
-        val host = uri.host?.lowercase() ?: return false
-        if (host == "localhost") return false
-        val literal = host.removePrefix("[").removeSuffix("]")
-        if (isPrivateIpv4(literal) || isPrivateIpv6(literal)) return false
-        return true
+        val uri = url?.takeIf { it.isNotBlank() }?.let { runCatching { URI(it) }.getOrNull() } ?: return false
+        val host = uri.host?.lowercase()
+        return uri.scheme?.lowercase() == "https" &&
+            host != null &&
+            host != "localhost" &&
+            !isPrivateIp(host.removePrefix("[").removeSuffix("]"))
     }
 
-    @Suppress("ReturnCount")
+    private fun isPrivateIp(host: String): Boolean = isPrivateIpv4(host) || isPrivateIpv6(host)
+
     private fun isPrivateIpv4(host: String): Boolean {
-        val parts = host.split(".")
-        if (parts.size != 4) return false
-        val octets = parts.map { it.toIntOrNull() ?: return false }
-        if (octets.any { it !in 0..255 }) return false
+        val octets = host.split(".").mapNotNull { it.toIntOrNull() }
+        if (octets.size != IPV4_OCTETS || octets.any { it !in 0..MAX_OCTET }) return false
         val a = octets[0]
         val b = octets[1]
-        return when {
-            a == 10 -> true // 10/8
-            a == 127 -> true // 127/8 loopback
-            a == 172 && b in 16..31 -> true // 172.16/12
-            a == 192 && b == 168 -> true // 192.168/16
-            a == 169 && b == 254 -> true // 169.254/16 link-local
-            else -> false
-        }
+        return a == NET_10 || // 10/8
+            a == NET_127 || // 127/8 loopback
+            (a == NET_172 && b in NET_172_LO..NET_172_HI) || // 172.16/12
+            (a == NET_192 && b == NET_192_SECOND) || // 192.168/16
+            (a == NET_169 && b == NET_169_SECOND) // 169.254/16 link-local
     }
 
     private fun isPrivateIpv6(host: String): Boolean {

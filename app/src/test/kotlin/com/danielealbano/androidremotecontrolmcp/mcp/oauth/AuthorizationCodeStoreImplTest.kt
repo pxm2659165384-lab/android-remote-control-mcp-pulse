@@ -16,7 +16,11 @@ class AuthorizationCodeStoreImplTest {
     fun createThenConsumeOnce() =
         runTest {
             val store = newStore()
-            val code = store.create("client-1", "http://localhost/cb", "challenge", "https://h/mcp", "mcp", 0L)
+            val code =
+                store.create(
+                    AuthorizationCodeRequest("client-1", "http://localhost/cb", "challenge", "https://h/mcp", "mcp"),
+                    0L,
+                )
             val first = store.consume(code, 1L)
             assertNotNull(first)
             assertEquals("client-1", first?.clientId)
@@ -29,7 +33,11 @@ class AuthorizationCodeStoreImplTest {
     fun expiredNotConsumable() =
         runTest {
             val store = newStore()
-            val code = store.create("client-1", "http://localhost/cb", "challenge", "https://h/mcp", "mcp", 0L)
+            val code =
+                store.create(
+                    AuthorizationCodeRequest("client-1", "http://localhost/cb", "challenge", "https://h/mcp", "mcp"),
+                    0L,
+                )
             assertNull(store.consume(code, OAuthPolicy.AUTH_CODE_TTL_MS + 1))
         }
 }
