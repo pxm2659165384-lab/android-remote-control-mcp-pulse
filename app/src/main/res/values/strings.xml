@@ -219,6 +219,8 @@
     <string name="approval_match_code_label">Confirm this code matches your browser:</string>
     <string name="approval_approve">Approve</string>
     <string name="approval_deny">Deny</string>
+    <string name="approval_expires_in">Expires in %1$s</string>
+    <string name="approval_expired">Request expired</string>
     <string name="notification_channel_oauth_approval_name">Connection approvals</string>
     <string name="notification_oauth_approval_title">Connection request pending</string>
     <string name="notification_oauth_approval_body">%1$d request(s) waiting — tap to review</string>

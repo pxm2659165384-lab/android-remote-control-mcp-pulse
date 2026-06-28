@@ -54,6 +54,7 @@ import com.danielealbano.androidremotecontrolmcp.R
 import com.danielealbano.androidremotecontrolmcp.mcp.oauth.ClientIconUrl
 import com.danielealbano.androidremotecontrolmcp.mcp.oauth.PendingApproval
 import com.danielealbano.androidremotecontrolmcp.ui.viewmodels.ApprovalViewModel
+import kotlinx.coroutines.delay
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
@@ -157,6 +158,8 @@ private fun ApprovalCard(
             )
             Spacer(Modifier.height(12.dp))
             MatchCodePill(code = approval.matchCode)
+            Spacer(Modifier.height(12.dp))
+            ExpiryCountdown(expiresAtMs = approval.expiresAtMs)
             Spacer(Modifier.height(24.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -171,14 +174,16 @@ private fun ApprovalCard(
     }
 }
 
-/** Circular client icon: SSRF-safe logo / favicon over an initials avatar fallback. */
+/**
+ * Circular client icon on a clean light disc (favicons are designed for light backgrounds). The SSRF-safe
+ * logo / favicon is inset over muted initials, so a transparent or failed-to-load icon still reads.
+ */
 @Composable
 private fun ClientIcon(
     approval: PendingApproval,
     imageLoader: ImageLoader,
 ) {
     val context = LocalContext.current
-    val badgeColor = Color(BADGE_COLOR_MASK or (approval.id.hashCode() and BADGE_RGB_MASK))
     val initials =
         approval.clientName
             .trim()
@@ -188,13 +193,13 @@ private fun ClientIcon(
     val iconUrl = ClientIconUrl.resolve(approval.logoUri, approval.redirectHost)
 
     Box(
-        modifier = Modifier.size(ICON_SIZE_DP.dp).clip(CircleShape).background(badgeColor),
+        modifier = Modifier.size(ICON_SIZE_DP.dp).clip(CircleShape).background(ICON_DISC_COLOR),
         contentAlignment = Alignment.Center,
     ) {
         // Initials sit behind; a successfully-loaded icon covers them.
         Text(
             text = initials,
-            color = Color.White,
+            color = ICON_INITIALS_COLOR,
             style = MaterialTheme.typography.headlineSmall,
             textAlign = TextAlign.Center,
         )
@@ -203,7 +208,7 @@ private fun ClientIcon(
                 model = ImageRequest.Builder(context).data(iconUrl).build(),
                 imageLoader = imageLoader,
                 contentDescription = null,
-                modifier = Modifier.matchParentSize(),
+                modifier = Modifier.matchParentSize().padding(ICON_INSET_DP.dp),
             )
         }
     }
@@ -255,9 +260,47 @@ private fun MatchCodePill(code: String) {
     }
 }
 
+/** Live "Expires in m:ss" countdown of the approval window; turns to an error state once it lapses. */
+@Composable
+private fun ExpiryCountdown(expiresAtMs: Long) {
+    var remaining by remember(expiresAtMs) { mutableStateOf(secondsRemaining(expiresAtMs)) }
+    LaunchedEffect(expiresAtMs) {
+        while (remaining > 0) {
+            delay(MILLIS_PER_SECOND)
+            remaining = secondsRemaining(expiresAtMs)
+        }
+    }
+    val expired = remaining <= 0
+    Text(
+        text =
+            if (expired) {
+                stringResource(R.string.approval_expired)
+            } else {
+                stringResource(R.string.approval_expires_in, formatMmSs(remaining))
+            },
+        style = MaterialTheme.typography.bodySmall,
+        color = if (expired) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+private fun secondsRemaining(expiresAtMs: Long): Long {
+    val remainingMs = (expiresAtMs - System.currentTimeMillis()).coerceAtLeast(0L)
+    return remainingMs / MILLIS_PER_SECOND
+}
+
+private fun formatMmSs(totalSeconds: Long): String {
+    val minutes = totalSeconds / SECONDS_PER_MINUTE
+    val seconds = totalSeconds % SECONDS_PER_MINUTE
+    return "%d:%02d".format(minutes, seconds)
+}
+
 private const val ICON_SIZE_DP = 72
+private const val ICON_INSET_DP = 10
 private const val CHIP_CORNER_DP = 50
 private const val PILL_CORNER_DP = 20
+private const val MILLIS_PER_SECOND = 1000L
+private const val SECONDS_PER_MINUTE = 60L
+private const val ICON_INITIALS_ARGB = 0xFF5B5B66
+private val ICON_DISC_COLOR = Color.White
+private val ICON_INITIALS_COLOR = Color(ICON_INITIALS_ARGB)
 private const val LOGO_TIMEOUT_SECONDS = 5L
-private const val BADGE_COLOR_MASK = 0xFF404040.toInt()
-private const val BADGE_RGB_MASK = 0x00FFFFFF
