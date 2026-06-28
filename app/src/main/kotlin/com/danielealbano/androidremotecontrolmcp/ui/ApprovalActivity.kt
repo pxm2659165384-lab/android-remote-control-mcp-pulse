@@ -14,7 +14,7 @@ class ApprovalActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             AndroidRemoteControlMcpTheme {
-                ApprovalScreen()
+                ApprovalScreen(onAllHandled = ::finish)
             }
         }
     }
