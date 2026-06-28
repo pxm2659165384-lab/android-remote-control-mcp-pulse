@@ -34,6 +34,27 @@ def test_basic_lookup_and_gap_fill():
     assert r.lookup_ipv4(_ip("0.255.255.255")) == (None, None)
 
 
+def test_ipv6_lookup_and_flag():
+    b = LocationDbBuilder()
+    b.add_ipv6_range(_ip("2001:db8::"), _ip("2001:db8:ffff:ffff:ffff:ffff:ffff:ffff"), "DE", "Berlin")
+    b.add_ipv6_range(_ip("2a00::"), _ip("2a00::ffff"), "FR", "Paris")
+    blob = b.serialize()
+    assert blob[5] & 0x01, "has_ipv6 flag must be set when IPv6 ranges exist"
+    r = LocationDbReader(blob)
+    assert r.lookup_ipv6(_ip("2001:db8::1")) == ("DE", "Berlin")
+    assert r.lookup_ipv6(_ip("2001:db8:ffff::abcd")) == ("DE", "Berlin")
+    assert r.lookup_ipv6(_ip("2a00::5")) == ("FR", "Paris")
+    # gap between the two ranges and below the first -> unknown
+    assert r.lookup_ipv6(_ip("2002::1")) == (None, None)
+    assert r.lookup_ipv6(_ip("::1")) == (None, None)
+
+
+def test_no_ipv6_flag_when_only_ipv4():
+    b = LocationDbBuilder()
+    b.add_ipv4_range(_ip("1.0.0.0"), _ip("1.0.0.255"), "AU", "Brisbane")
+    assert (b.serialize()[5] & 0x01) == 0, "has_ipv6 flag must be clear with no IPv6 ranges"
+
+
 def test_coalesces_equal_neighbours():
     b = LocationDbBuilder()
     b.add_ipv4_range(_ip("10.0.0.0"), _ip("10.0.0.255"), "DE", "Berlin")

@@ -1,16 +1,18 @@
 """
 Compact offline IP-geolocation database: builder, serializer and reference reader.
 
-Format "LDB1" (all integers little-endian). The database maps an IP address to a
-(country_code, city_name) pair via a sorted, gap-filled, contiguous range table plus
-deduplicated dictionaries. Country *names* are NOT stored: the Android app derives the
+Format "LDB1". Integers are little-endian EXCEPT the IPv6 range starts, which are 16-byte
+big-endian (network order) so a byte-wise unsigned comparison equals the numeric one. The
+database maps an IP address to a (country_code, city_name) pair via per-family sorted,
+gap-filled, contiguous range tables plus deduplicated dictionaries. Both IPv4 and IPv6 are
+stored at city granularity. Country *names* are NOT stored: the Android app derives the
 localized name from the 2-letter code via java.util.Locale and the flag via emoji.
 
 Layout:
   header
     magic        : 4 bytes  = b"LDB1"
     version      : u8       = 1
-    flags        : u8       (bit0 = has_ipv6; 0 in v1)
+    flags        : u8       (bit0 = has_ipv6: the IPv6 section below is present)
     reserved     : u16      = 0
   country table
     count        : u16
@@ -24,10 +26,15 @@ Layout:
     entries      : count * (country_idx u16 + city_idx u32)   # 6 bytes each
   ipv4 ranges (sorted, contiguous: range i covers [starts[i], starts[i+1]) )
     count        : u32
-    starts       : count * u32
+    starts       : count * u32           # little-endian
+    loc_ids      : count * u24
+  ipv6 ranges (present iff flags bit0; sorted, contiguous; same scheme as ipv4)
+    count        : u32
+    starts       : count * 16 bytes      # big-endian (network order)
     loc_ids      : count * u24
 
-Lookup(ip): i = bisect_right(starts, ip) - 1  -> loc_ids[i] -> (country_idx, city_idx).
+Lookup(ip): in the matching family, i = bisect_right(starts, ip) - 1
+            -> loc_ids[i] -> (country_idx, city_idx).
 """
 
 from __future__ import annotations
@@ -101,6 +108,8 @@ class LocationDbBuilder:
     @staticmethod
     def _contiguous(ranges: list[tuple[int, int, int]], max_ip: int) -> tuple[list[int], list[int]]:
         """Sort, gap-fill (gaps -> unknown) and coalesce equal-location neighbours."""
+        if not ranges:
+            return [], []  # no data for this family -> no table (and the family flag stays clear)
         starts: list[int] = []
         loc_ids: list[int] = []
         cursor = 0
