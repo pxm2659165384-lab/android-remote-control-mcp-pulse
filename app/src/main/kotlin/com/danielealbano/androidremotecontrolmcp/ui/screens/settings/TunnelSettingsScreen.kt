@@ -416,9 +416,9 @@ private fun CloudflareTokenFields(
                             },
                         contentDescription =
                             if (showToken) {
-                                "Hide token"
+                                stringResource(R.string.config_token_hide)
                             } else {
-                                "Show token"
+                                stringResource(R.string.config_token_show)
                             },
                     )
                 }
