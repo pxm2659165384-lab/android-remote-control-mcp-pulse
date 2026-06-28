@@ -38,24 +38,31 @@ class RequestBaseUrlTest {
         )
     }
 
+    /** The listener connection point used only on the last-resort fallback (no Host / forwarded headers). */
+    private data class Listener(
+        val host: String = "listener.local",
+        val port: Int = 80,
+        val scheme: String = "http",
+    )
+
     private fun mockCall(
         forwardedHost: String? = null,
         forwardedProto: String? = null,
-        host: String = "listener.local",
-        port: Int = 80,
-        scheme: String = "http",
+        hostHeader: String? = null,
+        listener: Listener = Listener(),
     ): ApplicationCall {
         val headerPairs = mutableListOf<Pair<String, List<String>>>()
         forwardedHost?.let { headerPairs += "X-Forwarded-Host" to listOf(it) }
         forwardedProto?.let { headerPairs += "X-Forwarded-Proto" to listOf(it) }
+        hostHeader?.let { headerPairs += "Host" to listOf(it) }
         val headers = headersOf(*headerPairs.toTypedArray())
 
         val request = mockk<ApplicationRequest>()
         every { request.headers } returns headers
-        every { request.host() } returns host
-        every { request.port() } returns port
+        every { request.host() } returns listener.host
+        every { request.port() } returns listener.port
         val connectionPoint = mockk<RequestConnectionPoint>()
-        every { connectionPoint.scheme } returns scheme
+        every { connectionPoint.scheme } returns listener.scheme
         every { request.origin } returns connectionPoint
 
         val call = mockk<ApplicationCall>()
@@ -73,8 +80,34 @@ class RequestBaseUrlTest {
     @Test
     @DisplayName("falls back to Host header and origin scheme")
     fun fallsBackToHostAndScheme() {
-        val call = mockCall(host = "listener.local", port = 8080, scheme = "http")
+        val call = mockCall(listener = Listener(host = "listener.local", port = 8080, scheme = "http"))
         assertEquals("http://listener.local:8080", deriveBaseUrl(call))
+    }
+
+    @Test
+    @DisplayName("HTTPS tunnel with portless Host header does not append the local http default port")
+    fun httpsTunnelPortlessHostNoBogusPort() {
+        // cloudflared/ngrok terminate TLS and forward plaintext http; the Host header carries no port,
+        // so reconstructing host():port() would synthesize the http default (80) and yield https://host:80.
+        val tunnelHost = "stats-taxes-killing-exterior.trycloudflare.com"
+        val call =
+            mockCall(
+                forwardedProto = "https",
+                hostHeader = tunnelHost,
+                listener = Listener(host = tunnelHost, port = 80, scheme = "http"),
+            )
+        assertEquals("https://$tunnelHost", deriveBaseUrl(call))
+    }
+
+    @Test
+    @DisplayName("uses explicit port from Host header when present")
+    fun usesExplicitHostHeaderPort() {
+        val call =
+            mockCall(
+                hostHeader = "192.168.1.5:8080",
+                listener = Listener(host = "192.168.1.5", port = 8080, scheme = "http"),
+            )
+        assertEquals("http://192.168.1.5:8080", deriveBaseUrl(call))
     }
 
     @Test

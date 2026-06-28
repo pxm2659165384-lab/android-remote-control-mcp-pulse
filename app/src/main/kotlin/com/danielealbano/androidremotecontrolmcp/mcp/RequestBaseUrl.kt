@@ -39,7 +39,16 @@ fun deriveBaseUrl(call: ApplicationCall): String {
             ?.substringBefore(',')
             ?.trim()
             ?.takeIf { it.isNotEmpty() }
-    val hostPort = forwardedHost ?: "${call.request.host()}:${call.request.port()}"
+    // Use the raw Host header authority verbatim: it carries a port ONLY when the client actually
+    // sent one. Reconstructing via host():port() would synthesize the local connection's scheme-default
+    // port (e.g. http→80) when Host has none, producing a bogus `https://host:80` behind an HTTPS tunnel
+    // (cloudflared/ngrok terminate TLS and forward plaintext, so the local scheme is http).
+    val rawHost =
+        call.request.headers["Host"]
+            ?.substringBefore(',')
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+    val hostPort = forwardedHost ?: rawHost ?: "${call.request.host()}:${call.request.port()}"
     return normalizeBaseUrl("$scheme://$hostPort")
 }
 
