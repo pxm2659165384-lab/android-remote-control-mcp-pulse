@@ -127,7 +127,12 @@ private suspend fun ApplicationCall.handleAuthorize(
     }
     val displayName = safeClient.clientName ?: host(safeRedirectUri) ?: "Unknown"
     val approval =
-        deps.approvalCoordinator.createPending(displayName, host(safeRedirectUri) ?: "Unknown", deps.nowMs())
+        deps.approvalCoordinator.createPending(
+            displayName,
+            host(safeRedirectUri) ?: "Unknown",
+            safeClient.logoUri,
+            deps.nowMs(),
+        )
     pendingAuthorize.put(
         approval.id,
         PendingAuthorizeRequest(

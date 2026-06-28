@@ -13,6 +13,7 @@ enum class ApprovalState { PENDING, APPROVED, DENIED, EXPIRED }
  * @property redirectHost Host of the client's redirect URI (display).
  * @property matchCode 2-digit confirmation code shown in the browser and the app (unique among pending).
  * @property expiresAtMs Approval window deadline.
+ * @property logoUri DCR `logo_uri` of the requesting client (SSRF-guarded at render), else null.
  */
 data class PendingApproval(
     val id: String,
@@ -20,6 +21,7 @@ data class PendingApproval(
     val redirectHost: String,
     val matchCode: String,
     val expiresAtMs: Long,
+    val logoUri: String? = null,
 )
 
 /**
@@ -33,6 +35,7 @@ interface OAuthApprovalCoordinator {
     suspend fun createPending(
         clientName: String,
         redirectHost: String,
+        logoUri: String?,
         nowMs: Long,
     ): PendingApproval
 

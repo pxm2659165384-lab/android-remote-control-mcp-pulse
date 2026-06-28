@@ -15,9 +15,18 @@ class OAuthApprovalCoordinatorImplTest {
     fun createPendingAppears() =
         runTest {
             val coordinator = newCoordinator()
-            val approval = coordinator.createPending("Claude", "claude.ai", 0L)
+            val approval = coordinator.createPending("Claude", "claude.ai", null, 0L)
             assertEquals(2, approval.matchCode.length)
             assertTrue(coordinator.observePending().value.any { it.id == approval.id })
+        }
+
+    @Test
+    @DisplayName("createPending carries logoUri onto the pending approval")
+    fun createPendingCarriesLogoUri() =
+        runTest {
+            val coordinator = newCoordinator()
+            val approval = coordinator.createPending("Claude", "claude.ai", "https://cdn.example/logo.png", 0L)
+            assertEquals("https://cdn.example/logo.png", approval.logoUri)
         }
 
     @Test
@@ -25,7 +34,7 @@ class OAuthApprovalCoordinatorImplTest {
     fun approveTransitions() =
         runTest {
             val coordinator = newCoordinator()
-            val approval = coordinator.createPending("Claude", "claude.ai", 0L)
+            val approval = coordinator.createPending("Claude", "claude.ai", null, 0L)
             coordinator.approve(approval.id)
             assertEquals(ApprovalState.APPROVED, coordinator.stateOf(approval.id, 1L))
             assertTrue(coordinator.observePending().value.none { it.id == approval.id })
@@ -36,7 +45,7 @@ class OAuthApprovalCoordinatorImplTest {
     fun denyTransitions() =
         runTest {
             val coordinator = newCoordinator()
-            val approval = coordinator.createPending("Claude", "claude.ai", 0L)
+            val approval = coordinator.createPending("Claude", "claude.ai", null, 0L)
             coordinator.deny(approval.id)
             assertEquals(ApprovalState.DENIED, coordinator.stateOf(approval.id, 1L))
             assertTrue(coordinator.observePending().value.none { it.id == approval.id })
@@ -47,7 +56,7 @@ class OAuthApprovalCoordinatorImplTest {
     fun expiryYieldsExpired() =
         runTest {
             val coordinator = newCoordinator()
-            val approval = coordinator.createPending("Claude", "claude.ai", 0L)
+            val approval = coordinator.createPending("Claude", "claude.ai", null, 0L)
             assertEquals(ApprovalState.EXPIRED, coordinator.stateOf(approval.id, OAuthPolicy.APPROVAL_WINDOW_MS + 1))
             assertTrue(coordinator.observePending().value.none { it.id == approval.id })
         }

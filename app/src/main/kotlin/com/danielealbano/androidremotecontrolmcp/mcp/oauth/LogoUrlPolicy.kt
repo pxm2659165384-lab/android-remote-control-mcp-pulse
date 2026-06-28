@@ -22,11 +22,21 @@ object LogoUrlPolicy {
 
     fun isSafeLogoUrl(url: String?): Boolean {
         val uri = url?.takeIf { it.isNotBlank() }?.let { runCatching { URI(it) }.getOrNull() } ?: return false
-        val host = uri.host?.lowercase()
-        return uri.scheme?.lowercase() == "https" &&
-            host != null &&
-            host != "localhost" &&
-            !isPrivateIp(host.removePrefix("[").removeSuffix("]"))
+        return uri.scheme?.lowercase() == "https" && isPublicHost(uri.host)
+    }
+
+    /**
+     * True when [host] is a routable public host (not `localhost`, not a private/loopback/link-local IP).
+     * Used to gate any outbound fetch keyed on a client-supplied host (logo or favicon).
+     */
+    fun isPublicHost(host: String?): Boolean {
+        val normalized =
+            host
+                ?.lowercase()
+                ?.removePrefix("[")
+                ?.removeSuffix("]")
+                ?.takeIf { it.isNotEmpty() } ?: return false
+        return normalized != "localhost" && !isPrivateIp(normalized)
     }
 
     private fun isPrivateIp(host: String): Boolean = isPrivateIpv4(host) || isPrivateIpv6(host)

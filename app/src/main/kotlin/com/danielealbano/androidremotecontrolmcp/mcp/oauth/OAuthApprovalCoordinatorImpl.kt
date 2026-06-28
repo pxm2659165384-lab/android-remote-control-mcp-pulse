@@ -33,6 +33,7 @@ class OAuthApprovalCoordinatorImpl
         override suspend fun createPending(
             clientName: String,
             redirectHost: String,
+            logoUri: String?,
             nowMs: Long,
         ): PendingApproval =
             mutex.withLock {
@@ -46,6 +47,7 @@ class OAuthApprovalCoordinatorImpl
                         redirectHost = redirectHost,
                         matchCode = matchCode,
                         expiresAtMs = nowMs + OAuthPolicy.APPROVAL_WINDOW_MS,
+                        logoUri = logoUri,
                     )
                 entries[approval.id] = Entry(approval, ApprovalState.PENDING)
                 refreshPendingLocked()
