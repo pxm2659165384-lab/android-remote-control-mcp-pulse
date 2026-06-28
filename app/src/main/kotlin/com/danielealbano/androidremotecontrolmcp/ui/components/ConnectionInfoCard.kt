@@ -57,9 +57,9 @@ internal sealed interface TunnelRowContent {
     /** Server started and remote access enabled, address not yet available — show a spinner. */
     data object Loading : TunnelRowContent
 
-    /** Tunnel connected — show the public address. */
+    /** Tunnel connected — show the public address(es). */
     data class Connected(
-        val url: String,
+        val urls: List<String>,
     ) : TunnelRowContent
 
     /** Tunnel failed — show the error message in red. */
@@ -85,25 +85,25 @@ internal fun tunnelRowContent(
         serverStatus is ServerStatus.Running || serverStatus is ServerStatus.Starting
     if (!tunnelEnabled || !serverActive) return null
     return when (tunnelStatus) {
-        is TunnelStatus.Connected -> TunnelRowContent.Connected(tunnelStatus.url)
+        is TunnelStatus.Connected -> TunnelRowContent.Connected(tunnelStatus.urls)
         is TunnelStatus.Error -> TunnelRowContent.Failed(tunnelStatus.message)
         TunnelStatus.Connecting, TunnelStatus.Disconnected -> TunnelRowContent.Loading
     }
 }
 
 /**
- * Builds the Copy-all / Share connection string. The tunnel line is included
- * only when [tunnelUrl] is non-null (i.e. the tunnel is connected); the bearer
- * token line is included only when [bearerToken] is non-empty.
+ * Builds the Copy-all / Share connection string. One tunnel line is included per
+ * connected public URL in [tunnelUrls] (empty when the tunnel is not connected); the
+ * bearer token line is included only when [bearerToken] is non-empty.
  */
 internal fun buildConnectionString(
     serverUrl: String,
-    tunnelUrl: String?,
+    tunnelUrls: List<String>,
     bearerToken: String,
 ): String =
     buildString {
         append("URL: $serverUrl")
-        tunnelUrl?.let { append("\nTunnel: $it/mcp") }
+        tunnelUrls.forEach { append("\nTunnel: $it/mcp") }
         if (bearerToken.isNotEmpty()) {
             append("\nBearer Token: $bearerToken")
         }
@@ -220,7 +220,7 @@ fun ConnectionInfoCard(
             val connectionString =
                 buildConnectionString(
                     serverUrl = serverUrl,
-                    tunnelUrl = (rowContent as? TunnelRowContent.Connected)?.url,
+                    tunnelUrls = (rowContent as? TunnelRowContent.Connected)?.urls ?: emptyList(),
                     bearerToken = bearerToken,
                 )
             Row(
@@ -266,11 +266,14 @@ private fun RowScope.TunnelRowValue(content: TunnelRowContent) {
         }
 
         is TunnelRowContent.Connected -> {
-            Text(
-                text = "${content.url}/mcp",
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.weight(1f),
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                content.urls.forEach { url ->
+                    Text(
+                        text = "$url/mcp",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
         }
 
         is TunnelRowContent.Failed -> {
@@ -320,7 +323,7 @@ private fun ConnectionInfoCardPreview() {
             serverStatus = ServerStatus.Running(port = 8080, bindingAddress = "127.0.0.1"),
             tunnelStatus =
                 TunnelStatus.Connected(
-                    url = "https://random-words.trycloudflare.com",
+                    urls = listOf("https://random-words.trycloudflare.com"),
                     providerType = TunnelProviderType.CLOUDFLARE,
                 ),
             onCopyAll = {},

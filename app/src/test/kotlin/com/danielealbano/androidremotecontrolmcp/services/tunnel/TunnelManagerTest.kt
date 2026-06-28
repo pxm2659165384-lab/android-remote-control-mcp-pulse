@@ -121,7 +121,7 @@ class TunnelManagerTest {
                 // Simulate the provider reporting Connected
                 providerStatus.value =
                     TunnelStatus.Connected(
-                        url = "https://test.trycloudflare.com",
+                        urls = listOf("https://test.trycloudflare.com"),
                         providerType = TunnelProviderType.CLOUDFLARE,
                     )
 
@@ -131,7 +131,7 @@ class TunnelManagerTest {
                 val status = manager.tunnelStatus.value
                 assertEquals(
                     TunnelStatus.Connected(
-                        url = "https://test.trycloudflare.com",
+                        urls = listOf("https://test.trycloudflare.com"),
                         providerType = TunnelProviderType.CLOUDFLARE,
                     ),
                     status,

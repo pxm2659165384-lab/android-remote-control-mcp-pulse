@@ -82,7 +82,7 @@ class NgrokTunnelProvider
                         Log.i(TAG, "ngrok tunnel URL: $url")
                         _status.value =
                             TunnelStatus.Connected(
-                                url = url,
+                                urls = listOf(url),
                                 providerType = TunnelProviderType.NGROK,
                             )
                     }

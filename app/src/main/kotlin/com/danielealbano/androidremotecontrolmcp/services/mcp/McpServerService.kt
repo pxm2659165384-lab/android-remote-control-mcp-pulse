@@ -290,12 +290,16 @@ class McpServerService : Service() {
                     tunnelManager.tunnelStatus.collect { status ->
                         when (status) {
                             is TunnelStatus.Connected -> {
-                                Log.i(TAG, "Tunnel connected: ${status.url} (provider: ${status.providerType})")
+                                Log.i(
+                                    TAG,
+                                    "Tunnel connected: ${status.urls.joinToString()} " +
+                                        "(provider: ${status.providerType})",
+                                )
                                 emitLogEntry(
                                     ServerLogEntry(
                                         timestamp = System.currentTimeMillis(),
                                         type = ServerLogEntry.Type.TUNNEL,
-                                        message = "Tunnel connected: ${status.url}",
+                                        message = "Tunnel connected: ${status.urls.joinToString()}",
                                     ),
                                 )
                             }
@@ -349,8 +353,9 @@ class McpServerService : Service() {
      */
     private val currentBaseUrl: () -> String = {
         val tunnel = tunnelManager.tunnelStatus.value
-        if (tunnel is TunnelStatus.Connected) {
-            tunnel.url
+        val tunnelUrl = (tunnel as? TunnelStatus.Connected)?.urls?.firstOrNull()
+        if (tunnelUrl != null) {
+            tunnelUrl
         } else {
             val cfg = activeConfig
             val scheme = if (cfg?.httpsEnabled == true) "https" else "http"

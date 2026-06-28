@@ -122,7 +122,7 @@ class CloudflareTunnelProvider
                                 Log.i(TAG, "Cloudflare tunnel URL: $url")
                                 _status.value =
                                     TunnelStatus.Connected(
-                                        url = url,
+                                        urls = listOf(url),
                                         providerType = TunnelProviderType.CLOUDFLARE,
                                     )
                             }

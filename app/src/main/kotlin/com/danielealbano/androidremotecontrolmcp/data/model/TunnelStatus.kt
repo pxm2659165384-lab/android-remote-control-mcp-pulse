@@ -16,11 +16,12 @@ sealed class TunnelStatus {
     /**
      * Tunnel is connected and serving traffic.
      *
-     * @property url The public HTTPS URL (e.g., "https://xxx.trycloudflare.com" or "https://xxx.ngrok-free.app").
+     * @property urls The public HTTPS URL(s) (e.g., ["https://xxx.trycloudflare.com"] for Free/ngrok,
+     *   or one entry per public hostname for a Cloudflare token tunnel).
      * @property providerType The provider that created this tunnel.
      */
     data class Connected(
-        val url: String,
+        val urls: List<String>,
         val providerType: TunnelProviderType,
     ) : TunnelStatus()
 

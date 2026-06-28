@@ -414,14 +414,14 @@ class MainViewModelTest {
 
             tunnelStatusFlow.value =
                 TunnelStatus.Connected(
-                    url = "https://test.trycloudflare.com",
+                    urls = listOf("https://test.trycloudflare.com"),
                     providerType = TunnelProviderType.CLOUDFLARE,
                 )
             advanceUntilIdle()
 
             assertEquals(
                 TunnelStatus.Connected(
-                    url = "https://test.trycloudflare.com",
+                    urls = listOf("https://test.trycloudflare.com"),
                     providerType = TunnelProviderType.CLOUDFLARE,
                 ),
                 viewModel.tunnelStatus.value,

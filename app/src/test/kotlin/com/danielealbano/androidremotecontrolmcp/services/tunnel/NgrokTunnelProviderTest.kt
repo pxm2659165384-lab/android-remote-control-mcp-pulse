@@ -110,8 +110,8 @@ class NgrokTunnelProviderTest {
                 val status = provider.status.value
                 assertTrue(status is TunnelStatus.Connected)
                 assertEquals(
-                    "https://test-123.ngrok-free.app",
-                    (status as TunnelStatus.Connected).url,
+                    listOf("https://test-123.ngrok-free.app"),
+                    (status as TunnelStatus.Connected).urls,
                 )
 
                 verify { mockHttpBuilder.forward(URL("http://localhost:8080")) }

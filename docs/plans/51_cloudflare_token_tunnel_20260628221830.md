@@ -142,13 +142,13 @@ enum class CloudflareTunnelMode {
 **Why:** A token tunnel can expose multiple public hostnames. `TunnelStatus.Connected` must carry a list, the home card must show all, and the settings screen must stop showing the URL.
 
 **Acceptance criteria:**
-- [ ] `TunnelStatus.Connected` holds `urls: List<String>`.
-- [ ] All producers/consumers compile and behave correctly with a list.
-- [ ] Tunnel Settings status indicator shows state only (no URL); Connection Info card lists all URLs and includes all in copy/share.
+- [x] `TunnelStatus.Connected` holds `urls: List<String>`.
+- [x] All producers/consumers compile and behave correctly with a list.
+- [x] Tunnel Settings status indicator shows state only (no URL); Connection Info card lists all URLs and includes all in copy/share.
 
 ### Task 2.1 — Change the model
 
-- [ ] **Action 2.1.1** — modify `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/data/model/TunnelStatus.kt`:
+- [x] **Action 2.1.1** — modify `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/data/model/TunnelStatus.kt`:
 ```kotlin
     data class Connected(
         val urls: List<String>,
@@ -158,28 +158,28 @@ enum class CloudflareTunnelMode {
 Update the KDoc (`@property urls The public HTTPS URL(s) ...`).
 
 **DoD:**
-- [ ] Model compiles.
+- [x] Model compiles.
 
 ### Task 2.2 — Update producers
 
-- [ ] **Action 2.2.1** — modify `CloudflareTunnelProvider.kt` free-path success: `TunnelStatus.Connected(urls = listOf(url), providerType = TunnelProviderType.CLOUDFLARE)`.
-- [ ] **Action 2.2.2** — modify `NgrokTunnelProvider.kt` success: `TunnelStatus.Connected(urls = listOf(url), providerType = TunnelProviderType.NGROK)`.
+- [x] **Action 2.2.1** — modify `CloudflareTunnelProvider.kt` free-path success: `TunnelStatus.Connected(urls = listOf(url), providerType = TunnelProviderType.CLOUDFLARE)`.
+- [x] **Action 2.2.2** — modify `NgrokTunnelProvider.kt` success: `TunnelStatus.Connected(urls = listOf(url), providerType = TunnelProviderType.NGROK)`.
 
 **DoD:**
-- [ ] Both providers compile against the list model.
+- [x] Both providers compile against the list model.
 
 ### Task 2.3 — Update `McpServerService` consumers
 
-- [ ] **Action 2.3.1** — modify `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/services/mcp/McpServerService.kt` (MINIMAL diff — do NOT restructure surrounding lines):
+- [x] **Action 2.3.1** — modify `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/services/mcp/McpServerService.kt` (MINIMAL diff — do NOT restructure surrounding lines):
   - In `currentBaseUrl` (the existing `if (tunnel is TunnelStatus.Connected) { tunnel.url } else { … }` block at ~lines 350-362), change ONLY the connected branch value `tunnel.url` → `tunnel.urls.firstOrNull()`, and make the `if` test handle the now-nullable value. Concretely, replace the `val tunnel = …; if (tunnel is TunnelStatus.Connected) { tunnel.url } else { … }` with `val tunnelUrl = (tunnel as? TunnelStatus.Connected)?.urls?.firstOrNull(); if (tunnelUrl != null) { tunnelUrl } else { …existing else body unchanged… }`. Keep the existing `else` body (scheme/host/port) byte-for-byte.
   - Tunnel logging: replace `${status.url}` with `${status.urls.joinToString()}` (both the `Log.i` at ~line 293 and the `ServerLogEntry` message at ~line 298).
 
 **DoD:**
-- [ ] Service compiles; fallback uses first URL.
+- [x] Service compiles; fallback uses first URL.
 
 ### Task 2.4 — Update Connection Info card to list all hostnames
 
-- [ ] **Action 2.4.1** — modify `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/ui/components/ConnectionInfoCard.kt`:
+- [x] **Action 2.4.1** — modify `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/ui/components/ConnectionInfoCard.kt`:
   - `TunnelRowContent.Connected`:
 ```kotlin
     data class Connected(
@@ -206,18 +206,18 @@ internal fun buildConnectionString(
   - `TunnelRowValue` `Connected` branch: render a `Column` with one `Text("$it/mcp")` per URL.
 
 **DoD:**
-- [ ] Card lists every hostname; copy/share includes one tunnel line per hostname.
+- [x] Card lists every hostname; copy/share includes one tunnel line per hostname.
 
 ### Task 2.5 — Remove URL from the Tunnel Settings status indicator
 
-- [ ] **Action 2.5.1** — modify `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/ui/screens/settings/TunnelSettingsScreen.kt` `TunnelStatusIndicator` `Connected` branch: render only the "Connected" status `Text`; delete the `Spacer` + `status.url` `Text`.
+- [x] **Action 2.5.1** — modify `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/ui/screens/settings/TunnelSettingsScreen.kt` `TunnelStatusIndicator` `Connected` branch: render only the "Connected" status `Text`; delete the `Spacer` + `status.url` `Text`.
 
 **DoD:**
-- [ ] Settings screen no longer renders any tunnel URL/hostname.
+- [x] Settings screen no longer renders any tunnel URL/hostname.
 
 ### Task 2.6 — Update model/consumer tests
 
-- [ ] **Action 2.6.1** — update `.url` → `.urls` (list form: `url = "x"` → `urls = listOf("x")`, and adjust assertions) in EVERY test that constructs or reads `TunnelStatus.Connected`: `data/model/TunnelStatusTest.kt`, `services/tunnel/TunnelManagerTest.kt`, `services/tunnel/NgrokTunnelProviderTest.kt`, `integration/NgrokTunnelIntegrationTest.kt`, `integration/CloudflareTunnelIntegrationTest.kt`, `ui/components/ConnectionInfoCardTest.kt`, and `ui/viewmodels/MainViewModelTest.kt` (constructs `TunnelStatus.Connected(url = "https://test.trycloudflare.com", …)` and asserts on it — both construction and expected value must migrate to `urls = listOf(…)`).
+- [x] **Action 2.6.1** — update `.url` → `.urls` (list form: `url = "x"` → `urls = listOf("x")`, and adjust assertions) in EVERY test that constructs or reads `TunnelStatus.Connected`: `data/model/TunnelStatusTest.kt`, `services/tunnel/TunnelManagerTest.kt`, `services/tunnel/NgrokTunnelProviderTest.kt`, `integration/NgrokTunnelIntegrationTest.kt`, `integration/CloudflareTunnelIntegrationTest.kt`, `ui/components/ConnectionInfoCardTest.kt`, and `ui/viewmodels/MainViewModelTest.kt` (constructs `TunnelStatus.Connected(url = "https://test.trycloudflare.com", …)` and asserts on it — both construction and expected value must migrate to `urls = listOf(…)`).
 
 | Test (new/updated) | Verifies |
 |------|----------|
@@ -228,7 +228,7 @@ internal fun buildConnectionString(
 | Integration assertions | Quick tunnel asserts `urls.single()` starts with `https://` and contains `.trycloudflare.com` |
 
 **DoD:**
-- [ ] All updated tests reference the list model (run in US6).
+- [x] All updated tests reference the list model (run in US6).
 
 ---
 
