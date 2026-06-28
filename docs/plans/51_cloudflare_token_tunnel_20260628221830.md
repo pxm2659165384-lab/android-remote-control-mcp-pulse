@@ -558,3 +558,23 @@ internal fun buildConnectionString(
 
 **DoD:**
 - [x] All checkboxes above ticked; PR created per TOOLS.md; PR URL reported to the user. (Copilot-reviewer step removed from the workflow per user decision — `gh pr edit --add-reviewer copilot` fails in this environment.)
+
+---
+
+## Review Findings — adversarial ground-up pass (post-implementation)
+
+A second, adversarial `code-reviewer` pass produced the following. Behavior-preserving bug-fixes were applied; deviations that are improvements or were user-authorized are recorded here as accepted (code intentionally differs from the plan snippets).
+
+**Fixed (genuine defects, behavior preserved):**
+- [x] **C-1/C-2** — `timeoutJob` was cancelled/nulled from the stderr-reader coroutine OUTSIDE `mutex`, violating the Action 3.2.6 synchronization contract (data race). Fixed: `handleTokenConfig` is now `suspend` and performs validation + status transition + `timeoutJob` cancellation entirely under `mutex.withLock`, so `timeoutJob` is only ever touched while holding the lock.
+- [x] **W-2** — race where the config-timeout could overwrite a just-set `Connected` with a spurious `Error`. Fixed: the timeout's check-and-act now runs under the same `mutex` as the success path (`terminateWithError` became `failLocked`, callable only while holding the mutex).
+- [x] **I-8** — the stderr `BufferedReader` is now closed via `use { }` on every exit path.
+
+**Accepted as-is (NOT changed — would deviate from the agreed design/contract; none are defects):**
+- **W-1** — "stop any active tunnel under HTTPS" is exercised via the `TunnelManager` interaction test (`start with https enabled does not start tunnel`), which Action 4.2.1 EXPLICITLY permits ("or `TunnelManager` interaction test"). `McpServerService` is an Android `Service` with no JVM unit-test harness in this project; its guard is unchanged from Action 4.1.1, and the "stop any active one" is a provable no-op given HTTPS cannot be toggled while a tunnel is live (Task 4.1 Note). No architecture change made (would deviate).
+- **W-3** — `CLAUDE.md`/`docs/TOOLS.md` Copilot-reviewer removal: explicitly user-authorized (see US6 DoD).
+- **I-1** — `MainViewModel` update methods use `viewModelScope.launch(ioDispatcher)` (matches every other update method in the file) rather than the plan snippet's bare `launch {}`. Justified consistency improvement; preserved.
+- **I-2** — `TunnelManager.start()` carries a defense-in-depth `if (config.httpsEnabled) return` guard (not in the plan). Strengthens the invariant; preserved.
+- **I-3** — the Cloudflare mode selector was extracted into a `CloudflareModeSelector` composable (detekt complexity). No behavior change; preserved.
+- **I-4/I-5** — `isServiceValid` intentionally keeps the EXACT agreed contract (scheme `http`, host `localhost`/`127.0.0.1`, exact port, path empty or `/`); case-insensitivity and userinfo/query/fragment rejection were NOT added, to avoid deviating from the agreed validation contract (cloudflared does not emit such services; no security impact).
+- **I-6/I-7** — two-hop JSON parse matches the captured shape; token-mode tests use real-process timing per Action 3.3.1's mandated approach and are robust by construction. No change.
