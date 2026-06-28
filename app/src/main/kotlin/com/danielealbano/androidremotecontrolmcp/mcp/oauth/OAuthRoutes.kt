@@ -125,12 +125,18 @@ private suspend fun ApplicationCall.handleAuthorize(
         redirectWithError(safeRedirectUri, paramError, state)
         return
     }
-    val displayName = safeClient.clientName ?: host(safeRedirectUri) ?: "Unknown"
+    val redirectHost = host(safeRedirectUri) ?: "Unknown"
+    val displayName = safeClient.clientName ?: redirectHost
+    val clientIp = clientIp()
     val approval =
         deps.approvalCoordinator.createPending(
-            displayName,
-            host(safeRedirectUri) ?: "Unknown",
-            safeClient.logoUri,
+            ApprovalRequest(
+                clientName = displayName,
+                redirectHost = redirectHost,
+                logoUri = safeClient.logoUri,
+                clientIp = clientIp,
+                clientGeo = deps.geoIpResolver.resolve(clientIp),
+            ),
             deps.nowMs(),
         )
     pendingAuthorize.put(
@@ -146,7 +152,7 @@ private suspend fun ApplicationCall.handleAuthorize(
         ),
         deps.nowMs(),
     )
-    respondConsentPage(approval, displayName, safeClient.logoUri, host(safeRedirectUri) ?: "Unknown", deps.nowMs())
+    respondConsentPage(approval, displayName, safeClient.logoUri, redirectHost, deps.nowMs())
 }
 
 /** Validates the non-redirect authorize params; returns an OAuth error code, or null when valid. */

@@ -1,6 +1,7 @@
 package com.danielealbano.androidremotecontrolmcp.mcp.oauth
 
 import com.danielealbano.androidremotecontrolmcp.data.repository.OAuthClientRepository
+import com.danielealbano.androidremotecontrolmcp.geo.GeoIpResolver
 
 /**
  * Groups the OAuth collaborators passed into [com.danielealbano.androidremotecontrolmcp.mcp.McpServer]
@@ -11,4 +12,5 @@ class OAuthServerDeps(
     val oauthClientRepository: OAuthClientRepository,
     val authorizationCodeStore: AuthorizationCodeStore,
     val approvalCoordinator: OAuthApprovalCoordinator,
+    val geoIpResolver: GeoIpResolver,
 )

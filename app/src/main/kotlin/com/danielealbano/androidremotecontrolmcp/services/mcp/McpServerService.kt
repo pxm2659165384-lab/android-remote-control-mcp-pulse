@@ -16,6 +16,7 @@ import com.danielealbano.androidremotecontrolmcp.data.model.ToolPermissionsConfi
 import com.danielealbano.androidremotecontrolmcp.data.model.TunnelStatus
 import com.danielealbano.androidremotecontrolmcp.data.repository.OAuthClientRepository
 import com.danielealbano.androidremotecontrolmcp.data.repository.SettingsRepository
+import com.danielealbano.androidremotecontrolmcp.geo.GeoIpResolver
 import com.danielealbano.androidremotecontrolmcp.mcp.CertificateManager
 import com.danielealbano.androidremotecontrolmcp.mcp.McpServer
 import com.danielealbano.androidremotecontrolmcp.mcp.oauth.AuthorizationCodeStore
@@ -152,6 +153,8 @@ class McpServerService : Service() {
 
     @Inject lateinit var approvalCoordinator: OAuthApprovalCoordinator
 
+    @Inject lateinit var geoIpResolver: GeoIpResolver
+
     /** Config of the currently running server; used to build capability-link base URLs. */
     @Volatile
     private var activeConfig: ServerConfig? = null
@@ -257,6 +260,7 @@ class McpServerService : Service() {
                             oauthClientRepository = oauthClientRepository,
                             authorizationCodeStore = authorizationCodeStore,
                             approvalCoordinator = approvalCoordinator,
+                            geoIpResolver = geoIpResolver,
                         ),
                 )
             mcpServer?.start()

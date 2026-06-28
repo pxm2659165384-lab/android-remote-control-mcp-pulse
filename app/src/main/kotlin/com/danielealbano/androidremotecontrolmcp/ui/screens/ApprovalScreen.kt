@@ -53,6 +53,8 @@ import coil3.compose.AsyncImage
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.ImageRequest
 import com.danielealbano.androidremotecontrolmcp.R
+import com.danielealbano.androidremotecontrolmcp.geo.CountryDisplay
+import com.danielealbano.androidremotecontrolmcp.geo.GeoLocation
 import com.danielealbano.androidremotecontrolmcp.mcp.oauth.ClientIconUrl
 import com.danielealbano.androidremotecontrolmcp.mcp.oauth.PendingApproval
 import com.danielealbano.androidremotecontrolmcp.ui.viewmodels.ApprovalViewModel
@@ -160,6 +162,10 @@ private fun ApprovalCard(
             )
             Spacer(Modifier.height(8.dp))
             HostChip(host = approval.redirectHost)
+            if (approval.clientIp != null) {
+                Spacer(Modifier.height(8.dp))
+                ClientOriginRow(ip = approval.clientIp, geo = approval.clientGeo)
+            }
             Spacer(Modifier.height(24.dp))
             Text(
                 text = stringResource(R.string.approval_match_code_label),
@@ -250,6 +256,31 @@ private fun HostChip(host: String) {
     }
 }
 
+/** The request's source IP and its offline geolocation (flag + city + country), when available. */
+@Composable
+private fun ClientOriginRow(
+    ip: String,
+    geo: GeoLocation?,
+) {
+    val flag = CountryDisplay.flag(geo?.countryCode)
+    val country = CountryDisplay.name(geo?.countryCode)
+    val place = listOfNotNull(geo?.city, country).joinToString(", ")
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        if (place.isNotEmpty()) {
+            Text(
+                text = if (flag != null) "$flag  $place" else place,
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+            )
+        }
+        Text(
+            text = ip,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
 /** Prominent match-code display in a tonal container. */
 @Composable
 private fun MatchCodePill(code: String) {
@@ -287,13 +318,15 @@ private fun rememberSecondsRemaining(expiresAtMs: Long): Long {
 @Composable
 private fun ExpiryCountdown(remaining: Long) {
     val expired = remaining <= 0
+    val text =
+        if (expired) {
+            stringResource(R.string.approval_expired)
+        } else {
+            val mmss = "%d:%02d".format(remaining / SECONDS_PER_MINUTE, remaining % SECONDS_PER_MINUTE)
+            stringResource(R.string.approval_expires_in, mmss)
+        }
     Text(
-        text =
-            if (expired) {
-                stringResource(R.string.approval_expired)
-            } else {
-                stringResource(R.string.approval_expires_in, formatMmSs(remaining))
-            },
+        text = text,
         style = if (expired) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodySmall,
         fontWeight = if (expired) FontWeight.Bold else null,
         color = if (expired) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -303,12 +336,6 @@ private fun ExpiryCountdown(remaining: Long) {
 private fun secondsRemaining(expiresAtMs: Long): Long {
     val remainingMs = (expiresAtMs - System.currentTimeMillis()).coerceAtLeast(0L)
     return remainingMs / MILLIS_PER_SECOND
-}
-
-private fun formatMmSs(totalSeconds: Long): String {
-    val minutes = totalSeconds / SECONDS_PER_MINUTE
-    val seconds = totalSeconds % SECONDS_PER_MINUTE
-    return "%d:%02d".format(minutes, seconds)
 }
 
 private const val ICON_SIZE_DP = 72

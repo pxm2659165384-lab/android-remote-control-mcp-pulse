@@ -203,6 +203,7 @@ class McpServer(
                         authorizationCodeStore = oauth.authorizationCodeStore,
                         approvalCoordinator = oauth.approvalCoordinator,
                         publicUrlOverride = config.publicUrlOverride,
+                        geoIpResolver = oauth.geoIpResolver,
                     ),
                 )
             }

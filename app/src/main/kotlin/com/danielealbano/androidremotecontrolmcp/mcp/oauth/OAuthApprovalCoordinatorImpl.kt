@@ -31,9 +31,7 @@ class OAuthApprovalCoordinatorImpl
         override fun observePending(): StateFlow<List<PendingApproval>> = pending.asStateFlow()
 
         override suspend fun createPending(
-            clientName: String,
-            redirectHost: String,
-            logoUri: String?,
+            request: ApprovalRequest,
             nowMs: Long,
         ): PendingApproval =
             mutex.withLock {
@@ -43,11 +41,13 @@ class OAuthApprovalCoordinatorImpl
                 val approval =
                     PendingApproval(
                         id = randomId(),
-                        clientName = clientName,
-                        redirectHost = redirectHost,
+                        clientName = request.clientName,
+                        redirectHost = request.redirectHost,
                         matchCode = matchCode,
                         expiresAtMs = nowMs + OAuthPolicy.APPROVAL_WINDOW_MS,
-                        logoUri = logoUri,
+                        logoUri = request.logoUri,
+                        clientIp = request.clientIp,
+                        clientGeo = request.clientGeo,
                     )
                 entries[approval.id] = Entry(approval, ApprovalState.PENDING)
                 refreshPendingLocked()

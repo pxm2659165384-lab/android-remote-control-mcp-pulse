@@ -1,5 +1,6 @@
 package com.danielealbano.androidremotecontrolmcp.mcp.oauth
 
+import com.danielealbano.androidremotecontrolmcp.geo.GeoLocation
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -10,12 +11,18 @@ import org.junit.jupiter.api.Test
 class OAuthApprovalCoordinatorImplTest {
     private fun newCoordinator() = OAuthApprovalCoordinatorImpl()
 
+    private fun req(
+        logoUri: String? = null,
+        clientIp: String? = null,
+        clientGeo: GeoLocation? = null,
+    ) = ApprovalRequest("Claude", "claude.ai", logoUri, clientIp, clientGeo)
+
     @Test
     @DisplayName("createPending appears in pending flow with 2-digit code")
     fun createPendingAppears() =
         runTest {
             val coordinator = newCoordinator()
-            val approval = coordinator.createPending("Claude", "claude.ai", null, 0L)
+            val approval = coordinator.createPending(req(), 0L)
             assertEquals(2, approval.matchCode.length)
             assertTrue(coordinator.observePending().value.any { it.id == approval.id })
         }
@@ -25,8 +32,19 @@ class OAuthApprovalCoordinatorImplTest {
     fun createPendingCarriesLogoUri() =
         runTest {
             val coordinator = newCoordinator()
-            val approval = coordinator.createPending("Claude", "claude.ai", "https://cdn.example/logo.png", 0L)
+            val approval = coordinator.createPending(req(logoUri = "https://cdn.example/logo.png"), 0L)
             assertEquals("https://cdn.example/logo.png", approval.logoUri)
+        }
+
+    @Test
+    @DisplayName("createPending carries the client IP and geolocation onto the pending approval")
+    fun createPendingCarriesIpAndGeo() =
+        runTest {
+            val coordinator = newCoordinator()
+            val geo = GeoLocation("US", "Mountain View")
+            val approval = coordinator.createPending(req(clientIp = "8.8.8.8", clientGeo = geo), 0L)
+            assertEquals("8.8.8.8", approval.clientIp)
+            assertEquals(geo, approval.clientGeo)
         }
 
     @Test
@@ -34,7 +52,7 @@ class OAuthApprovalCoordinatorImplTest {
     fun approveTransitions() =
         runTest {
             val coordinator = newCoordinator()
-            val approval = coordinator.createPending("Claude", "claude.ai", null, 0L)
+            val approval = coordinator.createPending(req(), 0L)
             coordinator.approve(approval.id, 1L)
             assertEquals(ApprovalState.APPROVED, coordinator.stateOf(approval.id, 1L))
             assertTrue(coordinator.observePending().value.none { it.id == approval.id })
@@ -45,7 +63,7 @@ class OAuthApprovalCoordinatorImplTest {
     fun approveAfterExpiryYieldsExpired() =
         runTest {
             val coordinator = newCoordinator()
-            val approval = coordinator.createPending("Claude", "claude.ai", null, 0L)
+            val approval = coordinator.createPending(req(), 0L)
             coordinator.approve(approval.id, OAuthPolicy.APPROVAL_WINDOW_MS + 1)
             assertEquals(ApprovalState.EXPIRED, coordinator.stateOf(approval.id, OAuthPolicy.APPROVAL_WINDOW_MS + 1))
         }
@@ -55,7 +73,7 @@ class OAuthApprovalCoordinatorImplTest {
     fun denyTransitions() =
         runTest {
             val coordinator = newCoordinator()
-            val approval = coordinator.createPending("Claude", "claude.ai", null, 0L)
+            val approval = coordinator.createPending(req(), 0L)
             coordinator.deny(approval.id)
             assertEquals(ApprovalState.DENIED, coordinator.stateOf(approval.id, 1L))
             assertTrue(coordinator.observePending().value.none { it.id == approval.id })
@@ -66,7 +84,7 @@ class OAuthApprovalCoordinatorImplTest {
     fun expiryYieldsExpired() =
         runTest {
             val coordinator = newCoordinator()
-            val approval = coordinator.createPending("Claude", "claude.ai", null, 0L)
+            val approval = coordinator.createPending(req(), 0L)
             assertEquals(ApprovalState.EXPIRED, coordinator.stateOf(approval.id, OAuthPolicy.APPROVAL_WINDOW_MS + 1))
             assertTrue(coordinator.observePending().value.none { it.id == approval.id })
         }

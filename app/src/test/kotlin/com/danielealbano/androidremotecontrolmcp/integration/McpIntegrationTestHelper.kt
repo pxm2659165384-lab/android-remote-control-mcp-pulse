@@ -426,6 +426,7 @@ object McpIntegrationTestHelper {
                             authorizationCodeStore = codeStore,
                             approvalCoordinator = approvalCoordinator,
                             publicUrlOverride = publicUrlOverride,
+                            geoIpResolver = { null },
                         ),
                     )
                 }
