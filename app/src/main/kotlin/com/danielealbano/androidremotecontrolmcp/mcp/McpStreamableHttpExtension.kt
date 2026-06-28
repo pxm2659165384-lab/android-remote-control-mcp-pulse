@@ -22,6 +22,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -55,7 +56,10 @@ private const val SESSION_IDLE_TIMEOUT_MS = 7L * 24 * 60 * 60 * 1000 // 7 days
  *   May return the same instance across sessions.
  */
 @Suppress("LongMethod", "CyclomaticComplexMethod")
-fun Application.mcpStreamableHttp(block: () -> Server) {
+fun Application.mcpStreamableHttp(
+    publicUrlOverride: String = "",
+    block: () -> Server,
+) {
     val transports = ConcurrentHashMap<String, StreamableHttpServerTransport>()
     val lastActivityTimes = ConcurrentHashMap<String, Long>()
     val activeSessionCount = AtomicInteger(0)
@@ -170,8 +174,11 @@ fun Application.mcpStreamableHttp(block: () -> Server) {
                     }
                 }
 
-                // session=null because we're in JSON-only mode (no ServerSSESession)
-                transport.handlePostRequest(null, call)
+                // session=null because we're in JSON-only mode (no ServerSSESession).
+                // Wrap dispatch so the per-request base URL propagates (inline) into tool handlers.
+                withContext(RequestBaseUrlElement(effectiveBaseUrl(call, publicUrlOverride))) {
+                    transport.handlePostRequest(null, call)
+                }
             }
 
             // GET — not supported in JSON-only mode (no SSE)

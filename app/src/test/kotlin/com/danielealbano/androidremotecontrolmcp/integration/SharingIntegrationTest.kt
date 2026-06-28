@@ -18,6 +18,7 @@ import com.danielealbano.androidremotecontrolmcp.services.sharing.SharedItem
 import com.danielealbano.androidremotecontrolmcp.services.storage.FileBytesResult
 import com.danielealbano.androidremotecontrolmcp.services.storage.FileOperationProvider
 import io.ktor.client.request.get
+import io.ktor.client.request.header
 import io.ktor.client.statement.readRawBytes
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
@@ -347,6 +348,68 @@ class SharingIntegrationTest {
             }
         }
 
+    @Test
+    @DisplayName("share_file_via_web URL reflects X-Forwarded-Host and -Proto")
+    fun shareFileViaWebReflectsForwardedHeaders() =
+        runTest {
+            val inbox = newInbox()
+            val linkService = newLinkService()
+            val fop = mockk<FileOperationProvider>(relaxed = true)
+            val bytes = byteArrayOf(0x25, 0x50, 0x44, 0x46)
+            coEvery { fop.readFileBytes("loc1", "doc.pdf", any()) } returns
+                FileBytesResult(bytes, "application/pdf", "doc.pdf", bytes.size.toLong())
+
+            runSharingApp(
+                inbox,
+                linkService,
+                fileOperationProvider = fop,
+                requestHeaders =
+                    mapOf(
+                        "X-Forwarded-Host" to "tunnel.example.com",
+                        "X-Forwarded-Proto" to "https",
+                    ),
+            ) { client, _ ->
+                val result =
+                    client.callTool(
+                        name = "share_file_via_web",
+                        arguments = mapOf("location_id" to "loc1", "path" to "doc.pdf"),
+                    )
+                val text = (result.content[0] as TextContent).text
+                assertTrue(
+                    text.contains("https://tunnel.example.com/s/"),
+                    "share URL must reflect X-Forwarded-Host and -Proto",
+                )
+            }
+        }
+
+    @Test
+    @DisplayName("share URL falls back to request host when no forwarded headers")
+    fun shareUrlFallsBackWithoutForwardedHeaders() =
+        runTest {
+            val inbox = newInbox()
+            val linkService = newLinkService()
+            val fop = mockk<FileOperationProvider>(relaxed = true)
+            val bytes = byteArrayOf(0x25, 0x50, 0x44, 0x46)
+            coEvery { fop.readFileBytes("loc1", "doc.pdf", any()) } returns
+                FileBytesResult(bytes, "application/pdf", "doc.pdf", bytes.size.toLong())
+
+            runSharingApp(inbox, linkService, fileOperationProvider = fop) { client, httpClient ->
+                val result =
+                    client.callTool(
+                        name = "share_file_via_web",
+                        arguments = mapOf("location_id" to "loc1", "path" to "doc.pdf"),
+                    )
+                val text = (result.content[0] as TextContent).text
+                assertFalse(text.contains("tunnel.example.com"), "no forwarded host must not leak into the URL")
+                val token = TOKEN_REGEX.find(text)!!.groupValues[1]
+                assertEquals(
+                    HttpStatusCode.OK,
+                    httpClient.get("/s/$token").status,
+                    "default behavior unchanged: link still resolves",
+                )
+            }
+        }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Helpers
     // ─────────────────────────────────────────────────────────────────────────
@@ -403,6 +466,7 @@ class SharingIntegrationTest {
         linkService: EphemeralFileLinkService,
         tunnelConnected: () -> Boolean = { false },
         fileOperationProvider: FileOperationProvider = mockk(relaxed = true),
+        requestHeaders: Map<String, String> = emptyMap(),
         block: suspend (Client, io.ktor.client.HttpClient) -> Unit,
     ) {
         val server = newServer()
@@ -448,7 +512,12 @@ class SharingIntegrationTest {
                     install(io.ktor.client.plugins.contentnegotiation.ContentNegotiation) { json(McpJson) }
                     install(io.ktor.client.plugins.sse.SSE)
                 }
-            val transport = StreamableHttpClientTransport(client = httpClient, url = "/mcp")
+            val transport =
+                StreamableHttpClientTransport(
+                    client = httpClient,
+                    url = "/mcp",
+                    requestBuilder = { requestHeaders.forEach { (k, v) -> header(k, v) } },
+                )
             val mcpClient = Client(clientInfo = Implementation(name = "test-client", version = "1.0.0"))
             mcpClient.connect(transport)
             try {

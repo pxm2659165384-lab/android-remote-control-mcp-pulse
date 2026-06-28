@@ -4,6 +4,7 @@ package com.danielealbano.androidremotecontrolmcp.mcp.tools
 
 import com.danielealbano.androidremotecontrolmcp.data.model.ToolPermissionsConfig
 import com.danielealbano.androidremotecontrolmcp.mcp.McpToolException
+import com.danielealbano.androidremotecontrolmcp.mcp.currentRequestBaseUrl
 import com.danielealbano.androidremotecontrolmcp.services.sharing.EphemeralFileLinkService
 import com.danielealbano.androidremotecontrolmcp.services.sharing.SharedContentClassifier
 import com.danielealbano.androidremotecontrolmcp.services.sharing.SharedContentInbox
@@ -97,7 +98,9 @@ class GetSharedContentHandler(
 
             item.bytes != null -> {
                 val name = item.fileName ?: "file"
-                val url = baseUrlProvider() + linkService.pathFor(linkService.register(item.bytes, item.mimeType, name))
+                val url =
+                    currentRequestBaseUrl { baseUrlProvider() } +
+                        linkService.pathFor(linkService.register(item.bytes, item.mimeType, name))
                 linkProduced = true
                 content +=
                     TextContent(
@@ -129,7 +132,9 @@ class GetSharedContentHandler(
     ) {
         val name = item.fileName ?: "image"
         val inline = runCatching { SharedContentClassifier.downscaleToInline(bytes, item.mimeType) }.getOrNull()
-        val url = baseUrlProvider() + linkService.pathFor(linkService.register(bytes, item.mimeType, name))
+        val url =
+            currentRequestBaseUrl { baseUrlProvider() } +
+                linkService.pathFor(linkService.register(bytes, item.mimeType, name))
         if (inline != null) {
             content += ImageContent(data = inline.base64, mimeType = inline.mimeType)
             content +=
@@ -193,7 +198,7 @@ class ShareFileViaWebHandler(
 
         val result = readOrThrow(locationId, path)
         val token = linkService.register(result.bytes, result.mimeType, result.fileName)
-        val url = baseUrlProvider() + linkService.pathFor(token)
+        val url = currentRequestBaseUrl { baseUrlProvider() } + linkService.pathFor(token)
 
         val message =
             buildString {

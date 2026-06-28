@@ -22,12 +22,12 @@
 **Why:** Every absolute URL the server hands out (OAuth metadata, share links) must use the host the client actually connected on (`X-Forwarded-Host`/`Host` + `X-Forwarded-Proto`), or the user-set override, so it is reachable across all topologies (cloudflared, ngrok, Tailscale Funnel, router/DDNS). The MCP SDK 0.8.3 dispatches tool handlers INLINE on the Ktor call coroutine (verified: `StreamableHttpServerTransport.handlePostRequest` → `_onMessage` → `Protocol.onRequest` `handler(request, RequestHandlerExtra())` awaited inline, no scope hand-off), so a coroutine-context element set around `handlePostRequest` propagates to tool handlers.
 
 **Acceptance criteria:**
-- [ ] `deriveBaseUrl(call)` returns a normalized `scheme://host[:port]` from forwarded/Host headers; `effectiveBaseUrl(call, override)` returns the normalized override when non-empty, else `deriveBaseUrl(call)`.
-- [ ] Share-content tool URLs (`get_shared_content`, `share_file_via_web`) reflect `X-Forwarded-Host`/`X-Forwarded-Proto` (or the override), falling back to the existing provider when no request context is present.
-- [ ] Existing share-content behavior is preserved when forwarded headers are absent (unit tests / non-HTTP callers).
+- [x] `deriveBaseUrl(call)` returns a normalized `scheme://host[:port]` from forwarded/Host headers; `effectiveBaseUrl(call, override)` returns the normalized override when non-empty, else `deriveBaseUrl(call)`.
+- [x] Share-content tool URLs (`get_shared_content`, `share_file_via_web`) reflect `X-Forwarded-Host`/`X-Forwarded-Proto` (or the override), falling back to the existing provider when no request context is present.
+- [x] Existing share-content behavior is preserved when forwarded headers are absent (unit tests / non-HTTP callers).
 
 ### Task 1.1 — Base-URL derivation helpers + coroutine-context element
-- [ ] **Action:** create `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/mcp/RequestBaseUrl.kt`
+- [x] **Action:** create `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/mcp/RequestBaseUrl.kt`
   - `fun deriveBaseUrl(call: ApplicationCall): String` — scheme = first comma-separated value of the `X-Forwarded-Proto` header, else `call.request.origin.scheme`; hostport = first value of `X-Forwarded-Host` header, else `call.request.host()` + (`:` + `call.request.port()` when non-default). Pass through `normalizeBaseUrl`.
   - `fun normalizeBaseUrl(raw: String): String` — lowercase scheme + host; strip a trailing `/`; omit the port when it equals the scheme default (80 http / 443 https). Returns `"$scheme://$hostport"`.
   - `fun effectiveBaseUrl(call: ApplicationCall, override: String): String = override.trim().ifEmpty { null }?.let { normalizeBaseUrl(it) } ?: deriveBaseUrl(call)` — the override (when non-empty) wins (also acts as a hostname pin).
@@ -36,10 +36,10 @@
   - `fun canonicalResource(baseUrl: String): String = "$baseUrl/mcp"`
   - Imports: `io.ktor.server.plugins.origin` (for `call.request.origin.scheme`), `io.ktor.server.request.host`, `io.ktor.server.request.port`, `kotlin.coroutines.coroutineContext`, `kotlin.coroutines.CoroutineContext`, `kotlin.coroutines.AbstractCoroutineContextElement`.
   - **Security rationale (forwarded-header trust) — by design, not a limitation:** the derivation trusts `X-Forwarded-Host`/`-Proto` and these are client-settable, but this is safe because the response is PER-CONNECTION — a spoofed host only changes the response sent back to the spoofer (no cross-client/cached poisoning): (1) OAuth metadata and `aud` are returned to whoever made the request; a token minted with a spoofed `aud` is REJECTED at the real `/mcp` (aud-binding), so spoofing is self-defeating; (2) the OAuth path requires a tunnel, which IS the trusted proxy that sets these headers; (3) share-content URLs are returned to the calling agent over that same connection (the agent reaches the server on the real host via the tunnel — a separate LAN attacker is not the agent); (4) `publicUrlOverride`, when set, pins the host and ignores forwarded headers entirely — recommended for any deployment exposed on `0.0.0.0` without a trusted proxy. This trust model is the agreed design (auto-detect + override pin).
-- [ ] **DoD:** Pure functions, no Android deps beyond Ktor `ApplicationCall`; compiles.
+- [x] **DoD:** Pure functions, no Android deps beyond Ktor `ApplicationCall`; compiles.
 
 ### Task 1.2 — Propagate the base URL into MCP tool dispatch
-- [ ] **Action:** modify `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/mcp/McpStreamableHttpExtension.kt`:
+- [x] **Action:** modify `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/mcp/McpStreamableHttpExtension.kt`:
   - Add a parameter to the extension: `fun Application.mcpStreamableHttp(publicUrlOverride: String = "", block: () -> Server)` (default `""` keeps callers that don't pass it working).
   - Wrap the dispatch at the existing call site (`transport.handlePostRequest(null, call)`):
     ```kotlin
@@ -48,14 +48,14 @@
     }
     ```
   - Add imports `kotlinx.coroutines.withContext`, `…mcp.RequestBaseUrlElement`, `…mcp.effectiveBaseUrl`.
-- [ ] **DoD:** Only the dispatch line is wrapped; session-creation logic unchanged; existing no-arg call sites compile via the default.
+- [x] **DoD:** Only the dispatch line is wrapped; session-creation logic unchanged; existing no-arg call sites compile via the default.
 
 ### Task 1.3 — Share tool uses request-derived base URL
-- [ ] **Action:** modify `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/mcp/tools/SharingTools.kt` — at every URL construction site (the 3 `baseUrlProvider()` usages in `GetSharedContentHandler` and `ShareFileViaWebHandler`), replace `baseUrlProvider()` with `currentRequestBaseUrl { baseUrlProvider() }` (handlers are `suspend`). Keep the `baseUrlProvider: () -> String` constructor params as the fallback; wrap the fallback to adapt `() -> String` to `suspend () -> String`.
-- [ ] **DoD:** Share URLs prefer the request-context base URL; fallback preserved; no signature change to `registerSharingTools` callers.
+- [x] **Action:** modify `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/mcp/tools/SharingTools.kt` — at every URL construction site (the 3 `baseUrlProvider()` usages in `GetSharedContentHandler` and `ShareFileViaWebHandler`), replace `baseUrlProvider()` with `currentRequestBaseUrl { baseUrlProvider() }` (handlers are `suspend`). Keep the `baseUrlProvider: () -> String` constructor params as the fallback; wrap the fallback to adapt `() -> String` to `suspend () -> String`.
+- [x] **DoD:** Share URLs prefer the request-context base URL; fallback preserved; no signature change to `registerSharingTools` callers.
 
 ### Task 1.4 — Tests (Story 1)
-- [ ] **Action:** create `app/src/test/kotlin/com/danielealbano/androidremotecontrolmcp/mcp/RequestBaseUrlTest.kt`
+- [x] **Action:** create `app/src/test/kotlin/com/danielealbano/androidremotecontrolmcp/mcp/RequestBaseUrlTest.kt`
 
   **Setup:** mock `ApplicationCall`/`ApplicationRequest` headers via MockK (`call.request.headers`, `origin.scheme`, `host()`, `port()`).
 
@@ -71,7 +71,7 @@
   | `currentRequestBaseUrl returns element value, else fallback` | Context element read; fallback used when absent |
   | `context element survives an inner withContext(Dispatchers.IO)` | Install `RequestBaseUrlElement`, then read `currentRequestBaseUrl` from inside a nested `withContext(Dispatchers.IO)` — value preserved (proves the propagation the share-URL/OAuth fix relies on) |
 
-- [ ] **Action:** add to the integration suite `app/src/test/kotlin/com/danielealbano/androidremotecontrolmcp/integration/SharingIntegrationTest.kt`
+- [x] **Action:** add to the integration suite `app/src/test/kotlin/com/danielealbano/androidremotecontrolmcp/integration/SharingIntegrationTest.kt`
 
   | Test | Verifies |
   |------|----------|
@@ -79,7 +79,7 @@
   | `share URL falls back to provider when no forwarded headers` | Default behavior unchanged |
 
   Note: `SharingIntegrationTest.runSharingApp` currently builds `StreamableHttpClientTransport(client, url="/mcp")` with NO `requestBuilder`, so it cannot set `X-Forwarded-Host`/`-Proto`; it MUST be parameterized to inject request headers via the transport `requestBuilder` for these tests.
-- [ ] **DoD:** New tests defined; existing sharing tests still valid (no behavior regression).
+- [x] **DoD:** New tests defined; existing sharing tests still valid (no behavior regression).
 
 ---
 
