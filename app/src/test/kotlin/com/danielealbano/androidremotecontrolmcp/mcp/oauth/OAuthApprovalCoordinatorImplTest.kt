@@ -35,9 +35,19 @@ class OAuthApprovalCoordinatorImplTest {
         runTest {
             val coordinator = newCoordinator()
             val approval = coordinator.createPending("Claude", "claude.ai", null, 0L)
-            coordinator.approve(approval.id)
+            coordinator.approve(approval.id, 1L)
             assertEquals(ApprovalState.APPROVED, coordinator.stateOf(approval.id, 1L))
             assertTrue(coordinator.observePending().value.none { it.id == approval.id })
+        }
+
+    @Test
+    @DisplayName("approve after the window has lapsed yields EXPIRED, not APPROVED")
+    fun approveAfterExpiryYieldsExpired() =
+        runTest {
+            val coordinator = newCoordinator()
+            val approval = coordinator.createPending("Claude", "claude.ai", null, 0L)
+            coordinator.approve(approval.id, OAuthPolicy.APPROVAL_WINDOW_MS + 1)
+            assertEquals(ApprovalState.EXPIRED, coordinator.stateOf(approval.id, OAuthPolicy.APPROVAL_WINDOW_MS + 1))
         }
 
     @Test

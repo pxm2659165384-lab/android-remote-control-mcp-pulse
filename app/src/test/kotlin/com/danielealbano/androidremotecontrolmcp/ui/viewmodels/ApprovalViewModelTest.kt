@@ -57,7 +57,7 @@ class ApprovalViewModelTest {
         runTest {
             viewModel.approve("abc")
             viewModel.deny("abc")
-            coVerify { coordinator.approve("abc") }
+            coVerify { coordinator.approve("abc", any()) }
             coVerify { coordinator.deny("abc") }
         }
 }

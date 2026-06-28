@@ -53,11 +53,12 @@ class OAuthApprovalTestReceiver : BroadcastReceiver() {
         }
         val id = intent.getStringExtra(EXTRA_APPROVAL_ID)
         scope.launch {
+            val nowMs = System.currentTimeMillis()
             if (!id.isNullOrEmpty()) {
-                approvalCoordinator.approve(id)
+                approvalCoordinator.approve(id, nowMs)
                 Log.i(TAG, "Approved pending request by id")
             } else {
-                approvalCoordinator.observePending().value.forEach { approvalCoordinator.approve(it.id) }
+                approvalCoordinator.observePending().value.forEach { approvalCoordinator.approve(it.id, nowMs) }
                 Log.i(TAG, "Approved all pending requests")
             }
         }

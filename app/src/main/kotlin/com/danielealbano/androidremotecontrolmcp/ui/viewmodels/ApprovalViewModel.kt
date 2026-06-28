@@ -22,7 +22,7 @@ class ApprovalViewModel
         val pending: StateFlow<List<PendingApproval>> = coordinator.observePending()
 
         fun approve(id: String) {
-            viewModelScope.launch(ioDispatcher) { coordinator.approve(id) }
+            viewModelScope.launch(ioDispatcher) { coordinator.approve(id, System.currentTimeMillis()) }
         }
 
         fun deny(id: String) {

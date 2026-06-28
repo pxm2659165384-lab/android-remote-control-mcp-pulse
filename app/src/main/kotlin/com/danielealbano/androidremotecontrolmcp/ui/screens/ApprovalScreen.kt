@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -42,6 +43,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -136,7 +138,15 @@ private fun ApprovalCard(
     onApprove: () -> Unit,
     onDeny: () -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    val remaining = rememberSecondsRemaining(approval.expiresAtMs)
+    val expired = remaining <= 0
+    val cardColors =
+        if (expired) {
+            CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+        } else {
+            CardDefaults.cardColors()
+        }
+    Card(modifier = Modifier.fillMaxWidth(), colors = cardColors) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -159,7 +169,7 @@ private fun ApprovalCard(
             Spacer(Modifier.height(12.dp))
             MatchCodePill(code = approval.matchCode)
             Spacer(Modifier.height(12.dp))
-            ExpiryCountdown(expiresAtMs = approval.expiresAtMs)
+            ExpiryCountdown(remaining = remaining)
             Spacer(Modifier.height(24.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -168,7 +178,7 @@ private fun ApprovalCard(
             ) {
                 OutlinedButton(onClick = onDeny) { Text(stringResource(R.string.approval_deny)) }
                 Spacer(Modifier.width(12.dp))
-                Button(onClick = onApprove) { Text(stringResource(R.string.approval_approve)) }
+                Button(onClick = onApprove, enabled = !expired) { Text(stringResource(R.string.approval_approve)) }
             }
         }
     }
@@ -260,9 +270,9 @@ private fun MatchCodePill(code: String) {
     }
 }
 
-/** Live "Expires in m:ss" countdown of the approval window; turns to an error state once it lapses. */
+/** Ticking countdown (seconds) of the approval window; reaches 0 once the request has lapsed. */
 @Composable
-private fun ExpiryCountdown(expiresAtMs: Long) {
+private fun rememberSecondsRemaining(expiresAtMs: Long): Long {
     var remaining by remember(expiresAtMs) { mutableStateOf(secondsRemaining(expiresAtMs)) }
     LaunchedEffect(expiresAtMs) {
         while (remaining > 0) {
@@ -270,6 +280,12 @@ private fun ExpiryCountdown(expiresAtMs: Long) {
             remaining = secondsRemaining(expiresAtMs)
         }
     }
+    return remaining
+}
+
+/** "Expires in m:ss" label; once lapsed it is larger, bold and in the error color for visibility. */
+@Composable
+private fun ExpiryCountdown(remaining: Long) {
     val expired = remaining <= 0
     Text(
         text =
@@ -278,7 +294,8 @@ private fun ExpiryCountdown(expiresAtMs: Long) {
             } else {
                 stringResource(R.string.approval_expires_in, formatMmSs(remaining))
             },
-        style = MaterialTheme.typography.bodySmall,
+        style = if (expired) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodySmall,
+        fontWeight = if (expired) FontWeight.Bold else null,
         color = if (expired) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }

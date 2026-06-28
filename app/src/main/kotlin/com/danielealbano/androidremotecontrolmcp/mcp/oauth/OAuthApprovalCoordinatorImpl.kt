@@ -54,9 +54,16 @@ class OAuthApprovalCoordinatorImpl
                 approval
             }
 
-        override suspend fun approve(id: String) {
+        override suspend fun approve(
+            id: String,
+            nowMs: Long,
+        ) {
             mutex.withLock {
-                entries[id]?.takeIf { it.state == ApprovalState.PENDING }?.let { it.state = ApprovalState.APPROVED }
+                entries[id]?.takeIf { it.state == ApprovalState.PENDING }?.let { entry ->
+                    // Expiry wins over a late approval: never hand out an authorization past the window.
+                    entry.state =
+                        if (nowMs >= entry.approval.expiresAtMs) ApprovalState.EXPIRED else ApprovalState.APPROVED
+                }
                 refreshPendingLocked()
             }
         }

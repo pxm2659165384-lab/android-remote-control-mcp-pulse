@@ -39,7 +39,14 @@ interface OAuthApprovalCoordinator {
         nowMs: Long,
     ): PendingApproval
 
-    suspend fun approve(id: String)
+    /**
+     * Approves a still-PENDING request. A request whose window has lapsed ([nowMs] >= its deadline) is
+     * marked EXPIRED instead of APPROVED — expiry MUST win over a late approval (security).
+     */
+    suspend fun approve(
+        id: String,
+        nowMs: Long,
+    )
 
     suspend fun deny(id: String)
 

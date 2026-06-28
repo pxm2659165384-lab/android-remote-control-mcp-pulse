@@ -449,7 +449,7 @@ class OAuthFlowIntegrationTest {
                         .observePending()
                         .value
                         .single()
-                ctx.approvalCoordinator.approve(approval.id)
+                ctx.approvalCoordinator.approve(approval.id, System.currentTimeMillis())
                 val status = client.get("/authorize/status?id=${approval.id}")
                 val redirect =
                     Json
@@ -527,7 +527,7 @@ class OAuthFlowIntegrationTest {
                 .observePending()
                 .value
                 .single()
-        ctx.approvalCoordinator.approve(approval.id)
+        ctx.approvalCoordinator.approve(approval.id, System.currentTimeMillis())
         val status = ctx.httpClient.get("/authorize/status?id=${approval.id}")
         val redirect =
             Json
