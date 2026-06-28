@@ -237,16 +237,16 @@ internal fun buildConnectionString(
 **Why:** Core feature. The provider must branch on mode, run the token command, parse cloudflared's JSON log stream, validate the routed service, and enforce the safety rules.
 
 **Acceptance criteria:**
-- [ ] Free mode behavior is unchanged.
-- [ ] Token mode runs `tunnel --output json run --token <TOKEN>` (no `--url`); empty token → Error.
-- [ ] Non-JSON log lines are skipped without error.
-- [ ] On `Updated to new configuration`: all hostname services validated; all-valid → Connected(list); any-invalid or zero hostnames → Error + stop.
-- [ ] No valid config within 10 s of process start → Error + stop.
-- [ ] Re-validation on every later config push.
+- [x] Free mode behavior is unchanged.
+- [x] Token mode runs `tunnel --output json run --token <TOKEN>` (no `--url`); empty token → Error.
+- [x] Non-JSON log lines are skipped without error.
+- [x] On `Updated to new configuration`: all hostname services validated; all-valid → Connected(list); any-invalid or zero hostnames → Error + stop.
+- [x] No valid config within 10 s of process start → Error + stop.
+- [x] Re-validation on every later config push.
 
 ### Task 3.1 — Add internal parsing/validation helpers
 
-- [ ] **Action 3.1.1** — modify `CloudflareTunnelProvider.kt`: add imports (`kotlinx.serialization.json.Json`, `jsonObject`, `jsonArray`, `jsonPrimitive`, `contentOrNull`, `java.net.URI`) and an internal route type + helpers (all `internal` for unit testing):
+- [x] **Action 3.1.1** — modify `CloudflareTunnelProvider.kt`: add imports (`kotlinx.serialization.json.Json`, `jsonObject`, `jsonArray`, `jsonPrimitive`, `contentOrNull`, `java.net.URI`) and an internal route type + helpers (all `internal` for unit testing):
 ```kotlin
         internal data class IngressRoute(val hostname: String, val service: String)
 
@@ -289,18 +289,18 @@ internal fun buildConnectionString(
 ```
 
 **DoD:**
-- [ ] Helpers are pure and `internal`; no Android dependencies (JVM-testable).
+- [x] Helpers are pure and `internal`; no Android dependencies (JVM-testable).
 
 ### Task 3.2 — Branch `start()` on mode and add token teardown
 
-- [ ] **Action 3.2.1** — modify `CloudflareTunnelProvider.kt`:
+- [x] **Action 3.2.1** — modify `CloudflareTunnelProvider.kt`:
   - Add state: `private var timeoutJob: Job? = null` and `@Volatile private var terminating = false`.
   - In `start()`, after resolving the binary and setting `Connecting`, branch on `config.cloudflareTunnelMode`:
     - `FREE` → build the existing free `ProcessBuilder` (`"tunnel","--url","http://localhost:$localPort","--output","json"`), `startFreeStderrReader(proc)`, `startProcessMonitor(proc)`.
     - `TOKEN` → if `config.cloudflareTunnelToken.isEmpty()` → `_status.value = Error("Cloudflare tunnel token is required")`; `return`. Otherwise build `ProcessBuilder(binaryPath, "tunnel", "--output", "json", "run", "--token", config.cloudflareTunnelToken)` (EXACT order; NO `--url`), `startTokenStderrReader(proc, localPort)`, `startProcessMonitor(proc)`, `startTokenConfigTimeout()`.
   - Reset `terminating = false` at the start of `start()`.
-- [ ] **Action 3.2.2** — rename the existing stderr reader to `startFreeStderrReader` (keep the existing `TUNNEL_URL_REGEX` logic, now producing `urls = listOf(url)`). NOTE: free mode INTENTIONALLY keeps regex-based URL extraction (the quick-tunnel URL is embedded in a JSON `message` box and the regex matches it); do NOT switch free mode to the new JSON helpers.
-- [ ] **Action 3.2.3** — add `startTokenStderrReader(proc, localPort)`: same read loop as free, but per line:
+- [x] **Action 3.2.2** — rename the existing stderr reader to `startFreeStderrReader` (keep the existing `TUNNEL_URL_REGEX` logic, now producing `urls = listOf(url)`). NOTE: free mode INTENTIONALLY keeps regex-based URL extraction (the quick-tunnel URL is embedded in a JSON `message` box and the regex matches it); do NOT switch free mode to the new JSON helpers.
+- [x] **Action 3.2.3** — add `startTokenStderrReader(proc, localPort)`: same read loop as free, but per line:
 ```kotlin
     val message = logMessageOf(line) ?: continue  // skip non-JSON
     if (message == MSG_UPDATED_CONFIG) {
@@ -309,7 +309,7 @@ internal fun buildConnectionString(
     }
     // "Registered tunnel connection" and others: ignore — stay Connecting
 ```
-- [ ] **Action 3.2.4** — add `handleTokenConfig(configJson, localPort)` (runs on EVERY push → re-validation):
+- [x] **Action 3.2.4** — add `handleTokenConfig(configJson, localPort)` (runs on EVERY push → re-validation):
 ```kotlin
     val routes = ingressRoutesOf(configJson)
     if (routes.isEmpty()) {
@@ -328,7 +328,7 @@ internal fun buildConnectionString(
         providerType = TunnelProviderType.CLOUDFLARE,
     )
 ```
-- [ ] **Action 3.2.5** — add a test-overridable timeout field and `startTokenConfigTimeout()`. Do NOT add a constructor parameter (the class is `@Inject constructor` and Hilt cannot provide a `Long`); instead add an `internal var configTimeoutMs: Long = TOKEN_CONFIG_TIMEOUT_MS` property that tests set directly (e.g. `provider.configTimeoutMs = 100`):
+- [x] **Action 3.2.5** — add a test-overridable timeout field and `startTokenConfigTimeout()`. Do NOT add a constructor parameter (the class is `@Inject constructor` and Hilt cannot provide a `Long`); instead add an `internal var configTimeoutMs: Long = TOKEN_CONFIG_TIMEOUT_MS` property that tests set directly (e.g. `provider.configTimeoutMs = 100`):
 ```kotlin
     private fun startTokenConfigTimeout() {
         timeoutJob = scope.launch {
@@ -339,7 +339,7 @@ internal fun buildConnectionString(
         }
     }
 ```
-- [ ] **Action 3.2.6** — add a single mutex-guarded teardown used by BOTH error-termination and `stop()`, to avoid races on `process`/job fields and deadlock. Synchronization contract: all of `process`, `stderrReaderJob`, `processMonitorJob`, `timeoutJob` are mutated ONLY inside `mutex.withLock`; `terminating` is `@Volatile`. `terminateWithError` is invoked from the reader coroutine but MUST NOT take the mutex inline (the reader holds no lock, but teardown cancels the reader job) — it sets state then LAUNCHES the guarded teardown on `scope`:
+- [x] **Action 3.2.6** — add a single mutex-guarded teardown used by BOTH error-termination and `stop()`, to avoid races on `process`/job fields and deadlock. Synchronization contract: all of `process`, `stderrReaderJob`, `processMonitorJob`, `timeoutJob` are mutated ONLY inside `mutex.withLock`; `terminating` is `@Volatile`. `terminateWithError` is invoked from the reader coroutine but MUST NOT take the mutex inline (the reader holds no lock, but teardown cancels the reader job) — it sets state then LAUNCHES the guarded teardown on `scope`:
 ```kotlin
     private fun terminateWithError(message: String) {
         terminating = true
@@ -366,19 +366,19 @@ internal fun buildConnectionString(
         }
     }
 ```
-- [ ] **Action 3.2.7** — guard `startProcessMonitor` so it never overwrites an intentional Error: emit "exited unexpectedly" only when `!terminating && (_status.value is TunnelStatus.Connecting || _status.value is TunnelStatus.Connected)`. (Because `terminating` is set before the process is destroyed, the monitor observing the exit will skip the overwrite.) RETAIN the monitor's existing `mutex.withLock { process = null }` INSIDE this guarded branch (it runs only on a genuine unexpected exit, which is mutually exclusive with `terminating`, so it never conflicts with `shutdownProcess`); do NOT add a second teardown path in the monitor.
-- [ ] **Action 3.2.8** — refactor `stop()` to delegate to the shared teardown: `mutex` is taken inside `shutdownProcess`, so `stop()` calls `shutdownProcess(setDisconnected = true)` then sets `terminating = false`. `start()` MUST set `terminating = false` at its very beginning so a later restart is clean. (Deadlock-safety: teardown runs on `scope`, not on the reader coroutine; cancelling `stderrReaderJob` from teardown is safe because the reader holds no lock.)
+- [x] **Action 3.2.7** — guard `startProcessMonitor` so it never overwrites an intentional Error: emit "exited unexpectedly" only when `!terminating && (_status.value is TunnelStatus.Connecting || _status.value is TunnelStatus.Connected)`. (Because `terminating` is set before the process is destroyed, the monitor observing the exit will skip the overwrite.) RETAIN the monitor's existing `mutex.withLock { process = null }` INSIDE this guarded branch (it runs only on a genuine unexpected exit, which is mutually exclusive with `terminating`, so it never conflicts with `shutdownProcess`); do NOT add a second teardown path in the monitor.
+- [x] **Action 3.2.8** — refactor `stop()` to delegate to the shared teardown: `mutex` is taken inside `shutdownProcess`, so `stop()` calls `shutdownProcess(setDisconnected = true)` then sets `terminating = false`. `start()` MUST set `terminating = false` at its very beginning so a later restart is clean. (Deadlock-safety: teardown runs on `scope`, not on the reader coroutine; cancelling `stderrReaderJob` from teardown is safe because the reader holds no lock.)
 
 **DoD:**
-- [ ] Token command has the exact argument order and no `--url`.
-- [ ] Mismatch / no-config / empty-token paths set Error and kill the process.
-- [ ] Re-validation runs on every config push.
-- [ ] No coroutine leaks (`timeoutJob` cancelled on connect, error, and stop).
-- [ ] `process` and all job fields are mutated only under `mutex`; `terminating` is `@Volatile`; teardown runs on `scope` (never inline in the reader) so `stop()` and `terminateWithError` cannot deadlock.
+- [x] Token command has the exact argument order and no `--url`.
+- [x] Mismatch / no-config / empty-token paths set Error and kill the process.
+- [x] Re-validation runs on every config push.
+- [x] No coroutine leaks (`timeoutJob` cancelled on connect, error, and stop).
+- [x] `process` and all job fields are mutated only under `mutex`; `terminating` is `@Volatile`; teardown runs on `scope` (never inline in the reader) so `stop()` and `terminateWithError` cannot deadlock.
 
 ### Task 3.3 — Provider unit tests (no network, no credentials)
 
-- [ ] **Action 3.3.1** — modify `app/src/test/kotlin/com/danielealbano/androidremotecontrolmcp/services/tunnel/CloudflareTunnelProviderTest.kt`.
+- [x] **Action 3.3.1** — modify `app/src/test/kotlin/com/danielealbano/androidremotecontrolmcp/services/tunnel/CloudflareTunnelProviderTest.kt`.
 
 **Setup — real captured fixtures (constants in the test):**
 - `CONFIG_LINE_VALID` = the real `Updated to new configuration` line (single hostname `service":"http://localhost:8080"`).
@@ -412,7 +412,7 @@ internal fun buildConnectionString(
 > Note (timeout testability): the production scope uses `Dispatchers.IO`, so `runTest` virtual time CANNOT fast-forward the timeout `delay`. The REQUIRED approach is the `internal var configTimeoutMs` property (Action 3.2.5); the test sets `provider.configTimeoutMs = 100` before `start()`. Do NOT use a constructor parameter (Hilt cannot provide a `Long`). Do NOT change the production default (10 s). Do NOT rely on `runTest` virtual time for this `delay`.
 
 **DoD:**
-- [ ] Pure-helper and fake-binary tests added (run in US6).
+- [x] Pure-helper and fake-binary tests added (run in US6).
 
 ---
 
