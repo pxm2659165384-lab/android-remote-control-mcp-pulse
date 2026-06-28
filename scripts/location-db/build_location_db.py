@@ -10,7 +10,7 @@ Usage:
   python3 build_location_db.py --csv /path/to/dbip-city-lite.csv.gz --out out.bin.gz
 
 By default the current month's CSV is downloaded (and cached) if --csv is not given.
-IPv4 city-level only in this pass; IPv6 (country-level) is added next.
+Both IPv4 and IPv6 are ingested at city granularity.
 
 Attribution: this product includes IP geolocation data created by DB-IP.com,
 available from https://db-ip.com, licensed under CC BY 4.0.

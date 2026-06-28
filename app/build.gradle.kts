@@ -1,4 +1,5 @@
 import java.io.FileInputStream
+import java.time.YearMonth
 import java.util.Properties
 
 plugins {
@@ -299,17 +300,19 @@ dependencies {
     testRuntimeOnly(files("../vendor/ngrok-java/ngrok-java-native/target/ngrok-java-native-host.jar"))
 }
 
-// Offline IP-geolocation database, generated at build time from DB-IP City Lite (CC BY 4.0).
-// The gzipped LDB1 asset is not committed; this generates it on first build (downloads the source
-// CSV if needed). Delete app/src/main/assets/geo/location-db.bin.gz to force a refresh.
+// Offline IP-geolocation database, generated at build time from the CURRENT month's DB-IP City Lite
+// (CC BY 4.0). The gzipped LDB1 asset is not committed (a generated artifact). Keyed on the year-month,
+// so it naturally refreshes when DB-IP publishes a new monthly DB: the task re-runs when the month rolls
+// over (and is up-to-date within the same month). Requires python3 + network access at build time.
 val generateLocationDb =
     tasks.register<Exec>("generateLocationDb") {
         val script = rootProject.layout.projectDirectory.file("scripts/location-db/build_location_db.py")
         val asset = layout.projectDirectory.file("src/main/assets/geo/location-db.bin.gz")
+        val month = YearMonth.now().toString()
         inputs.file(script)
+        inputs.property("dbMonth", month)
         outputs.file(asset)
-        onlyIf { !asset.asFile.exists() }
-        commandLine("python3", script.asFile.absolutePath, "--out", asset.asFile.absolutePath)
+        commandLine("python3", script.asFile.absolutePath, "--month", month, "--out", asset.asFile.absolutePath)
     }
 tasks.named("preBuild") { dependsOn(generateLocationDb) }
 
