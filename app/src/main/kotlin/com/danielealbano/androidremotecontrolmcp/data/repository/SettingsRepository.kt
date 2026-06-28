@@ -9,6 +9,7 @@ import com.danielealbano.androidremotecontrolmcp.data.model.NotificationFilterMo
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerConfig
 import com.danielealbano.androidremotecontrolmcp.data.model.StorageLocation
 import com.danielealbano.androidremotecontrolmcp.data.model.ToolPermissionsConfig
+import com.danielealbano.androidremotecontrolmcp.data.model.CloudflareTunnelMode
 import com.danielealbano.androidremotecontrolmcp.data.model.TunnelProviderType
 import kotlinx.coroutines.flow.Flow
 
@@ -146,6 +147,12 @@ interface SettingsRepository {
 
     /** Updates the ngrok domain (optional, empty string means auto-assigned). */
     suspend fun updateNgrokDomain(domain: String)
+
+    /** Updates the Cloudflare tunnel mode (Free quick tunnel vs token-based named tunnel). */
+    suspend fun updateCloudflareTunnelMode(mode: CloudflareTunnelMode)
+
+    /** Updates the Cloudflare tunnel token (required when using token mode). */
+    suspend fun updateCloudflareTunnelToken(token: String)
 
     /** Updates the file size limit for file operations (in MB). */
     suspend fun updateFileSizeLimit(limitMb: Int)

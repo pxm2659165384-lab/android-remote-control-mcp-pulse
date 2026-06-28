@@ -11,6 +11,7 @@ import app.cash.turbine.test
 import com.danielealbano.androidremotecontrolmcp.data.model.BindingAddress
 import com.danielealbano.androidremotecontrolmcp.data.model.BuiltinPermissions
 import com.danielealbano.androidremotecontrolmcp.data.model.CertificateSource
+import com.danielealbano.androidremotecontrolmcp.data.model.CloudflareTunnelMode
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerConfig
 import com.danielealbano.androidremotecontrolmcp.data.model.ToolPermissionsConfig
 import com.danielealbano.androidremotecontrolmcp.data.model.TunnelProviderType
@@ -544,6 +545,59 @@ class SettingsRepositoryImplTest {
                 val config2 = repository.getServerConfig()
 
                 assertEquals(config1.ngrokDomain, config2.ngrokDomain)
+            }
+    }
+
+    @Nested
+    @DisplayName("updateCloudflareTunnelMode")
+    inner class UpdateCloudflareTunnelMode {
+        @Test
+        fun `defaults to FREE when unset`() =
+            testScope.runTest {
+                val config = repository.getServerConfig()
+
+                assertEquals(CloudflareTunnelMode.FREE, config.cloudflareTunnelMode)
+            }
+
+        @Test
+        fun `persists TOKEN mode`() =
+            testScope.runTest {
+                repository.updateCloudflareTunnelMode(CloudflareTunnelMode.TOKEN)
+                val config = repository.getServerConfig()
+
+                assertEquals(CloudflareTunnelMode.TOKEN, config.cloudflareTunnelMode)
+            }
+
+        @Test
+        fun `unknown stored mode falls back to FREE`() =
+            testScope.runTest {
+                dataStore.edit { prefs ->
+                    prefs[stringPreferencesKey("cloudflare_tunnel_mode")] = "NOT_A_MODE"
+                }
+                val config = repository.getServerConfig()
+
+                assertEquals(CloudflareTunnelMode.FREE, config.cloudflareTunnelMode)
+            }
+    }
+
+    @Nested
+    @DisplayName("updateCloudflareTunnelToken")
+    inner class UpdateCloudflareTunnelToken {
+        @Test
+        fun `defaults to empty when unset`() =
+            testScope.runTest {
+                val config = repository.getServerConfig()
+
+                assertEquals("", config.cloudflareTunnelToken)
+            }
+
+        @Test
+        fun `persists token`() =
+            testScope.runTest {
+                repository.updateCloudflareTunnelToken("cf-token-xyz789")
+                val config = repository.getServerConfig()
+
+                assertEquals("cf-token-xyz789", config.cloudflareTunnelToken)
             }
     }
 

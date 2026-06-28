@@ -37,13 +37,13 @@ Adds a second Cloudflare tunnel mode ("With Token") alongside the existing quick
 **Why:** Token mode needs two new persisted settings; without them the provider and UI cannot branch. Storage MUST go through `SettingsRepository` (project rule).
 
 **Acceptance criteria:**
-- [ ] `CloudflareTunnelMode` enum exists with `FREE`, `TOKEN`.
-- [ ] `ServerConfig` exposes `cloudflareTunnelMode` (default `FREE`) and `cloudflareTunnelToken` (default `""`).
-- [ ] `SettingsRepository` persists and restores both, with correct defaults and enum fallback.
+- [x] `CloudflareTunnelMode` enum exists with `FREE`, `TOKEN`.
+- [x] `ServerConfig` exposes `cloudflareTunnelMode` (default `FREE`) and `cloudflareTunnelToken` (default `""`).
+- [x] `SettingsRepository` persists and restores both, with correct defaults and enum fallback.
 
 ### Task 1.1 — Add `CloudflareTunnelMode` enum
 
-- [ ] **Action 1.1.1** — create `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/data/model/CloudflareTunnelMode.kt`:
+- [x] **Action 1.1.1** — create `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/data/model/CloudflareTunnelMode.kt`:
 ```kotlin
 package com.danielealbano.androidremotecontrolmcp.data.model
 
@@ -58,22 +58,22 @@ enum class CloudflareTunnelMode {
 ```
 
 **DoD:**
-- [ ] Enum compiles; same package as `TunnelProviderType`.
+- [x] Enum compiles; same package as `TunnelProviderType`.
 
 ### Task 1.2 — Extend `ServerConfig`
 
-- [ ] **Action 1.2.1** — modify `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/data/model/ServerConfig.kt`: add fields after `ngrokDomain` and matching KDoc `@property` lines:
+- [x] **Action 1.2.1** — modify `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/data/model/ServerConfig.kt`: add fields after `ngrokDomain` and matching KDoc `@property` lines:
 ```kotlin
     val cloudflareTunnelMode: CloudflareTunnelMode = CloudflareTunnelMode.FREE,
     val cloudflareTunnelToken: String = "",
 ```
 
 **DoD:**
-- [ ] Field defaults are `FREE` / `""`; KDoc updated; no import needed (same package).
+- [x] Field defaults are `FREE` / `""`; KDoc updated; no import needed (same package).
 
 ### Task 1.3 — Extend `SettingsRepository` interface
 
-- [ ] **Action 1.3.1** — modify `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/data/repository/SettingsRepository.kt`: add import for `CloudflareTunnelMode` and methods near the other tunnel methods:
+- [x] **Action 1.3.1** — modify `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/data/repository/SettingsRepository.kt`: add import for `CloudflareTunnelMode` and methods near the other tunnel methods:
 ```kotlin
     /** Updates the Cloudflare tunnel mode (Free quick tunnel vs token-based named tunnel). */
     suspend fun updateCloudflareTunnelMode(mode: CloudflareTunnelMode)
@@ -83,11 +83,11 @@ enum class CloudflareTunnelMode {
 ```
 
 **DoD:**
-- [ ] Interface compiles.
+- [x] Interface compiles.
 
 ### Task 1.4 — Implement persistence in `SettingsRepositoryImpl`
 
-- [ ] **Action 1.4.1** — modify `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/data/repository/SettingsRepositoryImpl.kt`:
+- [x] **Action 1.4.1** — modify `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/data/repository/SettingsRepositoryImpl.kt`:
   - Add import for `CloudflareTunnelMode`.
   - Add keys near the other tunnel keys:
 ```kotlin
@@ -116,11 +116,11 @@ enum class CloudflareTunnelMode {
 ```
 
 **DoD:**
-- [ ] Both settings round-trip; unknown stored mode falls back to `FREE`.
+- [x] Both settings round-trip; unknown stored mode falls back to `FREE`.
 
 ### Task 1.5 — Tests for new settings
 
-- [ ] **Action 1.5.1** — modify `app/src/test/kotlin/com/danielealbano/androidremotecontrolmcp/data/repository/SettingsRepositoryImplTest.kt`.
+- [x] **Action 1.5.1** — modify `app/src/test/kotlin/com/danielealbano/androidremotecontrolmcp/data/repository/SettingsRepositoryImplTest.kt`.
 
 **Setup:** existing repository test harness (in-memory/temp DataStore).
 
@@ -133,7 +133,7 @@ enum class CloudflareTunnelMode {
 | `unknown stored cloudflare mode falls back to FREE` | Enum fallback. **Setup:** write a bogus string into `cloudflare_tunnel_mode` then read |
 
 **DoD:**
-- [ ] Tests added (run in US6).
+- [x] Tests added (run in US6).
 
 ---
 
