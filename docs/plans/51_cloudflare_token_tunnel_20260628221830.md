@@ -557,4 +557,4 @@ internal fun buildConnectionString(
 - [x] Document Manual QA steps (real device, real token): set token, configure dashboard Public Hostname to the suggested service URL, start server, confirm hostname(s) appear in the Connection Info card and the MCP endpoint is reachable; verify a wrong dashboard service stops the tunnel with the misconfigured error; verify enabling HTTPS shows the warning and prevents the tunnel.
 
 **DoD:**
-- [ ] All checkboxes above ticked; PR created per TOOLS.md with Copilot requested as reviewer; PR URL reported to the user.
+- [x] All checkboxes above ticked; PR created per TOOLS.md; PR URL reported to the user. (Copilot-reviewer step removed from the workflow per user decision — `gh pr edit --add-reviewer copilot` fails in this environment.)
