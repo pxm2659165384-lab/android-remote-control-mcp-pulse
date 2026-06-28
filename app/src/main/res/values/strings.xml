@@ -191,7 +191,8 @@
     <string name="access_public_url_supporting">Leave empty to auto-detect from the request; overrides the host used for OAuth metadata and share links</string>
     <string name="access_no_auth_warning_title">Server has NO authentication</string>
     <string name="access_no_auth_warning_body">Anyone who can reach the server has full control of this device.</string>
-    <string name="access_autodetect_warning_body">OAuth metadata and links are auto-detected from request headers; on a network binding without a trusted proxy a client could spoof the host — set a Public URL override to pin it.</string>
+    <string name="access_internet_exposure_warning_title">Reachable over the internet</string>
+    <string name="access_internet_exposure_warning_body">A tunnel is active and authentication is off, so Android Remote Control can be accessed over the internet without any checks — anyone with the URL has full control of this device. Enable OAuth or the bearer token.</string>
     <string name="access_disable_auth_dialog_title">Disable all authentication?</string>
     <string name="access_disable_auth_dialog_body">This leaves the server with NO authentication. Anyone who can reach it has full control. Continue?</string>
     <string name="access_disable_auth_confirm">Disable anyway</string>

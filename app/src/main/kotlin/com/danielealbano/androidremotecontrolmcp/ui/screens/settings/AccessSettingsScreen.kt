@@ -49,7 +49,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danielealbano.androidremotecontrolmcp.R
-import com.danielealbano.androidremotecontrolmcp.data.model.BindingAddress
 import com.danielealbano.androidremotecontrolmcp.ui.viewmodels.AccessViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -109,6 +108,13 @@ fun AccessSettingsScreen(
                     body = stringResource(R.string.access_no_auth_warning_body),
                 )
                 Spacer(modifier = Modifier.height(16.dp))
+                if (serverConfig.tunnelEnabled) {
+                    WarningCard(
+                        title = stringResource(R.string.access_internet_exposure_warning_title),
+                        body = stringResource(R.string.access_internet_exposure_warning_body),
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
             }
 
             // OAuth toggle
@@ -135,13 +141,6 @@ fun AccessSettingsScreen(
                     },
                     modifier = Modifier.clickable(onClick = onNavigateClients),
                 )
-                if (serverConfig.bindingAddress == BindingAddress.NETWORK && publicUrlOverride.isBlank()) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    WarningCard(
-                        title = stringResource(R.string.access_no_auth_warning_title),
-                        body = stringResource(R.string.access_autodetect_warning_body),
-                    )
-                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
