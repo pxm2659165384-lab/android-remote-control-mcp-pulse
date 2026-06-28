@@ -232,35 +232,6 @@ class SharingIntegrationTest {
         }
 
     @Test
-    @DisplayName("reachability note appended only when no tunnel is connected")
-    fun reachabilityNote() =
-        runTest {
-            val noteFragment = "when a tunnel is active"
-
-            val inboxNoTunnel = newInbox()
-            val linkNoTunnel = newLinkService()
-            inboxNoTunnel.add(blobItem("doc.pdf", "application/pdf", byteArrayOf(1)))
-            runSharingApp(inboxNoTunnel, linkNoTunnel, SharingTestConfig(tunnelConnected = { false })) { client, _ ->
-                val result = client.callTool(name = "get_shared_content", arguments = emptyMap())
-                assertTrue(
-                    result.content.any { it is TextContent && it.text.contains(noteFragment) },
-                    "reachability note must be present without a tunnel",
-                )
-            }
-
-            val inboxTunnel = newInbox()
-            val linkTunnel = newLinkService()
-            inboxTunnel.add(blobItem("doc.pdf", "application/pdf", byteArrayOf(1)))
-            runSharingApp(inboxTunnel, linkTunnel, SharingTestConfig(tunnelConnected = { true })) { client, _ ->
-                val result = client.callTool(name = "get_shared_content", arguments = emptyMap())
-                assertFalse(
-                    result.content.any { it is TextContent && it.text.contains(noteFragment) },
-                    "reachability note must be absent with a tunnel",
-                )
-            }
-        }
-
-    @Test
     @DisplayName("share_file_via_web returns a capability url that resolves via /s/{token}")
     fun shareFileViaWebResolves() =
         runTest {
@@ -464,7 +435,6 @@ class SharingIntegrationTest {
     }
 
     private data class SharingTestConfig(
-        val tunnelConnected: () -> Boolean = { false },
         val fileOperationProvider: FileOperationProvider = mockk(relaxed = true),
         val requestHeaders: Map<String, String> = emptyMap(),
     )
@@ -483,7 +453,6 @@ class SharingIntegrationTest {
             config.fileOperationProvider,
             FILE_SIZE_LIMIT_MB,
             { BASE_URL },
-            config.tunnelConnected,
             "",
             ToolPermissionsConfig(),
         )
