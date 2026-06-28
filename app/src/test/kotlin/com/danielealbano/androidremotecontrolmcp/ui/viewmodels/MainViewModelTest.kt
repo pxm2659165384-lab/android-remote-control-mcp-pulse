@@ -5,6 +5,7 @@ import android.net.Uri
 import android.util.Log
 import com.danielealbano.androidremotecontrolmcp.data.model.BindingAddress
 import com.danielealbano.androidremotecontrolmcp.data.model.CertificateSource
+import com.danielealbano.androidremotecontrolmcp.data.model.CloudflareTunnelMode
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerConfig
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerLogEntry
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerStatus
@@ -442,6 +443,39 @@ class MainViewModelTest {
 
             assertEquals("my-authtoken", viewModel.ngrokAuthtokenInput.value)
             assertEquals("my.ngrok.app", viewModel.ngrokDomainInput.value)
+        }
+
+    @Test
+    fun `updateCloudflareTunnelMode calls repository`() =
+        runTest {
+            advanceUntilIdle()
+
+            viewModel.updateCloudflareTunnelMode(CloudflareTunnelMode.TOKEN)
+            advanceUntilIdle()
+
+            coVerify { settingsRepository.updateCloudflareTunnelMode(CloudflareTunnelMode.TOKEN) }
+        }
+
+    @Test
+    fun `updateCloudflareTunnelToken calls repository and updates input state`() =
+        runTest {
+            advanceUntilIdle()
+
+            viewModel.updateCloudflareTunnelToken("cf-token")
+            advanceUntilIdle()
+
+            assertEquals("cf-token", viewModel.cloudflareTokenInput.value)
+            coVerify { settingsRepository.updateCloudflareTunnelToken("cf-token") }
+        }
+
+    @Test
+    fun `serverConfig collection sets cloudflare token input`() =
+        runTest {
+            configFlow.value = configFlow.value.copy(cloudflareTunnelToken = "seeded-token")
+            viewModel = MainViewModel(settingsRepository, tunnelManager, storageLocationProvider, testDispatcher)
+            advanceUntilIdle()
+
+            assertEquals("seeded-token", viewModel.cloudflareTokenInput.value)
         }
 
     // ─── Storage Location Tests ─────────────────────────────────────────

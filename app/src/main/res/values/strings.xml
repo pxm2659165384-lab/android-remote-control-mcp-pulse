@@ -129,6 +129,15 @@
     <string name="remote_access_status_error">Error: %1$s</string>
     <string name="remote_access_public_url_label">Public URL</string>
     <string name="remote_access_ngrok_unsupported">ngrok is not available on this device (requires ARM64)</string>
+    <string name="remote_access_cloudflare_mode_label">Cloudflare Mode</string>
+    <string name="remote_access_cloudflare_mode_free">Free</string>
+    <string name="remote_access_cloudflare_mode_free_desc">Random temporary URL, no account</string>
+    <string name="remote_access_cloudflare_mode_token">With Token</string>
+    <string name="remote_access_cloudflare_mode_token_desc">Static hostname via your Cloudflare account</string>
+    <string name="remote_access_cloudflare_token_label">Cloudflare Tunnel Token</string>
+    <string name="remote_access_cloudflare_service_url_help">In your Cloudflare dashboard, set this tunnel\'s Public Hostname → Service to:</string>
+    <string name="remote_access_cloudflare_service_url_copy">Copy service URL</string>
+    <string name="remote_access_https_disabled_warning">Remote access is unavailable while HTTPS is enabled. Disable HTTPS to use a tunnel.</string>
 
     <!-- Connection Info -->
     <string name="connection_info_title">Connection Info</string>

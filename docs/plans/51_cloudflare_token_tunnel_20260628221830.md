@@ -465,12 +465,12 @@ internal fun buildConnectionString(
 **Why:** The user configures mode/token here, needs the exact dashboard service URL, and must be warned + blocked when HTTPS is on.
 
 **Acceptance criteria:**
-- [ ] Cloudflare provider shows a Free/With-Token selector; token mode shows a masked token field and the suggested dashboard service URL with a copy button.
-- [ ] When HTTPS is enabled, a warning banner appears at the top and the entire section is disabled.
+- [x] Cloudflare provider shows a Free/With-Token selector; token mode shows a masked token field and the suggested dashboard service URL with a copy button.
+- [x] When HTTPS is enabled, a warning banner appears at the top and the entire section is disabled.
 
 ### Task 5.1 — ViewModel additions
 
-- [ ] **Action 5.1.1** — modify `MainViewModel.kt`:
+- [x] **Action 5.1.1** — modify `MainViewModel.kt`:
   - Add `_cloudflareTokenInput` `MutableStateFlow("")` + public `cloudflareTokenInput`.
   - In the config-collection block (where `_ngrokAuthtokenInput` is set), set `_cloudflareTokenInput.value = config.cloudflareTunnelToken`.
   - Add:
@@ -487,11 +487,11 @@ internal fun buildConnectionString(
   - Add import for `CloudflareTunnelMode`.
 
 **DoD:**
-- [ ] ViewModel exposes token input + update methods (mirrors the ngrok pattern).
+- [x] ViewModel exposes token input + update methods (mirrors the ngrok pattern).
 
 ### Task 5.2 — Compose UI
 
-- [ ] **Action 5.2.1** — modify `TunnelSettingsScreen.kt`:
+- [x] **Action 5.2.1** — modify `TunnelSettingsScreen.kt`:
   - Collect `cloudflareTokenInput`; read `serverConfig.httpsEnabled`, `serverConfig.cloudflareTunnelMode`, `serverConfig.port`.
   - Compute `val sectionEnabled = isEnabled && !serverConfig.httpsEnabled`.
   - At the top of the scrollable `Column`, when `serverConfig.httpsEnabled`, render a warning banner (e.g. an `ElevatedCard`/`Text` with `colorScheme.error`) using `R.string.remote_access_https_disabled_warning`.
@@ -500,14 +500,14 @@ internal fun buildConnectionString(
   - When `provider == CLOUDFLARE && cloudflareTunnelMode == TOKEN`, render a new `CloudflareTokenFields` composable:
     - Masked `OutlinedTextField` for the token (show/hide trailing icon, mirrors `NgrokConfigFields`), `enabled = sectionEnabled`, `onValueChange = viewModel::updateCloudflareTunnelToken`.
     - A read-only suggested service URL row: label `remote_access_cloudflare_service_url_help`, value `"http://localhost:${serverConfig.port}"`, and a copy `IconButton` (`Icons.Default.ContentCopy`) using `LocalClipboardManager.current.setText(AnnotatedString(...))`.
-- [ ] **Action 5.2.2** — add the `CloudflareTokenFields` private composable in the same file.
+- [x] **Action 5.2.2** — add the `CloudflareTokenFields` private composable in the same file.
 
 **DoD:**
-- [ ] Free/Token selector visible only for Cloudflare; token field + suggested URL + copy visible only in token mode; whole section disabled + warning shown when HTTPS on.
+- [x] Free/Token selector visible only for Cloudflare; token field + suggested URL + copy visible only in token mode; whole section disabled + warning shown when HTTPS on.
 
 ### Task 5.3 — String resources
 
-- [ ] **Action 5.3.1** — modify `app/src/main/res/values/strings.xml`, add:
+- [x] **Action 5.3.1** — modify `app/src/main/res/values/strings.xml`, add:
 ```xml
     <string name="remote_access_cloudflare_mode_label">Cloudflare Mode</string>
     <string name="remote_access_cloudflare_mode_free">Free</string>
@@ -521,11 +521,11 @@ internal fun buildConnectionString(
 ```
 
 **DoD:**
-- [ ] All new UI strings resolved from resources (no hardcoded user-facing text in composables).
+- [x] All new UI strings resolved from resources (no hardcoded user-facing text in composables).
 
 ### Task 5.4 — UI/ViewModel tests
 
-- [ ] **Action 5.4.1** — modify `MainViewModelTest.kt` (and add a `TunnelSettingsScreen`/`ConnectionInfoCard` UI test if the project has Compose UI tests; otherwise cover via the ViewModel + pure helpers).
+- [x] **Action 5.4.1** — modify `MainViewModelTest.kt` (and add a `TunnelSettingsScreen`/`ConnectionInfoCard` UI test if the project has Compose UI tests; otherwise cover via the ViewModel + pure helpers).
 
 | Test | Verifies |
 |------|----------|
@@ -534,7 +534,7 @@ internal fun buildConnectionString(
 | `cloudflareTokenInput initialized from config` | Seeded from `serverConfig.cloudflareTunnelToken` |
 
 **DoD:**
-- [ ] ViewModel tests added (run in US6).
+- [x] ViewModel tests added (run in US6).
 
 ---
 
