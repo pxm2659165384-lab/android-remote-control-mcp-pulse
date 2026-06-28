@@ -23,8 +23,7 @@ class ConnectionInfoCardTest {
 
     private val running = ServerStatus.Running(port = 8080, bindingAddress = "127.0.0.1")
 
-    private fun connected(vararg urls: String) =
-        TunnelStatus.Connected(urls.toList(), TunnelProviderType.CLOUDFLARE)
+    private fun connected(vararg urls: String) = TunnelStatus.Connected(urls.toList(), TunnelProviderType.CLOUDFLARE)
 
     @Test
     fun `serverUrl includes mcp suffix`() {

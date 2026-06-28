@@ -221,9 +221,8 @@ class CloudflareTunnelProviderTest {
         return script.absolutePath
     }
 
-    private suspend fun CloudflareTunnelProvider.awaitStatus(
-        predicate: (TunnelStatus) -> Boolean,
-    ): TunnelStatus = withTimeout(AWAIT_TIMEOUT_MS) { status.first(predicate) }
+    private suspend fun CloudflareTunnelProvider.awaitStatus(predicate: (TunnelStatus) -> Boolean): TunnelStatus =
+        withTimeout(AWAIT_TIMEOUT_MS) { status.first(predicate) }
 
     @Nested
     @DisplayName("token-mode helpers")

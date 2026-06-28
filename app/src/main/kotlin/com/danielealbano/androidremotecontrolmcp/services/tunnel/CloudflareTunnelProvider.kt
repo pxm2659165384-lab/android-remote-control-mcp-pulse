@@ -105,7 +105,18 @@ class CloudflareTunnelProvider
                 val proc = pb.start()
                 process = proc
 
-                startFreeStderrReader(proc)
+                launchStderrReader(proc) { line ->
+                    val match = TUNNEL_URL_REGEX.find(line)
+                    if (match != null && _status.value is TunnelStatus.Connecting) {
+                        val url = match.value
+                        Log.i(TAG, "Cloudflare tunnel URL: $url")
+                        _status.value =
+                            TunnelStatus.Connected(
+                                urls = listOf(url),
+                                providerType = TunnelProviderType.CLOUDFLARE,
+                            )
+                    }
+                }
                 startProcessMonitor(proc)
             } catch (
                 @Suppress("TooGenericExceptionCaught") e: Exception,
@@ -144,7 +155,13 @@ class CloudflareTunnelProvider
                 val proc = pb.start()
                 process = proc
 
-                startTokenStderrReader(proc, localPort)
+                launchStderrReader(proc) { line ->
+                    // Skip non-JSON lines and act only on the remote-config push; `Registered tunnel
+                    // connection` is ignored so status stays Connecting until a valid config validates.
+                    if (!terminating && logMessageOf(line) == MSG_UPDATED_CONFIG) {
+                        configPayloadOf(line)?.let { handleTokenConfig(it, localPort) }
+                    }
+                }
                 startProcessMonitor(proc)
                 startTokenConfigTimeout()
             } catch (
@@ -202,66 +219,23 @@ class CloudflareTunnelProvider
             scope.launch { shutdownProcess(setDisconnected = false) }
         }
 
-        private fun startFreeStderrReader(proc: Process) {
-            stderrReaderJob =
-                scope.launch {
-                    try {
-                        val reader = BufferedReader(InputStreamReader(proc.errorStream))
-                        var line: String?
-                        while (isActive) {
-                            @Suppress("BlockingMethodInNonBlockingContext")
-                            line = reader.readLine()
-                            if (line == null) break
-
-                            Log.d(TAG, "cloudflared: $line")
-
-                            val match = TUNNEL_URL_REGEX.find(line)
-                            if (match != null && _status.value is TunnelStatus.Connecting) {
-                                val url = match.value
-                                Log.i(TAG, "Cloudflare tunnel URL: $url")
-                                _status.value =
-                                    TunnelStatus.Connected(
-                                        urls = listOf(url),
-                                        providerType = TunnelProviderType.CLOUDFLARE,
-                                    )
-                            }
-                        }
-                    } catch (
-                        @Suppress("TooGenericExceptionCaught") e: Exception,
-                    ) {
-                        if (isActive) {
-                            Log.w(TAG, "Error reading cloudflared stderr", e)
-                        }
-                    }
-                }
-        }
-
-        private fun startTokenStderrReader(
+        /**
+         * Launches a coroutine that reads the process stderr line by line and forwards each line to
+         * [onLine]. Shared by both modes; mode-specific handling lives in the caller's lambda.
+         */
+        private fun launchStderrReader(
             proc: Process,
-            localPort: Int,
+            onLine: (String) -> Unit,
         ) {
             stderrReaderJob =
                 scope.launch {
                     try {
                         val reader = BufferedReader(InputStreamReader(proc.errorStream))
-                        var line: String?
                         while (isActive) {
                             @Suppress("BlockingMethodInNonBlockingContext")
-                            line = reader.readLine()
-                            if (line == null) break
-
+                            val line = reader.readLine() ?: break
                             Log.d(TAG, "cloudflared: $line")
-
-                            if (terminating) continue
-                            // Skip non-JSON lines (e.g. the quic-go UDP-buffer warning) and act only
-                            // on the remote-config push; `Registered tunnel connection` is ignored so
-                            // status stays Connecting until a valid config is validated.
-                            if (logMessageOf(line) == MSG_UPDATED_CONFIG) {
-                                val payload = configPayloadOf(line)
-                                if (payload != null) {
-                                    handleTokenConfig(payload, localPort)
-                                }
-                            }
+                            onLine(line)
                         }
                     } catch (
                         @Suppress("TooGenericExceptionCaught") e: Exception,
@@ -320,9 +294,9 @@ class CloudflareTunnelProvider
                     @Suppress("BlockingMethodInNonBlockingContext")
                     val exitCode = proc.waitFor()
 
-                    if (isActive && !terminating &&
-                        (_status.value is TunnelStatus.Connecting || _status.value is TunnelStatus.Connected)
-                    ) {
+                    val statusIsLive =
+                        _status.value is TunnelStatus.Connecting || _status.value is TunnelStatus.Connected
+                    if (isActive && !terminating && statusIsLive) {
                         Log.w(TAG, "cloudflared process exited unexpectedly with code $exitCode")
                         _status.value =
                             TunnelStatus.Error(
@@ -354,13 +328,21 @@ class CloudflareTunnelProvider
             /** Returns the top-level `message` field of a cloudflared JSON log line, or null for non-JSON. */
             internal fun logMessageOf(line: String): String? =
                 runCatching {
-                    LOG_JSON.parseToJsonElement(line).jsonObject["message"]?.jsonPrimitive?.contentOrNull
+                    LOG_JSON
+                        .parseToJsonElement(line)
+                        .jsonObject["message"]
+                        ?.jsonPrimitive
+                        ?.contentOrNull
                 }.getOrNull()
 
             /** Returns the escaped `config` payload of an `Updated to new configuration` line, or null. */
             internal fun configPayloadOf(line: String): String? =
                 runCatching {
-                    LOG_JSON.parseToJsonElement(line).jsonObject["config"]?.jsonPrimitive?.contentOrNull
+                    LOG_JSON
+                        .parseToJsonElement(line)
+                        .jsonObject["config"]
+                        ?.jsonPrimitive
+                        ?.contentOrNull
                 }.getOrNull()
 
             /** Parses the nested config JSON into the ingress entries that declare a hostname. */
@@ -384,12 +366,11 @@ class CloudflareTunnelProvider
                 expectedPort: Int,
             ): Boolean {
                 val uri = runCatching { URI(service) }.getOrNull() ?: return false
-                if (uri.scheme != "http") return false
-                val host = uri.host ?: return false
-                if (host != "localhost" && host != "127.0.0.1") return false
-                if (uri.port != expectedPort) return false
                 val path = uri.path
-                return path.isNullOrEmpty() || path == "/"
+                return uri.scheme == "http" &&
+                    (uri.host == "localhost" || uri.host == "127.0.0.1") &&
+                    uri.port == expectedPort &&
+                    (path.isNullOrEmpty() || path == "/")
             }
         }
     }

@@ -197,58 +197,11 @@ fun TunnelSettingsScreen(
                     ) {
                         Column {
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = stringResource(R.string.remote_access_cloudflare_mode_label),
-                                style = MaterialTheme.typography.labelLarge,
+                            CloudflareModeSelector(
+                                selectedMode = serverConfig.cloudflareTunnelMode,
+                                enabled = sectionEnabled,
+                                onModeSelected = viewModel::updateCloudflareTunnelMode,
                             )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Column(modifier = Modifier.selectableGroup()) {
-                                CloudflareTunnelMode.entries.forEach { mode ->
-                                    Row(
-                                        modifier =
-                                            Modifier
-                                                .fillMaxWidth()
-                                                .selectable(
-                                                    selected = mode == serverConfig.cloudflareTunnelMode,
-                                                    onClick = { viewModel.updateCloudflareTunnelMode(mode) },
-                                                    role = Role.RadioButton,
-                                                    enabled = sectionEnabled,
-                                                ).padding(vertical = 4.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                    ) {
-                                        RadioButton(
-                                            selected = mode == serverConfig.cloudflareTunnelMode,
-                                            onClick = null,
-                                            enabled = sectionEnabled,
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text =
-                                                when (mode) {
-                                                    CloudflareTunnelMode.FREE ->
-                                                        stringResource(R.string.remote_access_cloudflare_mode_free)
-
-                                                    CloudflareTunnelMode.TOKEN ->
-                                                        stringResource(R.string.remote_access_cloudflare_mode_token)
-                                                },
-                                            style = MaterialTheme.typography.bodyLarge,
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text =
-                                                when (mode) {
-                                                    CloudflareTunnelMode.FREE ->
-                                                        stringResource(R.string.remote_access_cloudflare_mode_free_desc)
-
-                                                    CloudflareTunnelMode.TOKEN ->
-                                                        stringResource(R.string.remote_access_cloudflare_mode_token_desc)
-                                                },
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
-                                }
-                            }
                         }
                     }
 
@@ -358,6 +311,70 @@ private fun NgrokConfigFields(
             },
             modifier = Modifier.fillMaxWidth(),
         )
+    }
+}
+
+@Composable
+private fun CloudflareModeSelector(
+    selectedMode: CloudflareTunnelMode,
+    enabled: Boolean,
+    onModeSelected: (CloudflareTunnelMode) -> Unit,
+) {
+    Text(
+        text = stringResource(R.string.remote_access_cloudflare_mode_label),
+        style = MaterialTheme.typography.labelLarge,
+    )
+    Spacer(modifier = Modifier.height(4.dp))
+    Column(modifier = Modifier.selectableGroup()) {
+        CloudflareTunnelMode.entries.forEach { mode ->
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .selectable(
+                            selected = mode == selectedMode,
+                            onClick = { onModeSelected(mode) },
+                            role = Role.RadioButton,
+                            enabled = enabled,
+                        ).padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                RadioButton(
+                    selected = mode == selectedMode,
+                    onClick = null,
+                    enabled = enabled,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text =
+                        when (mode) {
+                            CloudflareTunnelMode.FREE -> {
+                                stringResource(R.string.remote_access_cloudflare_mode_free)
+                            }
+
+                            CloudflareTunnelMode.TOKEN -> {
+                                stringResource(R.string.remote_access_cloudflare_mode_token)
+                            }
+                        },
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text =
+                        when (mode) {
+                            CloudflareTunnelMode.FREE -> {
+                                stringResource(R.string.remote_access_cloudflare_mode_free_desc)
+                            }
+
+                            CloudflareTunnelMode.TOKEN -> {
+                                stringResource(R.string.remote_access_cloudflare_mode_token_desc)
+                            }
+                        },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 }
 
