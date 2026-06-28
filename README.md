@@ -16,7 +16,7 @@ The app runs directly on your Android device (or emulator) and exposes an HTTP s
 ### MCP Server
 - HTTP server running directly on Android (Ktor + Netty), with optional HTTPS
 - Streamable HTTP transport at `/mcp` (MCP specification compliant, JSON-only, no SSE)
-- Bearer token authentication (global, all requests)
+- Combined authentication: static bearer token and/or a self-contained OAuth 2.1 server (Claude.ai / Claude Desktop custom connectors, with on-device approval)
 - Auto-generated self-signed TLS certificates (or custom certificate upload)
 - Configurable binding: localhost (127.0.0.1) or network (0.0.0.0)
 - Auto-start on boot
@@ -135,23 +135,27 @@ Add the server to your `.mcp.json` configuration file:
 
 Replace `DEVICE_IP`, `PORT`, and `YOUR_TOKEN` with the values shown in the app's Server tab. If the server is bound to localhost (default), you'll need [adb port forwarding](#using-with-adb-port-forwarding) or a [remote access tunnel](#using-remote-access-tunnels) to connect.
 
-> **Note for clients without custom-header support (e.g. Claude Desktop):** if your MCP client cannot send an `Authorization` header, you can clear the bearer token in the app (Settings → General → Bearer Token → Clear). When the token is empty, the server skips authentication entirely. Only do this on a network you trust — anyone who can reach the server will be able to use it.
+> **Note for clients without custom-header support:** if your MCP client cannot send an `Authorization` header and does not support OAuth, you can turn off both auth methods in the app (**Settings → Access** — disable Bearer token and OAuth). The app warns and asks you to confirm, because the server is then **open**: anyone who can reach it has full control. Only do this on a network you trust.
 
-### Claude.ai & Claude Desktop (Custom Connector)
+### Connect from Claude.ai & Claude Desktop (Custom Connector, OAuth)
 
-Claude.ai (web) and Claude Desktop can connect to the server as a **custom connector** (remote MCP). This requires the server to be reachable over a **public HTTPS URL**, so you must first enable a [remote access tunnel](#using-remote-access-tunnels) — a `localhost`/LAN address or `adb` port-forward will **not** work.
+Claude.ai (web) and Claude Desktop connect as a **custom connector** (remote MCP) using OAuth 2.1 — the app is its own OAuth Authorization Server, so no external account or pre-registration is needed. This requires the server to be reachable over a **public HTTPS URL**, so you must first enable a [remote access tunnel](#using-remote-access-tunnels) — a `localhost`/LAN address or `adb` port-forward will **not** work.
 
-1. In the app, open **Settings → Tunnel**, enable **Remote Access** (Cloudflare Quick Tunnels needs no account), and start the server. Copy the public `https://…` URL from the connection info on the Server tab and append `/mcp` (e.g. `https://your-tunnel.trycloudflare.com/mcp`).
-2. Custom connectors authenticate via OAuth and cannot send a bearer token, so **clear the bearer token** in the app (**Settings → General → Bearer Token → Clear**). With an empty token the server accepts unauthenticated requests.
-3. In Claude, open **[Customize → Connectors → Add custom connector](https://claude.ai/customize/connectors?modal=add-custom-connector)**, paste the `https://…/mcp` URL, and click **Add**.
+1. In the app, open **Settings → Access** and enable **OAuth**. (You can keep the bearer token enabled too — both are accepted.)
+2. Open **Settings → Tunnel**, enable **Remote Access** (Cloudflare Quick Tunnels needs no account), and start the server. Copy the public `https://…` URL from the Server tab and append `/mcp` (e.g. `https://your-tunnel.trycloudflare.com/mcp`).
+3. In Claude, open **[Customize → Connectors → Add custom connector](https://claude.ai/customize/connectors?modal=add-custom-connector)**, paste the `https://…/mcp` URL, and **leave the OAuth Client ID and Client Secret blank** (the app uses Dynamic Client Registration). Click **Add**.
+4. Claude opens a browser approval page showing a **2-digit code**. On the device, a heads-up notification appears — tap it to open the in-app approval screen, confirm the code matches, and **Approve**.
+5. Manage or revoke connected clients any time under **Settings → Access → Connected clients**. Revoking immediately invalidates that client's tokens.
+
+> **Public URL override (optional):** if your tunnel/host topology needs a fixed public host (or you bind to `0.0.0.0` without a trusted proxy), set a **Public URL override** in Settings → Access so OAuth metadata and links use a stable host.
 
 Custom connectors are available on the Free (1 connector), Pro, Max, Team, and Enterprise plans (currently in beta).
 
-> ⚠️ **Security:** an empty token means **anyone who knows the public tunnel URL can fully control your device** — and any apps or accounts signed in on it. Use this only on a tunnel you control, treat the URL as a secret, stop the tunnel and server when you are done, and never point it at a device holding sensitive data. The server currently supports only bearer-token auth, not OAuth.
+> ⚠️ **Security:** treat the public tunnel URL as sensitive, approve only connections you initiated (verify the 2-digit code), revoke clients you no longer use, and stop the tunnel and server when you are done. Never point it at a device holding sensitive data.
 
 ### Other MCP Clients
 
-The MCP server exposes a standard Streamable HTTP endpoint at `/mcp` with bearer token authentication. Any MCP-compatible client can connect to it — refer to your client's documentation for the specific configuration format.
+The MCP server exposes a standard Streamable HTTP endpoint at `/mcp` with combined authentication (static bearer token and/or OAuth 2.1). Any MCP-compatible client can connect to it — refer to your client's documentation for the specific configuration format.
 
 ### Testing with MCP Inspector
 
@@ -205,7 +209,7 @@ curl -X POST http://localhost:8080/mcp \
 
 Replace `SESSION_ID` with the `mcp-session-id` value from the initialize response headers.
 
-When configured (non-empty), the bearer token is displayed in the app's connection info section and can be copied directly from the app. When the token is cleared, the row is hidden and the server accepts unauthenticated requests.
+The bearer token is shown in the app's connection info and can be copied directly. Bearer authentication is controlled by the **Bearer token** toggle in **Settings → Access** (not by clearing the value): with it enabled, every `/mcp` request must present the token (or a valid OAuth access token). The server accepts unauthenticated requests only when **both** the Bearer token and OAuth are disabled.
 
 ---
 
@@ -217,7 +221,9 @@ When configured (non-empty), the bearer token is displayed in the app's connecti
 |---------|---------|-------------|
 | Port | `8080` | HTTP/HTTPS server port |
 | Binding Address | `127.0.0.1` | `127.0.0.1` (localhost, use with adb port forwarding) or `0.0.0.0` (network, all interfaces) |
-| Bearer Token | Auto-generated UUID (one-shot, clearable) | Authentication token for MCP requests. Cleared = authentication disabled. |
+| Bearer Token | Enabled, auto-generated UUID | Static token for MCP requests (Settings → Access). Enforcement is set by the Bearer toggle, not by clearing the value. |
+| OAuth | Disabled | Self-contained OAuth 2.1 server for Claude.ai / Claude Desktop custom connectors (Settings → Access). |
+| Public URL override | Empty (auto-detect) | Pin the public host used for OAuth metadata and share links. |
 | HTTPS | Disabled | Enable HTTPS with auto-generated self-signed certificate (configurable hostname) or upload custom .p12/.pfx |
 | Auto-start on Boot | Disabled | Start MCP server automatically when device boots |
 | Device Slug | Empty | Optional device identifier for tool name prefix (e.g., `pixel7` makes tools `android_pixel7_tap`) |

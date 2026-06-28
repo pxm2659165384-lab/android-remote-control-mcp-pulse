@@ -172,7 +172,15 @@ The application implements the **Model Context Protocol (MCP)** specification fr
 - **Transport**: Streamable HTTP (JSON-only, no SSE) via the MCP Kotlin SDK's `StreamableHttpServerTransport(enableJsonResponse = true)`
 - **Endpoint**: `POST /mcp` — Single MCP endpoint handling all protocol messages (initialize, tools/list, tools/call, etc.)
 - **Framework**: Ktor Server (async, coroutine-based)
-- **Authentication**: Global Application-level bearer token (`Authorization: Bearer <token>`) is enforced on all routes EXCEPT `/health` when the token is configured (non-empty). When the bearer token is empty, the `BearerTokenAuthPlugin` skips authentication entirely (intended for clients that cannot send custom headers, e.g. Claude Desktop). The `/health` endpoint remains unauthenticated in all states.
+- **Authentication**: Global Application-level `McpAuthPlugin` enforcing combined (dual-accept) auth on `/mcp`: a request is authorized when it presents the static bearer token (`Authorization: Bearer <token>`) OR a valid issued OAuth access token. Two independent toggles control it — `bearer_token_enabled` (default true) and `oauth_enabled` (default false). Authentication is required iff at least one is enabled; with BOTH disabled the server is OPEN (explicit, allowed — the UI warns and confirms). Clearing the bearer token while `bearer_token_enabled=true` does NOT open the server: it fails CLOSED (401) until a token is set or bearer is disabled. The `/health` endpoint, the `/.well-known/` namespace, the unauthenticated OAuth endpoints (`/register`, `/authorize`, `/authorize/status`, `/token`), and the `/s/` capability route are excluded from auth. A 401 carries `WWW-Authenticate: Bearer resource_metadata="…/.well-known/oauth-protected-resource/mcp"` ONLY when OAuth is enabled.
+
+#### OAuth 2.1 Authorization Server (self-contained)
+The app is its own OAuth Authorization Server and Resource Server, so Claude.ai / Claude Desktop custom connectors (which speak only OAuth 2.1 + PKCE) can connect. Because the app both mints and verifies tokens, they are HS256-signed with a device-held secret (no JWKS).
+- **Endpoints** (all unauthenticated, mounted only when `oauth_enabled`): `GET /.well-known/oauth-protected-resource` (and path-suffixed `…/mcp`), `GET /.well-known/oauth-authorization-server` (+ `openid-configuration` + path-suffixed alias), `POST /register` (RFC 7591 DCR), `GET /authorize` (+ `GET /authorize/status` poll), `POST /token`.
+- **Tokens**: access JWT TTL 24h, refresh JWT TTL 90d, authorization code TTL 60s. Both access and refresh carry `aud` = the canonical resource (`<base>/mcp`) and a `client_id` claim. The signing secret is generated once (SecureRandom, base64url) and persisted in DataStore (`jwt_signing_secret`).
+- **Approval**: on-device number-match — `/authorize` shows a 2-digit code and registers a pending approval (5-minute window); the user approves in-app (heads-up notification → approval screen) and `/authorize/status` polls the result.
+- **Client registry**: persisted in a dedicated DataStore (`oauth_clients`), capped at 20 (eviction prefers clients that never completed a token grant, protecting approved clients from registration spam). Revoking a client immediately invalidates its tokens. `/mcp` validates signature + exp + `aud` + the client still being registered (instant revocation), and updates last-used (debounced).
+- **Public base URL**: every absolute URL (OAuth metadata, `aud`, share links) is derived from the request (`X-Forwarded-Host`/`Host` + `X-Forwarded-Proto`), or pinned by the optional `public_url_override` setting (empty = auto-detect; also adb-configurable).
 - **Content-Type**: `application/json`
 - **Compatibility**: Standard MCP clients (`mcp-remote`, Claude Desktop, etc.) can connect via the standard `/mcp` endpoint
 
@@ -579,8 +587,9 @@ HomeScreen contains a TopAppBar, then a scrollable layout with: ServerStatusCard
 ### Bearer Token Security
 
 - Stored in DataStore (Preferences DataStore, accessed via `SettingsRepository`)
-- Auto-generated UUID exactly once on first launch (preserved across app upgrades); user can view, copy, regenerate, or clear via the UI. Clearing the token disables bearer-token authentication on the MCP server.
-- When the bearer token is configured (non-empty), every MCP request must include an `Authorization: Bearer <token>` header. When the bearer token is empty, the server skips authentication entirely.
+- Auto-generated UUID exactly once on first launch (preserved across app upgrades); user can view, copy, regenerate via the UI (Settings → Access). Whether bearer auth is enforced is controlled by the `bearer_token_enabled` toggle, NOT by the value: disabling keeps the value (re-enabling restores it); enabling with an empty value auto-generates one.
+- When `bearer_token_enabled=true`, every MCP request must present a valid `Authorization: Bearer <token>` header (or, when `oauth_enabled`, a valid OAuth access token — dual-accept). Clearing the token while bearer is enabled fails CLOSED (401) — it does NOT open the server. The server is open only when BOTH `bearer_token_enabled` and `oauth_enabled` are false.
+- One-time migration on upgrade preserves current behavior: `bearer_token_enabled` is initialized once from whether a non-empty token already existed (fresh install → enabled + auto-generated token).
 - Constant-time comparison to prevent timing attacks; return `401 Unauthorized` if invalid/missing
 
 ### HTTPS (Optional — Disabled by Default)
@@ -651,7 +660,9 @@ MCP tools return data originating from the Android device (UI element text, cont
 
 - **Port**: `8080`
 - **Binding Address**: `127.0.0.1` (localhost)
-- **Bearer Token**: Auto-generated UUID once on first launch (persisted, upgrade-safe); can be cleared in-app or via `--es bearer_token ""` to disable authentication.
+- **Bearer Token**: Auto-generated UUID once on first launch (persisted, upgrade-safe). Whether bearer auth is enforced is set by `bearer_token_enabled` (default true), not by the value — clearing the value (`--es bearer_token ""`) while enabled fails closed (401), it does NOT disable auth. To disable bearer auth use `--ez bearer_token_enabled false`.
+- **OAuth**: Disabled by default (`oauth_enabled`, default false). Enable for Claude.ai / Claude Desktop connectors via the UI or `--ez oauth_enabled true`.
+- **Public URL override**: Empty by default (`public_url_override`); when set (UI or `--es public_url_override <url>`) it pins the host used for OAuth metadata and share links.
 - **HTTPS**: Disabled by default (HTTP is the primary transport). When enabled by the user, uses auto-generated self-signed certificate with hostname "android-mcp.local", 1-year validity. Clients must allow insecure/self-signed certificates.
 - **Auto-start on Boot**: Disabled
 - **Remote Access Tunnel**: Disabled by default

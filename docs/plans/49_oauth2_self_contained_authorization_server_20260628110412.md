@@ -519,23 +519,23 @@
 **Why:** Keep the source-of-truth docs accurate for the new auth model and OAuth AS.
 
 **Acceptance criteria:**
-- [ ] PROJECT.md, ARCHITECTURE.md, README.md reflect the new auth model, OAuth AS, approval flow, public-URL override, and adb keys. Mermaid diagrams validated with `mmdc`.
+- [x] PROJECT.md, ARCHITECTURE.md, README.md reflect the new auth model, OAuth AS, approval flow, public-URL override, and adb keys. Mermaid diagrams validated with `mmdc`.
 
 ### Task 6.1 — PROJECT.md
-- [ ] **Action:** modify `docs/PROJECT.md` — document the auth model (`oauth_enabled` default false, `bearer_token_enabled` default true, `bearer_token` value, `public_url_override`; "no auth when both off"), the migration, the new DataStore keys, the JWT signing secret, token TTLs, client-registry cap, and the OAuth AS endpoints. Update the Authorization section to reflect dual-accept. CRITICAL: the new model REMOVES the old "empty bearer token = auth disabled" semantics — locate and rewrite EVERY stale assertion of it, including (search for the current text; line numbers approximate) ~line 175 ("When the bearer token is empty, the plugin skips authentication entirely"), ~lines 582–583 ("Clearing the token disables bearer-token authentication" / "When the bearer token is empty, the server skips authentication"), and ~line 654 (`--es bearer_token ""` to disable authentication). Replace with: authentication is controlled by `bearer_token_enabled`/`oauth_enabled`; clearing the token while `bearer_token_enabled=true` fails CLOSED (401), it does NOT open the server.
-- [ ] **DoD:** Settings/defaults documented; consistent with implementation.
+- [x] **Action:** modify `docs/PROJECT.md` — document the auth model (`oauth_enabled` default false, `bearer_token_enabled` default true, `bearer_token` value, `public_url_override`; "no auth when both off"), the migration, the new DataStore keys, the JWT signing secret, token TTLs, client-registry cap, and the OAuth AS endpoints. Update the Authorization section to reflect dual-accept. CRITICAL: the new model REMOVES the old "empty bearer token = auth disabled" semantics — locate and rewrite EVERY stale assertion of it, including (search for the current text; line numbers approximate) ~line 175 ("When the bearer token is empty, the plugin skips authentication entirely"), ~lines 582–583 ("Clearing the token disables bearer-token authentication" / "When the bearer token is empty, the server skips authentication"), and ~line 654 (`--es bearer_token ""` to disable authentication). Replace with: authentication is controlled by `bearer_token_enabled`/`oauth_enabled`; clearing the token while `bearer_token_enabled=true` fails CLOSED (401), it does NOT open the server.
+- [x] **DoD:** Settings/defaults documented; consistent with implementation.
 
 ### Task 6.2 — ARCHITECTURE.md
-- [ ] **Action:** modify `docs/ARCHITECTURE.md` — add the OAuth AS components (`mcp/oauth/*`, `OAuthClientRepository`, approval coordinator, combined auth plugin, request-base-URL helper) and a Mermaid sequence diagram of the discovery→DCR→authorize(approval)→token→/mcp flow. Validate every Mermaid diagram with `mmdc` (load nvm first if needed).
-- [ ] **DoD:** Diagram validated with `mmdc`; components described.
+- [x] **Action:** modify `docs/ARCHITECTURE.md` — add the OAuth AS components (`mcp/oauth/*`, `OAuthClientRepository`, approval coordinator, combined auth plugin, request-base-URL helper) and a Mermaid sequence diagram of the discovery→DCR→authorize(approval)→token→/mcp flow. Validate every Mermaid diagram with `mmdc` (load nvm first if needed).
+- [x] **DoD:** Diagram validated with `mmdc`; components described.
 
 ### Task 6.3 — README.md
-- [ ] **Action:** modify `README.md` — add a "Connect from Claude.ai" section: requires a tunnel (HTTPS, public reachability); enter the connector URL as `https://<host>/mcp`; leave OAuth Client ID/Secret blank (DCR); approve the connection on the device using the 2-digit code; manage/revoke clients in Settings → Access → Connected clients; optional public-URL override for non-standard topologies.
-- [ ] **DoD:** Accurate user-facing steps.
+- [x] **Action:** modify `README.md` — add a "Connect from Claude.ai" section: requires a tunnel (HTTPS, public reachability); enter the connector URL as `https://<host>/mcp`; leave OAuth Client ID/Secret blank (DCR); approve the connection on the device using the 2-digit code; manage/revoke clients in Settings → Access → Connected clients; optional public-URL override for non-standard topologies.
+- [x] **DoD:** Accurate user-facing steps.
 
 ### Task 6.4 — MCP_TOOLS.md (only if needed)
-- [ ] **Action:** modify `docs/MCP_TOOLS.md` ONLY to note that share-content URLs are now derived from the request host / override (no new tools added). If nothing else changes, leave untouched.
-- [ ] **DoD:** No stale tool docs; no new tools claimed.
+- [x] **Action:** modify `docs/MCP_TOOLS.md` ONLY to note that share-content URLs are now derived from the request host / override (no new tools added). If nothing else changes, leave untouched.
+- [x] **DoD:** No stale tool docs; no new tools claimed.
 
 ---
 

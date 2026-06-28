@@ -197,18 +197,47 @@ sequenceDiagram
 - HTTP by default; HTTPS available as optional toggle in settings
 - Certificate stored in app-private directory
 
-### Bearer Token (Authentication)
+### Combined Authentication (dual-accept)
 
-- When the token is configured (non-empty), every request requires an `Authorization: Bearer <token>` header (global Application-level plugin). When the token is empty, the plugin skips authentication entirely.
-- Token validated with constant-time comparison (prevents timing attacks)
-- Token auto-generated (UUID) once on first launch (existing tokens preserved on upgrade), persisted; user can regenerate or clear. When the token is empty, the `BearerTokenAuthPlugin` skips authentication entirely.
-- Token stored in DataStore (app-private)
+- The global Application-level `McpAuthPlugin` authorizes a `/mcp` request when it presents the static bearer token OR a valid issued OAuth access token. Two independent toggles control it: `bearer_token_enabled` (default true) and `oauth_enabled` (default false).
+- Auth is required iff at least one toggle is on; with BOTH off the server is OPEN (explicit — the UI shows a warning and a confirm dialog before the last method is disabled). An enabled-but-empty bearer fails CLOSED (401).
+- Bearer token validated with constant-time comparison; auto-generated (UUID) once on first launch (existing tokens preserved on upgrade), persisted in DataStore. The enabled flags are decoupled from the value (disabling keeps the value; enabling with an empty value auto-generates one). A one-time migration initializes `bearer_token_enabled` from whether a non-empty token already existed.
+- A 401 carries `WWW-Authenticate: Bearer resource_metadata="…/.well-known/oauth-protected-resource/mcp"` ONLY when OAuth is enabled (triggers Claude's discovery).
+
+### OAuth 2.1 Authorization Server (self-contained)
+
+- New components live under `mcp/oauth/`: `OAuthPolicy` (redirect allowlist, resource matching, TTL/cap constants), `Pkce` (S256), `JwtTokenService(Impl)` (HS256 issue/verify, memoized algorithm), `OAuthClientRepository(Impl)` (persisted registry in a dedicated `oauth_clients` DataStore with an in-memory snapshot), `AuthorizationCodeStore(Impl)` (single-use 60s codes), `OAuthApprovalCoordinator(Impl)` (number-match pending approvals), `OAuthMetadata` (RFC 9728/8414 docs), `OAuthRoutes` (the HTTP endpoints), `OAuthAccessValidator` (the `/mcp` token check, shared by server and tests), `LogoUrlPolicy` (SSRF guard for client-logo rendering). `RequestBaseUrl` derives the per-request public base URL (used by OAuth metadata/`aud` and the share-content links).
+- The app is both Authorization Server and Resource Server, so tokens are HS256-signed with a device-held secret (no JWKS). Access TTL 24h, refresh TTL 90d, code TTL 60s; both tokens carry `aud` = `<base>/mcp` and `client_id`.
+
+```mermaid
+sequenceDiagram
+    participant C as Claude.ai
+    participant S as MCP Server
+    participant U as User (device)
+    C->>S: POST /mcp (no token)
+    S-->>C: 401 + WWW-Authenticate (resource_metadata)
+    C->>S: GET /.well-known/oauth-protected-resource/mcp
+    C->>S: GET /.well-known/oauth-authorization-server
+    C->>S: POST /register (DCR)
+    S-->>C: 201 client_id
+    C->>S: GET /authorize (PKCE S256, resource)
+    S->>S: createPending (2-digit code)
+    S-->>C: consent page (polls /authorize/status)
+    U->>S: approve in-app (match code)
+    C->>S: GET /authorize/status
+    S-->>C: redirect with code
+    C->>S: POST /token (code_verifier, resource)
+    S-->>C: access + refresh JWT
+    C->>S: POST /mcp (Bearer access)
+    S->>S: verify sig + aud + client in registry
+    S-->>C: 200 (tools)
+```
 
 ### Network Binding (Exposure Control)
 
 - Default: `127.0.0.1` (localhost only, requires `adb forward`)
 - Optional: `0.0.0.0` (all interfaces, with security warning)
-- No external firewall; relies on Android's app sandbox, the network-binding choice (loopback by default), and the bearer token. When the bearer token is empty, the network binding is the only remaining layer — stay on loopback unless you trust the network.
+- No external firewall; relies on Android's app sandbox, the network-binding choice (loopback by default), and the combined auth. When both auth methods are disabled, the network binding is the only remaining layer — stay on loopback unless you trust the network.
 
 ---
 
