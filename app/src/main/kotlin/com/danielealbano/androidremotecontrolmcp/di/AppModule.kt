@@ -8,6 +8,8 @@ import com.danielealbano.androidremotecontrolmcp.data.repository.OAuthClientRepo
 import com.danielealbano.androidremotecontrolmcp.data.repository.OAuthClientRepositoryImpl
 import com.danielealbano.androidremotecontrolmcp.data.repository.SettingsRepository
 import com.danielealbano.androidremotecontrolmcp.data.repository.SettingsRepositoryImpl
+import com.danielealbano.androidremotecontrolmcp.geo.DbIpGeoResolver
+import com.danielealbano.androidremotecontrolmcp.geo.GeoIpResolver
 import com.danielealbano.androidremotecontrolmcp.mcp.oauth.AuthorizationCodeStore
 import com.danielealbano.androidremotecontrolmcp.mcp.oauth.AuthorizationCodeStoreImpl
 import com.danielealbano.androidremotecontrolmcp.mcp.oauth.JwtTokenService
@@ -131,6 +133,11 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindOAuthClientRepository(impl: OAuthClientRepositoryImpl): OAuthClientRepository
+
+    /** Binds the offline IP-geolocation resolver used to annotate connection requests. */
+    @Binds
+    @Singleton
+    abstract fun bindGeoIpResolver(impl: DbIpGeoResolver): GeoIpResolver
 }
 
 @Suppress("TooManyFunctions")

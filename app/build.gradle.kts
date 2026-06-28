@@ -299,6 +299,20 @@ dependencies {
     testRuntimeOnly(files("../vendor/ngrok-java/ngrok-java-native/target/ngrok-java-native-host.jar"))
 }
 
+// Offline IP-geolocation database, generated at build time from DB-IP City Lite (CC BY 4.0).
+// The gzipped LDB1 asset is not committed; this generates it on first build (downloads the source
+// CSV if needed). Delete app/src/main/assets/geo/location-db.bin.gz to force a refresh.
+val generateLocationDb =
+    tasks.register<Exec>("generateLocationDb") {
+        val script = rootProject.layout.projectDirectory.file("scripts/location-db/build_location_db.py")
+        val asset = layout.projectDirectory.file("src/main/assets/geo/location-db.bin.gz")
+        inputs.file(script)
+        outputs.file(asset)
+        onlyIf { !asset.asFile.exists() }
+        commandLine("python3", script.asFile.absolutePath, "--out", asset.asFile.absolutePath)
+    }
+tasks.named("preBuild") { dependsOn(generateLocationDb) }
+
 tasks.withType<Test> {
     useJUnitPlatform()
     maxHeapSize = "4g"

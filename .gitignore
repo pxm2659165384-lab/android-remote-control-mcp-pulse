@@ -74,3 +74,6 @@ app/src/main/jniLibs/
 channel-plugin/node_modules/
 app/hs_err_*.log
 app/replay_*.log
+
+# Generated offline geolocation DB (built from DB-IP City Lite at build time)
+app/src/main/assets/geo/location-db.bin.gz
