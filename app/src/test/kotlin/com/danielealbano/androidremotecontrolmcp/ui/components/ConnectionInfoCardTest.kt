@@ -251,7 +251,7 @@ class ConnectionInfoCardTest {
         val status =
             TunnelStatus.Connected(
                 endpoints = listOf(ep("https://a.example.com"), ep("https://b.example.com", valid = false)),
-                providerType = TunnelProviderType.CLOUDFLARE,
+                providerType = CLOUDFLARE,
             )
         val result =
             tunnelRowContent(
@@ -276,7 +276,7 @@ class ConnectionInfoCardTest {
                 tunnelStatus =
                     TunnelStatus.Connected(
                         endpoints = emptyList(),
-                        providerType = TunnelProviderType.CLOUDFLARE,
+                        providerType = CLOUDFLARE,
                     ),
             )
         assertEquals(TunnelRowContent.Connected(emptyList()), result)
