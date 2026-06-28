@@ -54,10 +54,14 @@ internal sealed interface TunnelRowState {
     data object Loading : TunnelRowState
 
     /** Tunnel connected — show the public address. */
-    data class Connected(val url: String) : TunnelRowState
+    data class Connected(
+        val url: String,
+    ) : TunnelRowState
 
     /** Tunnel failed — show the error message in red. */
-    data class Failed(val message: String) : TunnelRowState
+    data class Failed(
+        val message: String,
+    ) : TunnelRowState
 }
 
 /**
@@ -176,28 +180,7 @@ fun ConnectionInfoCard(
             }
             if (rowState != TunnelRowState.Hidden) {
                 ConnectionInfoRow(label = publicUrlLabel, labelWidth = labelColumnWidth) {
-                    when (rowState) {
-                        TunnelRowState.Loading ->
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                strokeWidth = 2.dp,
-                            )
-
-                        is TunnelRowState.Connected ->
-                            Text(
-                                text = "${rowState.url}/mcp",
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-
-                        is TunnelRowState.Failed ->
-                            Text(
-                                text = stringResource(R.string.remote_access_status_error, rowState.message),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.error,
-                            )
-
-                        TunnelRowState.Hidden -> Unit
-                    }
+                    TunnelRowValue(rowState = rowState)
                 }
             }
 
@@ -259,6 +242,37 @@ fun ConnectionInfoCard(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun TunnelRowValue(rowState: TunnelRowState) {
+    when (rowState) {
+        TunnelRowState.Loading -> {
+            CircularProgressIndicator(
+                modifier = Modifier.size(16.dp),
+                strokeWidth = 2.dp,
+            )
+        }
+
+        is TunnelRowState.Connected -> {
+            Text(
+                text = "${rowState.url}/mcp",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+
+        is TunnelRowState.Failed -> {
+            Text(
+                text = stringResource(R.string.remote_access_status_error, rowState.message),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+
+        TunnelRowState.Hidden -> {
+            Unit
         }
     }
 }
