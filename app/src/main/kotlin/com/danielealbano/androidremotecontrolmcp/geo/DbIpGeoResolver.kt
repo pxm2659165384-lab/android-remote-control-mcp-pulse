@@ -30,6 +30,13 @@ class DbIpGeoResolver
         private var loadAttempted = false
         private val lock = Any()
 
+        /**
+         * Numeric-IP parser seam. Production uses [InetAddresses.parseNumericAddress], which NEVER performs
+         * DNS, so an untrusted header value cannot trigger a lookup. Overridable in tests (the Android class
+         * is absent from the JVM test classpath).
+         */
+        internal var numericParser: (String) -> InetAddress? = { InetAddresses.parseNumericAddress(it) }
+
         override fun resolve(ip: String?): GeoLocation? {
             val address = parseNumeric(ip)?.takeUnless { isNonRoutable(it) } ?: return null
             return database()?.lookup(address)
@@ -40,8 +47,7 @@ class DbIpGeoResolver
 
         private fun parseNumeric(ip: String?): InetAddress? {
             val trimmed = ip?.trim()?.takeIf { it.isNotEmpty() } ?: return null
-            // parseNumericAddress never performs DNS, so an untrusted header value cannot trigger a lookup.
-            return runCatching { InetAddresses.parseNumericAddress(trimmed) }.getOrNull()
+            return runCatching { numericParser(trimmed) }.getOrNull()
         }
 
         private fun database(): LocationDb? {
@@ -82,6 +88,7 @@ class DbIpGeoResolver
                 }
             }
 
+        // Best-effort removal of previous-version copies (disk hygiene only; mapping correctness is unaffected).
         private fun cleanStaleCopies(keep: File) {
             keep.parentFile?.listFiles { f -> f.name.startsWith("location-db-") && f != keep }?.forEach { it.delete() }
         }
