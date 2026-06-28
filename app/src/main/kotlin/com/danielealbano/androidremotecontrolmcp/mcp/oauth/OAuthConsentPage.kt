@@ -1,32 +1,56 @@
 package com.danielealbano.androidremotecontrolmcp.mcp.oauth
 
+import io.ktor.http.ContentType
+import io.ktor.server.application.ApplicationCall
+import io.ktor.server.response.respondText
+
+private const val MILLIS_PER_SECOND = 1000L
+
 /**
- * Self-contained consent page served at `/authorize`. It displays the client name/host and the 2-digit
+ * Renders and responds with the [consentPageHtml] for [approval], resolving the requesting client's icon
+ * via [ClientIconUrl] and seeding the countdown from the window remaining at [nowMs].
+ */
+suspend fun ApplicationCall.respondConsentPage(
+    approval: PendingApproval,
+    displayName: String,
+    logoUri: String?,
+    redirectHost: String,
+    nowMs: Long,
+) {
+    val data =
+        ConsentPageData(
+            approvalId = approval.id,
+            matchCode = approval.matchCode,
+            clientName = displayName,
+            host = redirectHost,
+            expiresInSeconds = (approval.expiresAtMs - nowMs) / MILLIS_PER_SECOND,
+            iconUrl = ClientIconUrl.resolve(logoUri, redirectHost),
+        )
+    respondText(consentPageHtml(data), ContentType.Text.Html)
+}
+
+/**
+ * Consent page served at `/authorize`. It displays the requesting client's icon/name/host and the 2-digit
  * match code, counts down the remaining approval window, and polls `/authorize/status?id=<approvalId>`
  * every 2s. The ONLY approval gate is the explicit on-device action in the app — this page has no
- * approve/submit control; the match code is a UX confirmation, not a secret. No external resources are
- * referenced (the monogram is rendered in CSS), so nothing about the request leaks to a third party.
+ * approve/submit control; the match code is a UX confirmation, not a secret.
  */
-fun consentPageHtml(
-    approvalId: String,
-    matchCode: String,
-    clientName: String,
-    host: String,
-    expiresInSeconds: Long,
-): String {
-    val safeName = escapeHtml(clientName)
-    val safeHost = escapeHtml(host)
-    val safeId = escapeHtml(approvalId)
-    val safeCode = escapeHtml(matchCode)
+fun consentPageHtml(data: ConsentPageData): String {
+    val safeName = escapeHtml(data.clientName)
+    val safeHost = escapeHtml(data.host)
+    val safeId = escapeHtml(data.approvalId)
+    val safeCode = escapeHtml(data.matchCode)
     val initials =
         escapeHtml(
-            clientName
+            data.clientName
                 .trim()
                 .take(2)
                 .uppercase()
                 .ifEmpty { "?" },
         )
-    val seconds = expiresInSeconds.coerceAtLeast(0)
+    val iconTag =
+        data.iconUrl?.let { """<img class="icon" src="${escapeHtml(it)}" alt="" onerror="this.remove()">""" } ?: ""
+    val seconds = data.expiresInSeconds.coerceAtLeast(0)
     return """
         <!DOCTYPE html>
         <html lang="en">
@@ -38,7 +62,7 @@ fun consentPageHtml(
         </head>
         <body>
         <div class="card">
-          <div class="avatar">$initials</div>
+          <div class="avatar">$initials$iconTag</div>
           <h1>Approve <strong>$safeName</strong></h1>
           <div class="host">&#127760; $safeHost</div>
           <div class="prompt">Open Android Remote Control and approve the request showing this code:</div>
@@ -76,9 +100,14 @@ private val CONSENT_PAGE_STYLES =
       box-shadow: 0 12px 32px rgba(0,0,0,0.12);
     }
     .avatar {
+      position: relative; overflow: hidden;
       width: 72px; height: 72px; border-radius: 50%; margin: 0 auto 1rem;
       background: var(--accent); color: #fff; font-size: 1.75rem; font-weight: 600;
       display: flex; align-items: center; justify-content: center;
+    }
+    .avatar .icon {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      border-radius: 50%; object-fit: contain; background: #fff; padding: 10px;
     }
     h1 { font-size: 1.3rem; font-weight: 600; margin: 0 0 0.5rem; }
     h1 strong { font-weight: 700; }
