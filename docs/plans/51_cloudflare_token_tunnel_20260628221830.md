@@ -543,18 +543,18 @@ internal fun buildConnectionString(
 **Why:** Mandatory final pass to confirm the whole feature matches this plan and the agreed decisions, with all quality gates green.
 
 **Acceptance criteria (perform in order):**
-- [ ] Re-read EVERY file changed/created in US1–US5 against this plan; confirm each action was applied exactly and nothing out of scope was modified.
-- [ ] Confirm token-mode command is exactly `tunnel --output json run --token <TOKEN>` with NO `--url`.
-- [ ] Confirm non-JSON lines are skipped; `Registered tunnel connection` does not flip to Connected; only valid config push flips to Connected.
-- [ ] Confirm validation: `http`, host `localhost`/`127.0.0.1`, exact port; any invalid hostname route OR zero hostnames → Error + process killed; 10 s-from-start no-config → Error + process killed; re-validation on later pushes.
-- [ ] Confirm `TunnelStatus.Connected.urls` list propagated everywhere; settings screen shows no URL; Connection Info card lists all hostnames and copy/share has one line per hostname.
-- [ ] Confirm HTTPS: section disabled + warning banner in UI; `McpServerService` does not start a tunnel under HTTPS.
-- [ ] Confirm no AI attribution anywhere; no TODOs/placeholders; no linting suppressions added.
-- [ ] Run `make lint` — zero warnings/errors (fix any, including pre-existing per project rule).
-- [ ] Run the full test suite (`make test` / unit + JVM integration) — all green (fix any broken tests).
-- [ ] Run `./gradlew build` — succeeds with no warnings/errors.
-- [ ] Spawn the `code-reviewer` subagent in plan-compliance mode over the full diff; fix ALL findings; re-run until clean.
-- [ ] Document Manual QA steps (real device, real token): set token, configure dashboard Public Hostname to the suggested service URL, start server, confirm hostname(s) appear in the Connection Info card and the MCP endpoint is reachable; verify a wrong dashboard service stops the tunnel with the misconfigured error; verify enabling HTTPS shows the warning and prevents the tunnel.
+- [x] Re-read EVERY file changed/created in US1–US5 against this plan; confirm each action was applied exactly and nothing out of scope was modified.
+- [x] Confirm token-mode command is exactly `tunnel --output json run --token <TOKEN>` with NO `--url`.
+- [x] Confirm non-JSON lines are skipped; `Registered tunnel connection` does not flip to Connected; only valid config push flips to Connected.
+- [x] Confirm validation: `http`, host `localhost`/`127.0.0.1`, exact port; any invalid hostname route OR zero hostnames → Error + process killed; 10 s-from-start no-config → Error + process killed; re-validation on later pushes.
+- [x] Confirm `TunnelStatus.Connected.urls` list propagated everywhere; settings screen shows no URL; Connection Info card lists all hostnames and copy/share has one line per hostname.
+- [x] Confirm HTTPS: section disabled + warning banner in UI; `McpServerService` does not start a tunnel under HTTPS.
+- [x] Confirm no AI attribution anywhere; no TODOs/placeholders; no linting suppressions added.
+- [x] Run `make lint` — zero warnings/errors (fix any, including pre-existing per project rule).
+- [x] Run the full test suite (`make test` / unit + JVM integration) — all green (fix any broken tests).
+- [x] Run `./gradlew build` — succeeds with no warnings/errors.
+- [x] Spawn the `code-reviewer` subagent in plan-compliance mode over the full diff; fix ALL findings; re-run until clean.
+- [x] Document Manual QA steps (real device, real token): set token, configure dashboard Public Hostname to the suggested service URL, start server, confirm hostname(s) appear in the Connection Info card and the MCP endpoint is reachable; verify a wrong dashboard service stops the tunnel with the misconfigured error; verify enabling HTTPS shows the warning and prevents the tunnel.
 
 **DoD:**
 - [ ] All checkboxes above ticked; PR created per TOOLS.md with Copilot requested as reviewer; PR URL reported to the user.
