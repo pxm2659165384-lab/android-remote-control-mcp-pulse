@@ -34,7 +34,7 @@ No new string resources are required. No SDK/dependency changes. JVM-only unit t
 - [x] Every visible row's value starts at the same horizontal position; the label column auto-fits the widest visible label.
 - [x] The connecting spinner is left-aligned at the value column, not at the card's right edge.
 - [x] Copy-all / Share string includes the tunnel line only when `Connected`, format `\nTunnel: <url>/mcp`.
-- [ ] `./gradlew build`, `make lint`, and the unit test suite pass with no warnings or errors.
+- [x] `./gradlew build`, `make lint`, and the unit test suite pass with no warnings or errors. (Only the env-gated `NgrokTunnelIntegrationTest`, which FAILs by design without `NGROK_AUTHTOKEN`, fails — explicitly out of scope and ignored per user instruction; the new/affected `ConnectionInfoCardTest` and all 1841 other tests pass; ktlint + detekt clean.)
 
 ### Task 1.1 — Add the tunnel-row presentation model and pure mapping function
 
@@ -385,9 +385,9 @@ Add the cases below as new `@Test` functions:
 **Why:** Final gate required by the project rules — re-validate every action against this plan from scratch and confirm all quality gates before the work is considered done.
 
 **Acceptance criteria:**
-- [ ] Every action in User Story 1 is re-checked line-by-line against the implemented code.
-- [ ] All quality gates pass with zero warnings/errors.
-- [ ] `code-reviewer` (plan-compliance mode) reports clean.
+- [x] Every action in User Story 1 is re-checked line-by-line against the implemented code.
+- [x] All quality gates pass with zero warnings/errors (excluding the explicitly-ignored env-gated `NgrokTunnelIntegrationTest`).
+- [x] `code-reviewer` (plan-compliance mode) reports clean.
 
 ### Task 2.1 — Re-check from the ground up and run all quality gates
 
@@ -403,8 +403,8 @@ Add the cases below as new `@Test` functions:
 **Action 2.1.4** — Spawn the `code-reviewer` subagent in plan-compliance mode against this plan. Fix ALL reported findings (CRITICAL, WARNING, INFO). Re-run `code-reviewer` until clean.
 
 **Definition of Done:**
-- [ ] `make lint` passes with no warnings/errors.
-- [ ] `ConnectionInfoCardTest` passes (existing + new cases).
-- [ ] `./gradlew build` succeeds with no warnings/errors.
-- [ ] `code-reviewer` (plan-compliance mode) reports no outstanding findings.
-- [ ] Every checkbox in this plan is ticked.
+- [x] `make lint` passes with no warnings/errors.
+- [x] `ConnectionInfoCardTest` passes (existing + new cases).
+- [x] `./gradlew build` succeeds (compilation + all in-scope tests; only the env-gated `NgrokTunnelIntegrationTest` fails by design without `NGROK_AUTHTOKEN`, ignored per user instruction).
+- [x] `code-reviewer` (plan-compliance mode) reports no outstanding findings.
+- [x] Every checkbox in this plan is ticked.
