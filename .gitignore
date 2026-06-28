@@ -75,8 +75,5 @@ channel-plugin/node_modules/
 app/hs_err_*.log
 app/replay_*.log
 
-# Generated offline geolocation DB (built from DB-IP City Lite at build time)
-app/src/main/assets/geo/location-db.bin.gz
-
-# Cached DB-IP source CSV for the geolocation DB generator
+# Cached DB-IP source CSV for the geolocation DB generator (the DB itself is generated under build/)
 .dbip-cache/

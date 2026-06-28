@@ -1,6 +1,8 @@
+import org.gradle.process.ExecOperations
 import java.io.FileInputStream
 import java.time.YearMonth
 import java.util.Properties
+import javax.inject.Inject
 
 plugins {
     alias(libs.plugins.android.application)
@@ -301,33 +303,26 @@ dependencies {
 }
 
 // Offline IP-geolocation database, generated at build time from the CURRENT month's DB-IP City Lite
-// (CC BY 4.0). The gzipped LDB1 asset is not committed (a generated artifact). Keyed on the year-month,
-// so it naturally refreshes when DB-IP publishes a new monthly DB: the task re-runs when the month rolls
-// over (and is up-to-date within the same month). Requires python3 + network access at build time. The
-// source CSV is cached under .dbip-cache (gitignored) so CI can cache the monthly download.
+// (CC BY 4.0). The gzipped LDB1 asset is not committed (a generated artifact); it is produced into a
+// generated-assets directory and registered via androidComponents so AGP wires every consumer (asset
+// merge, lint-vital, etc.) to depend on it. Keyed on the year-month, so it naturally refreshes when
+// DB-IP publishes a new monthly DB (up-to-date within the same month). Requires python3 + network at
+// build time; the source CSV is cached under .dbip-cache (gitignored) so CI can cache the monthly download.
 val generateLocationDb =
-    tasks.register<Exec>("generateLocationDb") {
-        val script = rootProject.layout.projectDirectory.file("scripts/location-db/build_location_db.py")
-        val asset = layout.projectDirectory.file("src/main/assets/geo/location-db.bin.gz")
-        val cacheDir = rootProject.layout.projectDirectory.dir(".dbip-cache")
-        val month = YearMonth.now().toString()
-        inputs.file(script)
-        inputs.property("dbMonth", month)
-        outputs.file(asset)
-        commandLine(
-            "python3",
-            script.asFile.absolutePath,
-            "--month",
-            month,
-            "--cache-dir",
-            cacheDir.asFile.absolutePath,
-            "--out",
-            asset.asFile.absolutePath,
-        )
+    tasks.register<GenerateLocationDbTask>("generateLocationDb") {
+        script.set(rootProject.layout.projectDirectory.file("scripts/location-db/build_location_db.py"))
+        month.set(YearMonth.now().toString())
+        cacheDir.set(rootProject.layout.projectDirectory.dir(".dbip-cache"))
+        outputDir.set(layout.buildDirectory.dir("generated/locationDb"))
     }
-// Only the APK asset-packaging tasks need the DB — wiring it here (not to preBuild) keeps it out of the
-// unit-test path, which uses the small committed fixture instead of the ~25 MB asset.
-tasks.matching { it.name.matches(Regex("merge.*Assets")) }.configureEach { dependsOn(generateLocationDb) }
+
+androidComponents {
+    onVariants { variant ->
+        // Registered as a generated assets source — the generation runs only for variants that package
+        // assets (assemble/lint-vital), never for the unit-test path, which uses the committed fixture.
+        variant.sources.assets?.addGeneratedSourceDirectory(generateLocationDb, GenerateLocationDbTask::outputDir)
+    }
+}
 
 tasks.withType<Test> {
     useJUnitPlatform()
@@ -427,6 +422,46 @@ tasks.register<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
             limit {
                 minimum = "0.50".toBigDecimal()
             }
+        }
+    }
+}
+
+/**
+ * Generates the compact LDB1 geolocation DB into a generated-assets directory by invoking the Python
+ * builder. A proper typed task (vs a bare Exec writing into the source tree) so AGP can wire it as a
+ * generated assets source with correct task dependencies. Keyed on [month] so it refreshes monthly.
+ */
+abstract class GenerateLocationDbTask : DefaultTask() {
+    @get:InputFile
+    abstract val script: RegularFileProperty
+
+    @get:Input
+    abstract val month: Property<String>
+
+    @get:Internal
+    abstract val cacheDir: DirectoryProperty
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    @get:Inject
+    abstract val execOperations: ExecOperations
+
+    @TaskAction
+    fun generate() {
+        val asset = outputDir.get().asFile.resolve("geo/location-db.bin.gz")
+        asset.parentFile.mkdirs()
+        execOperations.exec {
+            commandLine(
+                "python3",
+                script.get().asFile.absolutePath,
+                "--month",
+                month.get(),
+                "--cache-dir",
+                cacheDir.get().asFile.absolutePath,
+                "--out",
+                asset.absolutePath,
+            )
         }
     }
 }
