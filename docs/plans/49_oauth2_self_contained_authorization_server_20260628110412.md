@@ -544,28 +544,28 @@
 **Why:** Per the plan workflow, linting/tests/build run once at the end; then verify the ENTIRE implementation against this plan and the spike-confirmed behavior. This is the final, mandatory double-check.
 
 **Acceptance criteria:**
-- [ ] `make lint` clean (ktlint + detekt; no suppressions added to mask issues).
-- [ ] Full unit + integration suite passes (`make test`), captured to a log.
-- [ ] `./gradlew build` succeeds with no warnings/errors.
+- [x] `make lint` clean (ktlint + detekt; no suppressions added to mask issues).
+- [x] Full unit + integration suite passes (`make test`), captured to a log.
+- [x] `./gradlew build` succeeds with no warnings/errors.
 - [ ] OAuth e2e (redroid) test passes — a scripted client drives DCR→authorize→approve→token→/mcp on a real Android runtime.
 - [ ] Manual QA against real Claude.ai performed and recorded.
-- [ ] A meticulous ground-up review confirms every action below is implemented and matches the plan + spike facts; `code-reviewer` (plan-compliance mode) returns clean.
+- [x] A meticulous ground-up review confirms every action below is implemented and matches the plan + spike facts; `code-reviewer` (plan-compliance mode) returns clean.
 
 ### Task 7.1 — Lint
-- [ ] **Action:** run `make lint 2>&1 | tee /tmp/p49-lint.log | tail -40`; fix all violations at the root (no `@Suppress` to silence). Re-run until clean (overwrite the same log path).
-- [ ] **DoD:** Zero ktlint/detekt violations.
+- [x] **Action:** run `make lint 2>&1 | tee /tmp/p49-lint.log | tail -40`; fix all violations at the root (no `@Suppress` to silence). Re-run until clean (overwrite the same log path).
+- [x] **DoD:** Zero ktlint/detekt violations.
 
 ### Task 7.2 — Tests
-- [ ] **Action:** run `make test 2>&1 | tee /tmp/p49-test.log | tail -40`; inspect the captured log; fix all failures (including any unrelated broken tests encountered). Re-run once per fix cycle (same log path).
-- [ ] **DoD:** All unit + JVM integration tests pass.
+- [x] **Action:** run `make test 2>&1 | tee /tmp/p49-test.log | tail -40`; inspect the captured log; fix all failures (including any unrelated broken tests encountered). Re-run once per fix cycle (same log path).
+- [x] **DoD:** All unit + JVM integration tests pass.
 
 ### Task 7.3 — Build
-- [ ] **Action:** run `./gradlew build 2>&1 | tee /tmp/p49-build.log | tail -60`; resolve any warnings/errors (java-jwt resolution included).
-- [ ] **DoD:** Build succeeds, no warnings/errors.
+- [x] **Action:** run `./gradlew build 2>&1 | tee /tmp/p49-build.log | tail -60`; resolve any warnings/errors (java-jwt resolution included).
+- [x] **DoD:** Build succeeds, no warnings/errors.
 
 ### Task 7.4 — E2E (redroid): OAuth flow
-- [ ] **Action:** add a headless approval hook for e2e that is GENUINELY release-absent. IMPORTANT: the existing `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/debug/E2EConfigReceiver.kt` ships in `main` (it IS in the release APK) and is `exported="true"` with NO `BuildConfig.DEBUG` runtime guard — it MUST NOT host an OAuth-approval bypass (that would let any local app/adb caller approve authorizations in release = auth bypass). Instead create a DEBUG-SOURCE-SET-ONLY receiver `app/src/debug/kotlin/com/danielealbano/androidremotecontrolmcp/debug/OAuthApprovalTestReceiver.kt` (`@AndroidEntryPoint`, injects `OAuthApprovalCoordinator`) registered ONLY in a new `app/src/debug/AndroidManifest.xml`, that approves a pending request by `id` extra (or approve-all-pending). Because it lives in the `debug` source set it does NOT exist in the release APK at all; additionally early-return when `!BuildConfig.DEBUG` (belt-and-suspenders). The bypass MUST NOT be reachable in release.
-- [ ] **Action:** add an OAuth e2e test under `e2e-tests/src/test/kotlin/` (new file, e.g. `OAuthFlowE2ETest.kt`) that, against the app running in the redroid container with OAuth enabled (configure via the existing adb/E2E config path: `oauth_enabled=true`, `bearer_token_enabled=false`), acts as the OAuth client over the container's forwarded HTTP port (the test is its own client, so plain HTTP + an `http://localhost/callback` redirect from the allowlist are fine — no tunnel needed): `GET /.well-known/oauth-protected-resource/mcp` → `GET /.well-known/oauth-authorization-server` → `POST /register` → build PKCE → `GET /authorize` (parse the approval id from the consent page) → trigger the debug approval broadcast → poll `GET /authorize/status` → extract `code` → `POST /token` → connect the MCP SDK client to `/mcp` with the access token and `callTool` a basic tool (e.g. a screen/utility tool) → assert success. Tear down the container (follow the existing `e2e-tests` Testcontainers patterns).
+- [x] **Action:** add a headless approval hook for e2e that is GENUINELY release-absent. IMPORTANT: the existing `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/debug/E2EConfigReceiver.kt` ships in `main` (it IS in the release APK) and is `exported="true"` with NO `BuildConfig.DEBUG` runtime guard — it MUST NOT host an OAuth-approval bypass (that would let any local app/adb caller approve authorizations in release = auth bypass). Instead create a DEBUG-SOURCE-SET-ONLY receiver `app/src/debug/kotlin/com/danielealbano/androidremotecontrolmcp/debug/OAuthApprovalTestReceiver.kt` (`@AndroidEntryPoint`, injects `OAuthApprovalCoordinator`) registered ONLY in a new `app/src/debug/AndroidManifest.xml`, that approves a pending request by `id` extra (or approve-all-pending). Because it lives in the `debug` source set it does NOT exist in the release APK at all; additionally early-return when `!BuildConfig.DEBUG` (belt-and-suspenders). The bypass MUST NOT be reachable in release.
+- [x] **Action:** add an OAuth e2e test under `e2e-tests/src/test/kotlin/` (new file, e.g. `OAuthFlowE2ETest.kt`) that, against the app running in the redroid container with OAuth enabled (configure via the existing adb/E2E config path: `oauth_enabled=true`, `bearer_token_enabled=false`), acts as the OAuth client over the container's forwarded HTTP port (the test is its own client, so plain HTTP + an `http://localhost/callback` redirect from the allowlist are fine — no tunnel needed): `GET /.well-known/oauth-protected-resource/mcp` → `GET /.well-known/oauth-authorization-server` → `POST /register` → build PKCE → `GET /authorize` (parse the approval id from the consent page) → trigger the debug approval broadcast → poll `GET /authorize/status` → extract `code` → `POST /token` → connect the MCP SDK client to `/mcp` with the access token and `callTool` a basic tool (e.g. a screen/utility tool) → assert success. Tear down the container (follow the existing `e2e-tests` Testcontainers patterns).
 - [ ] **DoD:** E2E test drives the full OAuth flow on a real Android runtime and passes; the debug approval hook is debug/E2E-only. (This also exercises java-jwt + jackson on-device, covering the I-04/transitive-dependency runtime risk.)
 
 ### Task 7.5 — Manual QA (real Claude.ai) — **Manual Test**
@@ -573,8 +573,8 @@
 - [ ] **DoD:** Documented PASS/FAIL with observations; any failure fixed and re-verified.
 
 ### Task 7.6 — Ground-up double-check (FINAL)
-- [ ] **Action:** Re-read THIS plan and the memory `oauth2-self-contained-as-design` from disk. Walk EVERY action in Stories 1–6 and verify, in the actual code, that it is implemented and matches: (a) request-base-URL derivation + override + share-URL fix + coroutine-context propagation; (b) explicit auth flags + migration (idempotent) + override + adb; (c) JWT/PKCE/registry(+snapshot)/auth-code/approval domain + TTLs + cap; (d) metadata exactly as the spike trace requires (path-suffixed PRM is the `WWW-Authenticate` target; bare AS metadata + aliases), DCR fields (client_name, redirect_uris, application_type, logo_uri with SSRF-guarded rendering), authorize+approval, token client-binding + rotation/reject-only, combined auth + open-when-both-off + dual-accept; (e) UI Access/clients/approval per the agreed layouts; (f) docs. Confirm NO out-of-scope files were altered and NO plan/`docs/plans` files were modified except checkmarks.
-- [ ] **Action:** spawn the `code-reviewer` subagent in plan-compliance mode against the full diff. Fix ALL findings (CRITICAL/WARNING/INFO). Re-run `code-reviewer` until clean. If any finding cannot be resolved or the implementation intentionally diverges (e.g., a bug fix), STOP and report to the user.
+- [x] **Action:** Re-read THIS plan and the memory `oauth2-self-contained-as-design` from disk. Walk EVERY action in Stories 1–6 and verify, in the actual code, that it is implemented and matches: (a) request-base-URL derivation + override + share-URL fix + coroutine-context propagation; (b) explicit auth flags + migration (idempotent) + override + adb; (c) JWT/PKCE/registry(+snapshot)/auth-code/approval domain + TTLs + cap; (d) metadata exactly as the spike trace requires (path-suffixed PRM is the `WWW-Authenticate` target; bare AS metadata + aliases), DCR fields (client_name, redirect_uris, application_type, logo_uri with SSRF-guarded rendering), authorize+approval, token client-binding + rotation/reject-only, combined auth + open-when-both-off + dual-accept; (e) UI Access/clients/approval per the agreed layouts; (f) docs. Confirm NO out-of-scope files were altered and NO plan/`docs/plans` files were modified except checkmarks.
+- [x] **Action:** spawn the `code-reviewer` subagent in plan-compliance mode against the full diff. Fix ALL findings (CRITICAL/WARNING/INFO). Re-run `code-reviewer` until clean. If any finding cannot be resolved or the implementation intentionally diverges (e.g., a bug fix), STOP and report to the user.
 - [ ] **DoD:** Every action verified implemented and matching; `code-reviewer` returns a clean PASS; quality gates (7.1–7.3) green; e2e (7.4) passing; manual QA (7.5) recorded.
 
 ---
