@@ -337,13 +337,6 @@ gh repo view
 git remote -v
 ```
 
-### PR Reviewers
-
-```bash
-# Add Copilot as reviewer
-gh pr edit <number> --add-reviewer copilot
-```
-
 ### PR Review Comments
 
 ```bash
@@ -504,7 +497,6 @@ gh act --secret-file .secrets
 | Push (first time) | `git push -u origin feat/<desc>` |
 | Push (subsequent) | `git push` |
 | Create PR | `gh pr create --base main --title "..." --body "..."` |
-| Add Copilot reviewer | `gh pr edit <n> --add-reviewer copilot` |
 | Reply to PR comment | `gh api repos/.../pulls/<n>/comments -f body="..." -F in_reply_to=<id>` |
 | Resolve PR thread | `gh api graphql -f query='mutation { resolveReviewThread(...) }'` |
 | Create release tag | `git tag v1.2.3 && git push origin v1.2.3` |
