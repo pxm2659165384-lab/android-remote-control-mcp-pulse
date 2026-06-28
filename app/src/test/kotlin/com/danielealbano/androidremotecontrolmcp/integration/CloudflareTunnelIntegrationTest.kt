@@ -115,7 +115,7 @@ class CloudflareTunnelIntegrationTest {
 
             assertTrue(connectedStatus is TunnelStatus.Connected)
             val connected = connectedStatus as TunnelStatus.Connected
-            val tunnelUrl = connected.urls.single()
+            val tunnelUrl = connected.endpoints.single().url
             assertTrue(tunnelUrl.startsWith("https://"))
             assertTrue(tunnelUrl.contains(".trycloudflare.com"))
             assertEquals(TunnelProviderType.CLOUDFLARE, connected.providerType)

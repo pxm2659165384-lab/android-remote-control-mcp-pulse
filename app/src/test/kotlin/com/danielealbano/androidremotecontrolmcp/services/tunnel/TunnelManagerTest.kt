@@ -1,6 +1,7 @@
 package com.danielealbano.androidremotecontrolmcp.services.tunnel
 
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerConfig
+import com.danielealbano.androidremotecontrolmcp.data.model.TunnelEndpoint
 import com.danielealbano.androidremotecontrolmcp.data.model.TunnelProviderType
 import com.danielealbano.androidremotecontrolmcp.data.model.TunnelStatus
 import com.danielealbano.androidremotecontrolmcp.data.repository.SettingsRepository
@@ -134,7 +135,7 @@ class TunnelManagerTest {
                 // Simulate the provider reporting Connected
                 providerStatus.value =
                     TunnelStatus.Connected(
-                        urls = listOf("https://test.trycloudflare.com"),
+                        endpoints = listOf(TunnelEndpoint("https://test.trycloudflare.com", valid = true)),
                         providerType = TunnelProviderType.CLOUDFLARE,
                     )
 
@@ -144,7 +145,7 @@ class TunnelManagerTest {
                 val status = manager.tunnelStatus.value
                 assertEquals(
                     TunnelStatus.Connected(
-                        urls = listOf("https://test.trycloudflare.com"),
+                        endpoints = listOf(TunnelEndpoint("https://test.trycloudflare.com", valid = true)),
                         providerType = TunnelProviderType.CLOUDFLARE,
                     ),
                     status,

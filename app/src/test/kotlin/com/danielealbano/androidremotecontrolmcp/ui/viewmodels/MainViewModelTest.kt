@@ -11,6 +11,7 @@ import com.danielealbano.androidremotecontrolmcp.data.model.ServerLogEntry
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerStatus
 import com.danielealbano.androidremotecontrolmcp.data.model.StorageLocation
 import com.danielealbano.androidremotecontrolmcp.data.model.ToolPermissionsConfig
+import com.danielealbano.androidremotecontrolmcp.data.model.TunnelEndpoint
 import com.danielealbano.androidremotecontrolmcp.data.model.TunnelProviderType
 import com.danielealbano.androidremotecontrolmcp.data.model.TunnelStatus
 import com.danielealbano.androidremotecontrolmcp.data.repository.SettingsRepository
@@ -415,14 +416,14 @@ class MainViewModelTest {
 
             tunnelStatusFlow.value =
                 TunnelStatus.Connected(
-                    urls = listOf("https://test.trycloudflare.com"),
+                    endpoints = listOf(TunnelEndpoint("https://test.trycloudflare.com", valid = true)),
                     providerType = TunnelProviderType.CLOUDFLARE,
                 )
             advanceUntilIdle()
 
             assertEquals(
                 TunnelStatus.Connected(
-                    urls = listOf("https://test.trycloudflare.com"),
+                    endpoints = listOf(TunnelEndpoint("https://test.trycloudflare.com", valid = true)),
                     providerType = TunnelProviderType.CLOUDFLARE,
                 ),
                 viewModel.tunnelStatus.value,

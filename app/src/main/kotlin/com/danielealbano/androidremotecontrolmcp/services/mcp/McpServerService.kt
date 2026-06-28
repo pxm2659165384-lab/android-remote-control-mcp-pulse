@@ -298,14 +298,14 @@ class McpServerService : Service() {
                             is TunnelStatus.Connected -> {
                                 Log.i(
                                     TAG,
-                                    "Tunnel connected: ${status.urls.joinToString()} " +
+                                    "Tunnel connected: ${status.endpoints.joinToString { it.url }} " +
                                         "(provider: ${status.providerType})",
                                 )
                                 emitLogEntry(
                                     ServerLogEntry(
                                         timestamp = System.currentTimeMillis(),
                                         type = ServerLogEntry.Type.TUNNEL,
-                                        message = "Tunnel connected: ${status.urls.joinToString()}",
+                                        message = "Tunnel connected: ${status.endpoints.joinToString { it.url }}",
                                     ),
                                 )
                             }
@@ -359,7 +359,7 @@ class McpServerService : Service() {
      */
     private val currentBaseUrl: () -> String = {
         val tunnel = tunnelManager.tunnelStatus.value
-        val tunnelUrl = (tunnel as? TunnelStatus.Connected)?.urls?.firstOrNull()
+        val tunnelUrl = (tunnel as? TunnelStatus.Connected)?.endpoints?.firstOrNull { it.valid }?.url
         if (tunnelUrl != null) {
             tunnelUrl
         } else {

@@ -3,6 +3,7 @@ package com.danielealbano.androidremotecontrolmcp.services.tunnel
 import android.util.Log
 import com.danielealbano.androidremotecontrolmcp.data.model.CloudflareTunnelMode
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerConfig
+import com.danielealbano.androidremotecontrolmcp.data.model.TunnelEndpoint
 import com.danielealbano.androidremotecontrolmcp.data.model.TunnelProviderType
 import com.danielealbano.androidremotecontrolmcp.data.model.TunnelStatus
 import kotlinx.coroutines.CoroutineScope
@@ -35,11 +36,14 @@ import javax.inject.Inject
  * - [CloudflareTunnelMode.FREE]: a temporary Quick Tunnel with a random
  *   `*.trycloudflare.com` URL (no account or configuration needed).
  * - [CloudflareTunnelMode.TOKEN]: a remotely-managed named tunnel run with a
- *   dashboard token. The public hostname(s) and origin service are configured in
- *   the Cloudflare dashboard; cloudflared receives that config from the edge and
- *   logs it as an `Updated to new configuration` line, which we parse to obtain
- *   the static hostname(s) and to validate that the routed service points at our
- *   local MCP server.
+ *   dashboard token. The tunnel goes Connected as soon as it registers to the
+ *   Cloudflare edge — even before any public hostname is configured — and stays
+ *   running. Public hostname(s) and their origin service are configured in the
+ *   dashboard; cloudflared logs them as `Updated to new configuration` lines,
+ *   which we parse to populate the endpoint list. Each endpoint's service is
+ *   validated against the local MCP server, but validation is ADVISORY: an
+ *   invalid route is flagged (`TunnelEndpoint.valid == false`) for the UI to show
+ *   a warning — it never stops the tunnel.
  */
 class CloudflareTunnelProvider
     @Inject
@@ -54,16 +58,6 @@ class CloudflareTunnelProvider
         private var process: Process? = null
         private var stderrReaderJob: Job? = null
         private var processMonitorJob: Job? = null
-        private var timeoutJob: Job? = null
-
-        @Volatile
-        private var terminating = false
-
-        /**
-         * Timeout (ms) within which a token tunnel must receive a valid remote configuration
-         * before it is considered misconfigured. Overridable in tests; do NOT change the default.
-         */
-        internal var configTimeoutMs: Long = TOKEN_CONFIG_TIMEOUT_MS
 
         override suspend fun start(
             localPort: Int,
@@ -71,7 +65,6 @@ class CloudflareTunnelProvider
         ) {
             mutex.withLock {
                 check(process == null) { "Tunnel is already running" }
-                terminating = false
 
                 val binaryPath =
                     binaryResolver.resolve() ?: run {
@@ -112,7 +105,7 @@ class CloudflareTunnelProvider
                         Log.i(TAG, "Cloudflare tunnel URL: $url")
                         _status.value =
                             TunnelStatus.Connected(
-                                urls = listOf(url),
+                                endpoints = listOf(TunnelEndpoint(url = url, valid = true)),
                                 providerType = TunnelProviderType.CLOUDFLARE,
                             )
                     }
@@ -155,18 +148,8 @@ class CloudflareTunnelProvider
                 val proc = pb.start()
                 process = proc
 
-                launchStderrReader(proc) { line ->
-                    // Skip non-JSON lines and act only on the remote-config push; `Registered tunnel
-                    // connection` is ignored so status stays Connecting until a valid config validates.
-                    if (!terminating && logMessageOf(line) == MSG_UPDATED_CONFIG) {
-                        val payload = configPayloadOf(line)
-                        if (payload != null) {
-                            handleTokenConfig(payload, localPort)
-                        }
-                    }
-                }
+                launchStderrReader(proc) { line -> handleTokenLine(line, localPort) }
                 startProcessMonitor(proc)
-                startTokenConfigTimeout()
             } catch (
                 @Suppress("TooGenericExceptionCaught") e: Exception,
             ) {
@@ -176,51 +159,63 @@ class CloudflareTunnelProvider
             }
         }
 
-        override suspend fun stop() {
-            shutdownProcess(setDisconnected = true)
-            terminating = false
-        }
-
         /**
-         * Mutex-guarded teardown shared by [stop] and [failLocked]. Cancels all jobs and
-         * destroys the process. When [setDisconnected] is true the status becomes
-         * [TunnelStatus.Disconnected]; otherwise the current (error) status is preserved.
+         * Handles one token-mode stderr line. The tunnel becomes Connected (with no endpoints) as
+         * soon as it registers to the edge, so it stays up while the user configures a route; each
+         * `Updated to new configuration` push then refreshes the endpoint list. Per-endpoint service
+         * validation is ADVISORY — an invalid route is flagged, never terminated. Non-JSON lines and
+         * other messages are ignored.
          */
-        private suspend fun shutdownProcess(setDisconnected: Boolean) {
-            mutex.withLock {
-                timeoutJob?.cancel()
-                timeoutJob = null
-                processMonitorJob?.cancel()
-                processMonitorJob = null
-                stderrReaderJob?.cancel()
-                stderrReaderJob = null
-
-                process?.let { proc ->
-                    proc.destroy()
-                    withTimeoutOrNull(SHUTDOWN_TIMEOUT_MS) {
-                        @Suppress("BlockingMethodInNonBlockingContext")
-                        proc.waitFor()
-                    } ?: proc.destroyForcibly()
+        private fun handleTokenLine(
+            line: String,
+            localPort: Int,
+        ) {
+            when (logMessageOf(line)) {
+                MSG_REGISTERED -> {
+                    if (_status.value is TunnelStatus.Connecting) {
+                        _status.value =
+                            TunnelStatus.Connected(
+                                endpoints = emptyList(),
+                                providerType = TunnelProviderType.CLOUDFLARE,
+                            )
+                    }
                 }
-                process = null
 
-                if (setDisconnected) {
-                    _status.value = TunnelStatus.Disconnected
+                MSG_UPDATED_CONFIG -> {
+                    val payload = configPayloadOf(line) ?: return
+                    val endpoints =
+                        ingressRoutesOf(payload).map { route ->
+                            TunnelEndpoint(
+                                url = "https://${route.hostname}",
+                                valid = isServiceValid(route.service, localPort),
+                            )
+                        }
+                    _status.value =
+                        TunnelStatus.Connected(
+                            endpoints = endpoints,
+                            providerType = TunnelProviderType.CLOUDFLARE,
+                        )
                 }
             }
         }
 
-        /**
-         * Sets the error status and tears the tunnel down. MUST be called while holding [mutex] (so
-         * the status transition is serialized with the success path and the timeout check). The
-         * teardown is launched on [scope] so it acquires the mutex only AFTER the caller releases it
-         * (no re-entrancy/deadlock); [terminating] is set first so the process monitor will not
-         * overwrite the error when it observes the resulting process exit.
-         */
-        private fun failLocked(message: String) {
-            terminating = true
-            _status.value = TunnelStatus.Error(message)
-            scope.launch { shutdownProcess(setDisconnected = false) }
+        override suspend fun stop() {
+            mutex.withLock {
+                val proc = process ?: return
+                stderrReaderJob?.cancel()
+                stderrReaderJob = null
+                processMonitorJob?.cancel()
+                processMonitorJob = null
+
+                proc.destroy()
+                withTimeoutOrNull(SHUTDOWN_TIMEOUT_MS) {
+                    @Suppress("BlockingMethodInNonBlockingContext")
+                    proc.waitFor()
+                } ?: proc.destroyForcibly()
+
+                process = null
+                _status.value = TunnelStatus.Disconnected
+            }
         }
 
         /**
@@ -230,7 +225,7 @@ class CloudflareTunnelProvider
          */
         private fun launchStderrReader(
             proc: Process,
-            onLine: suspend (String) -> Unit,
+            onLine: (String) -> Unit,
         ) {
             stderrReaderJob =
                 scope.launch {
@@ -253,58 +248,6 @@ class CloudflareTunnelProvider
                 }
         }
 
-        /**
-         * Validates a remote-config push and updates status. Runs on every push (re-validation):
-         * zero public hostnames or any hostname whose service is not our local MCP server stops the
-         * tunnel with an error; otherwise the status becomes Connected with every public hostname.
-         */
-        private suspend fun handleTokenConfig(
-            configJson: String,
-            localPort: Int,
-        ) {
-            val routes = ingressRoutesOf(configJson)
-            // The whole decision (status transition + timeout cancellation) runs under the mutex so it
-            // is serialized with the timeout coroutine and with stop()/teardown — `timeoutJob` is only
-            // ever mutated under the mutex.
-            mutex.withLock {
-                if (terminating) return@withLock
-                val invalid = routes.firstOrNull { !isServiceValid(it.service, localPort) }
-                when {
-                    routes.isEmpty() -> {
-                        failLocked("No public hostname configured for this tunnel")
-                    }
-
-                    invalid != null -> {
-                        failLocked("Tunnel route misconfigured: ${invalid.hostname} -> ${invalid.service}")
-                    }
-
-                    else -> {
-                        timeoutJob?.cancel()
-                        timeoutJob = null
-                        _status.value =
-                            TunnelStatus.Connected(
-                                urls = routes.map { "https://${it.hostname}" },
-                                providerType = TunnelProviderType.CLOUDFLARE,
-                            )
-                    }
-                }
-            }
-        }
-
-        private fun startTokenConfigTimeout() {
-            timeoutJob =
-                scope.launch {
-                    delay(configTimeoutMs)
-                    // Check-and-act under the mutex so a config push that connects at the same instant
-                    // cannot be overwritten by a spurious timeout error.
-                    mutex.withLock {
-                        if (!terminating && _status.value is TunnelStatus.Connecting) {
-                            failLocked("No public hostname configured for this tunnel")
-                        }
-                    }
-                }
-        }
-
         private fun startProcessMonitor(proc: Process) {
             processMonitorJob =
                 scope.launch {
@@ -314,9 +257,7 @@ class CloudflareTunnelProvider
                     @Suppress("BlockingMethodInNonBlockingContext")
                     val exitCode = proc.waitFor()
 
-                    val statusIsLive =
-                        _status.value is TunnelStatus.Connecting || _status.value is TunnelStatus.Connected
-                    if (isActive && !terminating && statusIsLive) {
+                    if (isActive && _status.value !is TunnelStatus.Disconnected) {
                         Log.w(TAG, "cloudflared process exited unexpectedly with code $exitCode")
                         _status.value =
                             TunnelStatus.Error(
@@ -341,8 +282,8 @@ class CloudflareTunnelProvider
                 Regex("https://[-a-zA-Z0-9]+\\.trycloudflare\\.com")
             internal const val SHUTDOWN_TIMEOUT_MS = 5_000L
             private const val PROCESS_MONITOR_INITIAL_DELAY_MS = 1_000L
+            internal const val MSG_REGISTERED = "Registered tunnel connection"
             internal const val MSG_UPDATED_CONFIG = "Updated to new configuration"
-            internal const val TOKEN_CONFIG_TIMEOUT_MS = 10_000L
             internal val LOG_JSON = Json { ignoreUnknownKeys = true }
 
             /** Returns the top-level `message` field of a cloudflared JSON log line, or null for non-JSON. */

@@ -2,11 +2,11 @@ package com.danielealbano.androidremotecontrolmcp.services.tunnel
 
 import com.danielealbano.androidremotecontrolmcp.data.model.CloudflareTunnelMode
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerConfig
+import com.danielealbano.androidremotecontrolmcp.data.model.TunnelEndpoint
 import com.danielealbano.androidremotecontrolmcp.data.model.TunnelStatus
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -312,17 +312,17 @@ class CloudflareTunnelProviderTest {
             }
 
         @Test
-        fun `valid config sets Connected with hostname`() =
+        fun `valid config sets Connected with valid endpoint`() =
             runBlocking {
                 every { mockBinaryResolver.resolve() } returns fakeBinaryEmitting(registeredLine, configLineValid)
                 val provider = createProvider()
 
                 provider.start(8080, tokenConfig())
-                val status = provider.awaitStatus { it is TunnelStatus.Connected }
+                val status = provider.awaitStatus { it.connectedWithEndpoints() }
 
                 assertEquals(
-                    listOf("https://pixel8.example.com"),
-                    (status as TunnelStatus.Connected).urls,
+                    listOf(TunnelEndpoint("https://pixel8.example.com", valid = true)),
+                    (status as TunnelStatus.Connected).endpoints,
                 )
                 provider.stop()
             }
@@ -334,91 +334,65 @@ class CloudflareTunnelProviderTest {
                 val provider = createProvider()
 
                 provider.start(8080, tokenConfig())
-                val status = provider.awaitStatus { it is TunnelStatus.Connected }
+                val status = provider.awaitStatus { it.connectedWithEndpoints() }
 
                 assertEquals(
-                    listOf("https://a.example.com", "https://b.example.com"),
-                    (status as TunnelStatus.Connected).urls,
+                    listOf(
+                        TunnelEndpoint("https://a.example.com", valid = true),
+                        TunnelEndpoint("https://b.example.com", valid = true),
+                    ),
+                    (status as TunnelStatus.Connected).endpoints,
                 )
                 provider.stop()
             }
 
         @Test
-        fun `service mismatch errors and stops`() =
+        fun `service mismatch flags endpoint invalid without stopping`() =
             runBlocking {
                 every { mockBinaryResolver.resolve() } returns fakeBinaryEmitting(configLineMismatch)
                 val provider = createProvider()
 
                 provider.start(8080, tokenConfig())
-                val status = provider.awaitStatus { it is TunnelStatus.Error }
+                val status = provider.awaitStatus { it.connectedWithEndpoints() }
 
-                assertTrue(
-                    (status as TunnelStatus.Error).message.contains("Tunnel route misconfigured"),
+                // Connected (NOT Error) with the misconfigured route flagged invalid.
+                assertEquals(
+                    listOf(TunnelEndpoint("https://pixel8.example.com", valid = false)),
+                    (status as TunnelStatus.Connected).endpoints,
                 )
                 provider.stop()
             }
 
         @Test
-        fun `registered-only stays connecting`() =
+        fun `registered with no config goes connected with no routes`() =
             runBlocking {
                 every { mockBinaryResolver.resolve() } returns fakeBinaryEmitting(registeredLine)
                 val provider = createProvider()
-                provider.configTimeoutMs = LONG_TIMEOUT_MS
 
                 provider.start(8080, tokenConfig())
-                delay(STAY_CONNECTING_DELAY_MS)
+                val status = provider.awaitStatus { it is TunnelStatus.Connected }
 
-                assertEquals(TunnelStatus.Connecting, provider.status.value)
+                assertEquals(emptyList<TunnelEndpoint>(), (status as TunnelStatus.Connected).endpoints)
                 provider.stop()
             }
 
         @Test
-        fun `no config within timeout errors`() =
-            runBlocking {
-                every { mockBinaryResolver.resolve() } returns fakeBinaryEmitting(registeredLine)
-                val provider = createProvider()
-                provider.configTimeoutMs = SHORT_TIMEOUT_MS
-
-                provider.start(8080, tokenConfig())
-                val status = provider.awaitStatus { it is TunnelStatus.Error }
-
-                assertTrue(
-                    (status as TunnelStatus.Error).message.contains("No public hostname configured"),
-                )
-                provider.stop()
-            }
-
-        @Test
-        fun `re-validation stops on later invalid push`() =
+        fun `re-validation flags endpoint invalid on later push`() =
             runBlocking {
                 every { mockBinaryResolver.resolve() } returns
                     fakeBinaryEmitting(configLineValid, configLineMismatch)
                 val provider = createProvider()
 
                 provider.start(8080, tokenConfig())
-                val status = provider.awaitStatus { it is TunnelStatus.Error }
+                // Wait for the second (mismatch) push to flip the endpoint to invalid.
+                val status =
+                    provider.awaitStatus {
+                        it is TunnelStatus.Connected && it.endpoints.firstOrNull()?.valid == false
+                    }
 
-                assertTrue(
-                    (status as TunnelStatus.Error).message.contains("Tunnel route misconfigured"),
-                )
-                provider.stop()
-            }
-
-        @Test
-        fun `error status survives process exit`() =
-            runBlocking {
-                every { mockBinaryResolver.resolve() } returns fakeBinaryEmitting(configLineMismatch)
-                val provider = createProvider()
-
-                provider.start(8080, tokenConfig())
-                provider.awaitStatus { it is TunnelStatus.Error }
-                // Allow the process-monitor to observe the (terminated) process exit.
-                delay(PROCESS_EXIT_SETTLE_MS)
-
-                val status = provider.status.value
-                assertTrue(status is TunnelStatus.Error)
-                assertTrue(
-                    (status as TunnelStatus.Error).message.contains("Tunnel route misconfigured"),
+                assertEquals(
+                    listOf(TunnelEndpoint("https://pixel8.example.com", valid = false)),
+                    (status as TunnelStatus.Connected).endpoints,
                 )
                 provider.stop()
             }
@@ -431,11 +405,11 @@ class CloudflareTunnelProviderTest {
                 val provider = createProvider()
 
                 provider.start(8080, tokenConfig())
-                val status = provider.awaitStatus { it is TunnelStatus.Connected }
+                val status = provider.awaitStatus { it.connectedWithEndpoints() }
 
                 assertEquals(
-                    listOf("https://pixel8.example.com"),
-                    (status as TunnelStatus.Connected).urls,
+                    listOf(TunnelEndpoint("https://pixel8.example.com", valid = true)),
+                    (status as TunnelStatus.Connected).endpoints,
                 )
                 provider.stop()
             }
@@ -443,9 +417,8 @@ class CloudflareTunnelProviderTest {
 
     companion object {
         private const val AWAIT_TIMEOUT_MS = 10_000L
-        private const val LONG_TIMEOUT_MS = 30_000L
-        private const val SHORT_TIMEOUT_MS = 200L
-        private const val STAY_CONNECTING_DELAY_MS = 500L
-        private const val PROCESS_EXIT_SETTLE_MS = 1_500L
+
+        /** True for a Connected status that already carries at least one endpoint (route applied). */
+        private fun TunnelStatus.connectedWithEndpoints() = this is TunnelStatus.Connected && endpoints.isNotEmpty()
     }
 }

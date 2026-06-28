@@ -42,51 +42,89 @@ class TunnelStatusTest {
     @DisplayName("Connected")
     inner class ConnectedTest {
         @Test
-        fun `Connected carries urls and providerType`() {
+        fun `Connected carries endpoints and providerType`() {
             val status =
                 TunnelStatus.Connected(
-                    urls = listOf("https://test.trycloudflare.com"),
+                    endpoints = listOf(TunnelEndpoint("https://test.trycloudflare.com", valid = true)),
                     providerType = TunnelProviderType.CLOUDFLARE,
                 )
-            assertEquals(listOf("https://test.trycloudflare.com"), status.urls)
+            assertEquals(
+                listOf(TunnelEndpoint("https://test.trycloudflare.com", valid = true)),
+                status.endpoints,
+            )
             assertEquals(TunnelProviderType.CLOUDFLARE, status.providerType)
         }
 
         @Test
-        fun `Connected holds multiple urls in order`() {
+        fun `Connected holds multiple endpoints in order with validity`() {
             val status =
                 TunnelStatus.Connected(
-                    urls = listOf("https://a.example.com", "https://b.example.com"),
+                    endpoints =
+                        listOf(
+                            TunnelEndpoint("https://a.example.com", valid = true),
+                            TunnelEndpoint("https://b.example.com", valid = false),
+                        ),
                     providerType = TunnelProviderType.CLOUDFLARE,
                 )
-            assertEquals(listOf("https://a.example.com", "https://b.example.com"), status.urls)
+            assertEquals(
+                listOf(
+                    TunnelEndpoint("https://a.example.com", valid = true),
+                    TunnelEndpoint("https://b.example.com", valid = false),
+                ),
+                status.endpoints,
+            )
+        }
+
+        @Test
+        fun `Connected can hold no endpoints`() {
+            val status =
+                TunnelStatus.Connected(
+                    endpoints = emptyList(),
+                    providerType = TunnelProviderType.CLOUDFLARE,
+                )
+            assertEquals(emptyList<TunnelEndpoint>(), status.endpoints)
         }
 
         @Test
         fun `Connected equality is based on fields`() {
             val a =
                 TunnelStatus.Connected(
-                    urls = listOf("https://test.trycloudflare.com"),
+                    endpoints = listOf(TunnelEndpoint("https://test.trycloudflare.com", valid = true)),
                     providerType = TunnelProviderType.CLOUDFLARE,
                 )
             val b =
                 TunnelStatus.Connected(
-                    urls = listOf("https://test.trycloudflare.com"),
+                    endpoints = listOf(TunnelEndpoint("https://test.trycloudflare.com", valid = true)),
                     providerType = TunnelProviderType.CLOUDFLARE,
                 )
             assertEquals(a, b)
         }
 
         @Test
-        fun `Connected with different urls are not equal`() {
+        fun `Connected with different endpoints are not equal`() {
             val a =
                 TunnelStatus.Connected(
-                    urls = listOf("https://aaa.trycloudflare.com"),
+                    endpoints = listOf(TunnelEndpoint("https://aaa.trycloudflare.com", valid = true)),
                     providerType = TunnelProviderType.CLOUDFLARE,
                 )
             val b =
                 TunnelStatus.Connected(
-                    urls = listOf("https://bbb.trycloudflare.com"),
+                    endpoints = listOf(TunnelEndpoint("https://bbb.trycloudflare.com", valid = true)),
+                    providerType = TunnelProviderType.CLOUDFLARE,
+                )
+            assertNotEquals(a, b)
+        }
+
+        @Test
+        fun `Connected with different endpoint validity are not equal`() {
+            val a =
+                TunnelStatus.Connected(
+                    endpoints = listOf(TunnelEndpoint("https://test.example.com", valid = true)),
+                    providerType = TunnelProviderType.CLOUDFLARE,
+                )
+            val b =
+                TunnelStatus.Connected(
+                    endpoints = listOf(TunnelEndpoint("https://test.example.com", valid = false)),
                     providerType = TunnelProviderType.CLOUDFLARE,
                 )
             assertNotEquals(a, b)
@@ -96,12 +134,12 @@ class TunnelStatusTest {
         fun `Connected with different provider are not equal`() {
             val a =
                 TunnelStatus.Connected(
-                    urls = listOf("https://test.example.com"),
+                    endpoints = listOf(TunnelEndpoint("https://test.example.com", valid = true)),
                     providerType = TunnelProviderType.CLOUDFLARE,
                 )
             val b =
                 TunnelStatus.Connected(
-                    urls = listOf("https://test.example.com"),
+                    endpoints = listOf(TunnelEndpoint("https://test.example.com", valid = true)),
                     providerType = TunnelProviderType.NGROK,
                 )
             assertNotEquals(a, b)

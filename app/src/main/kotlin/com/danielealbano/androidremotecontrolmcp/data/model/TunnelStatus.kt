@@ -1,6 +1,20 @@
 package com.danielealbano.androidremotecontrolmcp.data.model
 
 /**
+ * A single public endpoint exposed by a tunnel.
+ *
+ * @property url The public HTTPS base URL (e.g., "https://xxx.trycloudflare.com" or
+ *   "https://mcp.example.com").
+ * @property valid Whether the endpoint is correctly routed to the local MCP server. Always `true`
+ *   for Free/ngrok; for a Cloudflare token tunnel it is `false` when the dashboard route's service
+ *   does not point at `http://(localhost|127.0.0.1):<port>` (advisory — the tunnel keeps running).
+ */
+data class TunnelEndpoint(
+    val url: String,
+    val valid: Boolean,
+)
+
+/**
  * Represents the current state of the tunnel connection.
  *
  * Used as [kotlinx.coroutines.flow.StateFlow] value, observed by the UI
@@ -14,14 +28,15 @@ sealed class TunnelStatus {
     data object Connecting : TunnelStatus()
 
     /**
-     * Tunnel is connected and serving traffic.
+     * Tunnel is connected and running.
      *
-     * @property urls The public HTTPS URL(s) (e.g., ["https://xxx.trycloudflare.com"] for Free/ngrok,
-     *   or one entry per public hostname for a Cloudflare token tunnel).
+     * @property endpoints The public endpoint(s). May be EMPTY for a Cloudflare token tunnel that
+     *   has connected to the edge but has no public hostname configured yet ("no route configured").
+     *   Free/ngrok always expose exactly one (always-valid) endpoint.
      * @property providerType The provider that created this tunnel.
      */
     data class Connected(
-        val urls: List<String>,
+        val endpoints: List<TunnelEndpoint>,
         val providerType: TunnelProviderType,
     ) : TunnelStatus()
 

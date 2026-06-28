@@ -138,6 +138,8 @@
     <string name="remote_access_cloudflare_service_url_help">In your Cloudflare dashboard, set this tunnel\'s Public Hostname → Service to:</string>
     <string name="remote_access_cloudflare_service_url_copy">Copy service URL</string>
     <string name="remote_access_https_disabled_warning">Remote access is unavailable while HTTPS is enabled. Disable HTTPS to use a tunnel.</string>
+    <string name="remote_access_no_route_configured">No route configured</string>
+    <string name="remote_access_route_misconfigured">Route does not point to this server</string>
 
     <!-- Connection Info -->
     <string name="connection_info_title">Connection Info</string>
