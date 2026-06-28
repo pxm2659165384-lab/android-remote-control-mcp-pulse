@@ -276,12 +276,18 @@ class McpServerService : Service() {
                 ),
             )
 
-            // Start tunnel if remote access is enabled
-            @Suppress("TooGenericExceptionCaught")
-            try {
-                tunnelManager.start(config.port)
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to start tunnel (server continues without tunnel)", e)
+            // Start tunnel if remote access is enabled. A tunnel always targets an
+            // http://localhost origin, so it MUST NOT run while the server serves HTTPS.
+            if (config.httpsEnabled) {
+                Log.i(TAG, "Remote access tunnel disabled while HTTPS is enabled")
+                tunnelManager.stop()
+            } else {
+                @Suppress("TooGenericExceptionCaught")
+                try {
+                    tunnelManager.start(config.port)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to start tunnel (server continues without tunnel)", e)
+                }
             }
 
             // Observe tunnel status for logging

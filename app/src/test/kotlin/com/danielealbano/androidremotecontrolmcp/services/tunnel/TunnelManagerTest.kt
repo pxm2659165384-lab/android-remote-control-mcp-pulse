@@ -99,6 +99,19 @@ class TunnelManagerTest {
             }
 
         @Test
+        fun `start with https enabled does not start tunnel`() =
+            runTest {
+                val config = ServerConfig(tunnelEnabled = true, httpsEnabled = true)
+                every { mockSettingsRepository.serverConfig } returns flowOf(config)
+
+                val manager = createManager()
+                manager.start(8080)
+
+                coVerify(exactly = 0) { mockCloudflareProvider.start(any(), any()) }
+                coVerify(exactly = 0) { mockNgrokProvider.start(any(), any()) }
+            }
+
+        @Test
         fun `start relays provider status to tunnelStatus`() =
             runTest {
                 val providerStatus =

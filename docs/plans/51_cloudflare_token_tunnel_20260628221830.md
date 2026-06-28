@@ -421,11 +421,11 @@ internal fun buildConnectionString(
 **Why:** Tunnels always target an `http://localhost` origin; running one while the server serves HTTPS would break or mis-expose it. The server must never start a tunnel under HTTPS.
 
 **Acceptance criteria:**
-- [ ] When `config.httpsEnabled` is true, `McpServerService` does not start a tunnel and stops any active one.
+- [x] When `config.httpsEnabled` is true, `McpServerService` does not start a tunnel and stops any active one.
 
 ### Task 4.1 — Guard tunnel start in `McpServerService`
 
-- [ ] **Action 4.1.1** — modify `McpServerService.kt` where `tunnelManager.start(config.port)` is called:
+- [x] **Action 4.1.1** — modify `McpServerService.kt` where `tunnelManager.start(config.port)` is called:
 ```kotlin
             if (config.httpsEnabled) {
                 Log.i(TAG, "Remote access tunnel disabled while HTTPS is enabled")
@@ -444,19 +444,19 @@ internal fun buildConnectionString(
 > Note (no live-tunnel gap): the binding decision "stop any active one" is fully satisfied. The HTTPS toggle is disabled while the server is Running/Starting (`SecuritySettingsScreen.kt` `isEnabled = serverStatus !is Running && !is Starting`, applied to the HTTPS `Switch`), and a tunnel only exists while the server runs. Therefore HTTPS can never be enabled while a tunnel is live; the user must stop the server first, and on the next start this guard refuses to start the tunnel (`tunnelManager.stop()` is the defensive teardown). This is a proven correctness fact, NOT an accepted limitation.
 
 **DoD:**
-- [ ] No tunnel is started when HTTPS is enabled; `tunnelManager.stop()` invoked in that branch.
-- [ ] The relocated `@Suppress` is the pre-existing one (no new suppression added).
+- [x] No tunnel is started when HTTPS is enabled; `tunnelManager.stop()` invoked in that branch.
+- [x] The relocated `@Suppress` is the pre-existing one (no new suppression added).
 
 ### Task 4.2 — Service-level test
 
-- [ ] **Action 4.2.1** — add/extend the relevant `McpServerService` test (or `TunnelManager` interaction test) — compressed:
+- [x] **Action 4.2.1** — add/extend the relevant `McpServerService` test (or `TunnelManager` interaction test) — compressed:
 
 | Test | Verifies |
 |------|----------|
 | `tunnel not started when https enabled` | With `httpsEnabled = true`, `tunnelManager.start` is never invoked and `stop` is invoked. **Setup:** mock `TunnelManager`, verify interactions |
 
 **DoD:**
-- [ ] Test added (run in US6).
+- [x] Test added (run in US6).
 
 ---
 
