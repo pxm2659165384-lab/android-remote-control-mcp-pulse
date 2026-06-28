@@ -1,0 +1,54 @@
+package com.danielealbano.androidremotecontrolmcp.mcp.oauth
+
+import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
+
+@DisplayName("OAuthApprovalCoordinatorImpl")
+class OAuthApprovalCoordinatorImplTest {
+    private fun newCoordinator() = OAuthApprovalCoordinatorImpl()
+
+    @Test
+    @DisplayName("createPending appears in pending flow with 2-digit code")
+    fun createPendingAppears() =
+        runTest {
+            val coordinator = newCoordinator()
+            val approval = coordinator.createPending("Claude", "claude.ai", 0L)
+            assertEquals(2, approval.matchCode.length)
+            assertTrue(coordinator.observePending().value.any { it.id == approval.id })
+        }
+
+    @Test
+    @DisplayName("approve transitions and clears pending")
+    fun approveTransitions() =
+        runTest {
+            val coordinator = newCoordinator()
+            val approval = coordinator.createPending("Claude", "claude.ai", 0L)
+            coordinator.approve(approval.id)
+            assertEquals(ApprovalState.APPROVED, coordinator.stateOf(approval.id, 1L))
+            assertTrue(coordinator.observePending().value.none { it.id == approval.id })
+        }
+
+    @Test
+    @DisplayName("deny transitions to DENIED")
+    fun denyTransitions() =
+        runTest {
+            val coordinator = newCoordinator()
+            val approval = coordinator.createPending("Claude", "claude.ai", 0L)
+            coordinator.deny(approval.id)
+            assertEquals(ApprovalState.DENIED, coordinator.stateOf(approval.id, 1L))
+            assertTrue(coordinator.observePending().value.none { it.id == approval.id })
+        }
+
+    @Test
+    @DisplayName("expiry yields EXPIRED")
+    fun expiryYieldsExpired() =
+        runTest {
+            val coordinator = newCoordinator()
+            val approval = coordinator.createPending("Claude", "claude.ai", 0L)
+            assertEquals(ApprovalState.EXPIRED, coordinator.stateOf(approval.id, OAuthPolicy.APPROVAL_WINDOW_MS + 1))
+            assertTrue(coordinator.observePending().value.none { it.id == approval.id })
+        }
+}

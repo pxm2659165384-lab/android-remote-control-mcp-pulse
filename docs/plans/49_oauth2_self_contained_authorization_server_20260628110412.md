@@ -203,65 +203,65 @@
 **Why:** The pure, HTTP-independent building blocks of the Authorization Server. Isolated for unit testing.
 
 **Acceptance criteria:**
-- [ ] java-jwt 4.5.2 added via version catalog.
-- [ ] Access (24h) + refresh (90d) JWTs issued/verified with HS256; claims include `iss`, `aud` (canonical resource), `sub`/`client_id`, `jti`, token-type; rejects tampered/expired/wrong-type.
-- [ ] PKCE S256 verification; non-S256 rejected.
-- [ ] Persisted, revocable client registry (cap 20, evict oldest-unapproved-by-last-used) capturing `client_name`, `redirect_uris`, `application_type`, `logo_uri`, created/last-used/current-refresh-jti, with an in-memory snapshot so `/mcp` lookups do not parse from disk per request.
-- [ ] Single-use, 60s authorization-code store.
-- [ ] Approval coordinator: 2-digit code, 5-minute window, pending StateFlow, approve/deny, status.
+- [x] java-jwt 4.5.2 added via version catalog.
+- [x] Access (24h) + refresh (90d) JWTs issued/verified with HS256; claims include `iss`, `aud` (canonical resource), `sub`/`client_id`, `jti`, token-type; rejects tampered/expired/wrong-type.
+- [x] PKCE S256 verification; non-S256 rejected.
+- [x] Persisted, revocable client registry (cap 20, evict oldest-unapproved-by-last-used) capturing `client_name`, `redirect_uris`, `application_type`, `logo_uri`, created/last-used/current-refresh-jti, with an in-memory snapshot so `/mcp` lookups do not parse from disk per request.
+- [x] Single-use, 60s authorization-code store.
+- [x] Approval coordinator: 2-digit code, 5-minute window, pending StateFlow, approve/deny, status.
 
 ### Task 3.1 — Add dependencies (java-jwt + Coil)
-- [ ] **Action:** modify `gradle/libs.versions.toml` — under `[versions]` add `java-jwt = "4.5.2"` and `coil = "3.2.0"` (Coil 3.x, pinned exactly — no dynamic range); under `[libraries]` add `java-jwt = { group = "com.auth0", name = "java-jwt", version.ref = "java-jwt" }` and `coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }` and `coil-network = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil" }` (Coil 3 needs a network backend for remote images).
-- [ ] **Action:** modify `app/build.gradle.kts` — add `implementation(libs.java.jwt)`, `implementation(libs.coil.compose)`, `implementation(libs.coil.network)` in the dependencies block. (Coil is used ONLY by the SSRF-guarded client-logo rendering in Task 5.3; pin the version, do not use a dynamic/`latest` range.)
-- [ ] **DoD:** Gradle resolves the dependency (verified in Story 7 build). minSdk 33 → `java.time` available; no desugaring needed. Note: java-jwt 4.5.2 pulls `jackson-databind` transitively — confirm in the Story 7 build there is no version clash and no R8/duplicate-class issue (minify is disabled, so duplicate-class risk is low).
+- [x] **Action:** modify `gradle/libs.versions.toml` — under `[versions]` add `java-jwt = "4.5.2"` and `coil = "3.2.0"` (Coil 3.x, pinned exactly — no dynamic range); under `[libraries]` add `java-jwt = { group = "com.auth0", name = "java-jwt", version.ref = "java-jwt" }` and `coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }` and `coil-network = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil" }` (Coil 3 needs a network backend for remote images).
+- [x] **Action:** modify `app/build.gradle.kts` — add `implementation(libs.java.jwt)`, `implementation(libs.coil.compose)`, `implementation(libs.coil.network)` in the dependencies block. (Coil is used ONLY by the SSRF-guarded client-logo rendering in Task 5.3; pin the version, do not use a dynamic/`latest` range.)
+- [x] **DoD:** Gradle resolves the dependency (verified in Story 7 build). minSdk 33 → `java.time` available; no desugaring needed. Note: java-jwt 4.5.2 pulls `jackson-databind` transitively — confirm in the Story 7 build there is no version clash and no R8/duplicate-class issue (minify is disabled, so duplicate-class risk is low).
 
 ### Task 3.2 — Redirect allowlist, resource matching, PKCE
-- [ ] **Action:** create `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/mcp/oauth/OAuthPolicy.kt`
+- [x] **Action:** create `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/mcp/oauth/OAuthPolicy.kt`
   - `fun isAllowedRedirectUri(uri: String): Boolean` — a CLOSED-SET allowlist (security boundary): parse with `java.net.URI(uri)` (return false on parse failure / null host). True ONLY if `uri == CLAUDE_REDIRECT_URI`, OR (`uri.scheme == "http"` AND `uri.host` is EXACTLY `"localhost"` or `"127.0.0.1"` — exact host equality via `URI.host`, any/no port, ignore userinfo). Reject everything else, including `[::1]`, `0.0.0.0`, other loopback IPs, and deceptive hosts (`localhost.evil.com`, `localhost@evil.com`).
   - `fun resourceMatches(requested: String, canonical: String): Boolean` — case-insensitive on scheme+host, trailing-slash-insensitive, exact otherwise; `false` when `requested` is blank.
   - companion constants: `CLAUDE_REDIRECT_URI = "https://claude.ai/api/mcp/auth_callback"`, `MAX_OAUTH_CLIENTS = 20`, `ACCESS_TOKEN_TTL_SECONDS = 86_400L`, `REFRESH_TOKEN_TTL_SECONDS = 7_776_000L`, `AUTH_CODE_TTL_MS = 60_000L`, `APPROVAL_WINDOW_MS = 300_000L`, `MATCH_CODE_MODULO = 100` (2-digit, zero-padded), `MAX_PENDING_APPROVALS = 10`.
-- [ ] **Action:** create `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/mcp/oauth/Pkce.kt`
+- [x] **Action:** create `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/mcp/oauth/Pkce.kt`
   - `fun verifyS256(verifier: String, challenge: String): Boolean` — compute `computed = base64url(sha256(verifier.toByteArray(US-ASCII)))` (no padding); return `false` on blank inputs; compare `computed` to `challenge` with a constant-time comparison (`MessageDigest.isEqual(computed.toByteArray(), challenge.toByteArray())`) for parity with the project's `constantTimeEquals` convention.
-- [ ] **DoD:** Pure functions; compiles.
+- [x] **DoD:** Pure functions; compiles.
 
 ### Task 3.3 — JWT token service
-- [ ] **Action:** create `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/mcp/oauth/JwtTokenService.kt` (interface) + `JwtTokenServiceImpl.kt`
+- [x] **Action:** create `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/mcp/oauth/JwtTokenService.kt` (interface) + `JwtTokenServiceImpl.kt`
   - Data: `data class AccessTokenClaims(val clientId: String, val audience: String)`, `data class RefreshTokenClaims(val clientId: String, val jti: String)`.
   - Interface: `suspend fun issueAccessToken(clientId: String, resource: String): String`; `suspend fun issueRefreshToken(clientId: String, jti: String, resource: String): String`; `suspend fun verifyAccessToken(token: String): AccessTokenClaims?`; `suspend fun verifyRefreshToken(token: String): RefreshTokenClaims?`.
   - Impl (`@Inject constructor(private val settingsRepository: SettingsRepository)`): MEMOIZE the `Algorithm` — a `@Volatile private var algorithm: Algorithm?` lazily initialized once under a `Mutex` via `Algorithm.HMAC256(settingsRepository.getOrCreateJwtSigningSecret())`, so neither `issue` nor (hot-path) `verify` calls the repository/DataStore per request. Issue with `JWT.create().withIssuer(ISS).withSubject(clientId).withClaim("client_id", clientId).withClaim("typ", "access"|"refresh").withAudience(resource).withJWTId(jti|random).withIssuedAt(Date()).withExpiresAt(Date(now + ttl*1000)).sign(alg)` — BOTH access AND refresh carry `aud = resource` (per the agreed design) and `client_id`; refresh additionally carries the `jti`. `ISS = "android-remote-control-mcp"`. Verify with `JWT.require(alg).withIssuer(ISS).withClaim("typ", expectedType).build().verify(token)` inside `runCatching { … }.getOrNull()`, then map claims (access → `clientId` + `audience` first value; refresh → `clientId` + `jti`); reject when `typ`/structure mismatch.
-- [ ] **DoD:** Round-trips; rejects tampered/expired/wrong-typ.
+- [x] **DoD:** Round-trips; rejects tampered/expired/wrong-typ.
 
 ### Task 3.4 — Client registry (persisted, revocable, in-memory snapshot)
-- [ ] **Action:** create `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/mcp/oauth/OAuthClient.kt`
+- [x] **Action:** create `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/mcp/oauth/OAuthClient.kt`
   - `@Serializable data class OAuthClient(val clientId: String, val clientName: String? = null, val redirectUris: List<String>, val applicationType: String? = null, val logoUri: String? = null, val createdAtMs: Long, val lastUsedAtMs: Long, val currentRefreshJti: String? = null)`
   - `logoUri` is captured from DCR (`logo_uri`) and rendered in the clients row WITH SSRF mitigations (see Task 5.3); fall back to initials when absent/invalid. `applicationType` kept (user-requested for the clients row).
-- [ ] **Action:** create `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/data/repository/OAuthClientRepository.kt` (interface) + `OAuthClientRepositoryImpl.kt`
+- [x] **Action:** create `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/data/repository/OAuthClientRepository.kt` (interface) + `OAuthClientRepositoryImpl.kt`
   - Interface: `fun observeClients(): Flow<List<OAuthClient>>`; `suspend fun getClients(): List<OAuthClient>`; `suspend fun getClient(clientId: String): OAuthClient?`; `suspend fun register(clientName: String?, redirectUris: List<String>, applicationType: String?, logoUri: String?, nowMs: Long): OAuthClient`; `suspend fun revoke(clientId: String)`; `suspend fun touchLastUsed(clientId: String, nowMs: Long)`; `suspend fun setRefreshJti(clientId: String, jti: String)`.
   - Impl (`@Inject constructor(@OAuthClientsDataStore private val dataStore: DataStore<Preferences>)` — a DEDICATED Preferences DataStore, NOT the shared settings store, per the agreed design): key `OAUTH_CLIENTS_KEY = stringPreferencesKey("oauth_clients")`; lenient `Json { ignoreUnknownKeys = true }`. Maintain an in-memory `MutableStateFlow<List<OAuthClient>>` snapshot seeded lazily on first access (load+parse from DataStore once, guarded by a `Mutex`+flag); every write updates DataStore AND the snapshot write-through. `observeClients()` returns the snapshot StateFlow; `getClient`/`getClients` read the in-memory snapshot (NO per-call JSON-decode-from-disk on the `/mcp` hot path). `register`: `clientId = "arc-" + UUID.randomUUID()`; append; if size > `MAX_OAUTH_CLIENTS` evict the oldest-by-`lastUsedAtMs` among entries with `currentRefreshJti == null` (never completed a token grant); only if EVERY entry has a `currentRefreshJti` evict the overall oldest-by-`lastUsedAtMs` — so unauthenticated `/register` spam cannot evict an already-approved client. `touchLastUsed`/`setRefreshJti` mutate the named entry; `revoke` removes by id.
-- [ ] **Action:** modify `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/di/AppModule.kt`:
+- [x] **Action:** modify `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/di/AppModule.kt`:
   - Add a `@Qualifier @Retention(BINARY) annotation class OAuthClientsDataStore`.
   - In `AppModule` add a dedicated DataStore provider mirroring `provideDataStore`: a `private val Context.oauthClientsDataStore: DataStore<Preferences> by preferencesDataStore(name = "oauth_clients")` extension + `@Provides @Singleton @OAuthClientsDataStore fun provideOAuthClientsDataStore(@ApplicationContext context: Context): DataStore<Preferences> = context.oauthClientsDataStore`.
   - In `RepositoryModule` add `@Binds @Singleton abstract fun bindOAuthClientRepository(impl: OAuthClientRepositoryImpl): OAuthClientRepository`.
-- [ ] **DoD:** Persists across new instances (restart); cap+eviction honored; revoke effective; hot-path lookups served from the in-memory snapshot.
+- [x] **DoD:** Persists across new instances (restart); cap+eviction honored; revoke effective; hot-path lookups served from the in-memory snapshot.
 
 ### Task 3.5 — Authorization-code store
-- [ ] **Action:** create `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/mcp/oauth/AuthorizationCodeStore.kt` (interface) + `AuthorizationCodeStoreImpl.kt`
+- [x] **Action:** create `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/mcp/oauth/AuthorizationCodeStore.kt` (interface) + `AuthorizationCodeStoreImpl.kt`
   - `data class AuthorizationCode(val code: String, val clientId: String, val redirectUri: String, val codeChallenge: String, val resource: String, val scope: String, val expiresAtMs: Long)`
   - Interface: `suspend fun create(clientId, redirectUri, codeChallenge, resource, scope, nowMs): String`; `suspend fun consume(code: String, nowMs: Long): AuthorizationCode?` (single-use: remove on read; null if missing/expired).
   - Impl (`@Inject constructor()`): `Mutex` + `LinkedHashMap<String, AuthorizationCode>`; `create` purges expired then inserts a random `"code-" + secureRandomHex` (16+ bytes from `SecureRandom`); `consume` removes and returns only if not expired.
-- [ ] **DoD:** Single-use + TTL enforced; thread-safe.
+- [x] **DoD:** Single-use + TTL enforced; thread-safe.
 
 ### Task 3.6 — Approval coordinator
-- [ ] **Action:** create `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/mcp/oauth/OAuthApprovalCoordinator.kt` (interface) + `OAuthApprovalCoordinatorImpl.kt` (`@Singleton`)
+- [x] **Action:** create `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/mcp/oauth/OAuthApprovalCoordinator.kt` (interface) + `OAuthApprovalCoordinatorImpl.kt` (`@Singleton`)
   - `enum class ApprovalState { PENDING, APPROVED, DENIED, EXPIRED }`
   - `data class PendingApproval(val id: String, val clientName: String, val redirectHost: String, val matchCode: String, val expiresAtMs: Long)`
   - Interface: `fun observePending(): StateFlow<List<PendingApproval>>`; `suspend fun createPending(clientName: String, redirectHost: String, nowMs: Long): PendingApproval`; `suspend fun approve(id: String)`; `suspend fun deny(id: String)`; `suspend fun stateOf(id: String, nowMs: Long): ApprovalState`.
   - Impl (`@Inject constructor()`, `@Singleton`): `Mutex`-guarded map id → (PendingApproval + ApprovalState); `MutableStateFlow<List<PendingApproval>>` of currently-PENDING entries. `createPending`: first purge expired pendings; if still at `MAX_PENDING_APPROVALS`, drop the OLDEST pending (prevents an unauthenticated `/authorize` spammer from flooding the device with approval notifications). `matchCode` = `(SecureRandom().nextInt(MATCH_CODE_MODULO))` zero-padded to 2 digits, RE-DRAWN until it does NOT collide with any currently-pending code (so the user can never see two pending requests with the same code — guaranteed possible since `MAX_PENDING_APPROVALS` (10) < `MATCH_CODE_MODULO` (100)); `expiresAtMs = nowMs + APPROVAL_WINDOW_MS`; `id` = a high-entropy unguessable token (16+ bytes hex from `SecureRandom`) — NOT a sequential/short value, because `/authorize/status` is unauthenticated and returns the minted auth code keyed solely by this id; emit. `approve`/`deny` set state and remove from the pending flow. `stateOf` returns EXPIRED when past window (and removes from flow).
-- [ ] **Action:** modify `AppModule.kt` `ServiceModule` — add `@Binds @Singleton` for `JwtTokenService`, `AuthorizationCodeStore`, `OAuthApprovalCoordinator`. (`ServiceModule` already has a pre-existing `@Suppress("TooManyFunctions")` that covers these new bindings — do NOT add any new suppression.)
-- [ ] **DoD:** Concurrency-safe; pending flow reflects PENDING set; expiry transitions correct.
+- [x] **Action:** modify `AppModule.kt` `ServiceModule` — add `@Binds @Singleton` for `JwtTokenService`, `AuthorizationCodeStore`, `OAuthApprovalCoordinator`. (`ServiceModule` already has a pre-existing `@Suppress("TooManyFunctions")` that covers these new bindings — do NOT add any new suppression.)
+- [x] **DoD:** Concurrency-safe; pending flow reflects PENDING set; expiry transitions correct.
 
 ### Task 3.7 — Tests (Story 3)
-- [ ] **Action:** create the following unit test files. **Setup (shared):** `MockK` for `SettingsRepository.getOrCreateJwtSigningSecret` returning a fixed secret; in-memory/temp DataStore for the repository (same harness style as `SettingsRepositoryImplTest`); inject explicit `nowMs` for time control (no `System.currentTimeMillis` in pure logic).
+- [x] **Action:** create the following unit test files. **Setup (shared):** `MockK` for `SettingsRepository.getOrCreateJwtSigningSecret` returning a fixed secret; in-memory/temp DataStore for the repository (same harness style as `SettingsRepositoryImplTest`); inject explicit `nowMs` for time control (no `System.currentTimeMillis` in pure logic).
 
   **File:** `mcp/oauth/JwtTokenServiceImplTest.kt`
   | Test | Verifies |
@@ -312,7 +312,7 @@
   | `deny transitions to DENIED` | stateOf DENIED |
   | `expiry yields EXPIRED` | nowMs past window → EXPIRED; removed from flow |
 
-- [ ] **DoD:** All defined; deterministic via injected `nowMs`.
+- [x] **DoD:** All defined; deterministic via injected `nowMs`.
 
 ---
 

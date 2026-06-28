@@ -255,6 +255,13 @@ dependencies {
     implementation(libs.mcp.kotlin.sdk.server)
     runtimeOnly(libs.slf4j.android)
 
+    // OAuth (JWT signing/verification)
+    implementation(libs.java.jwt)
+
+    // OAuth client logos (SSRF-guarded remote image loading)
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network)
+
     // Kotlinx
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.core)
