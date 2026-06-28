@@ -2,8 +2,6 @@
 
 package com.danielealbano.androidremotecontrolmcp.ui.viewmodels
 
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -127,6 +125,10 @@ class MainViewModel
         val storageError: SharedFlow<String> = _storageError.asSharedFlow()
 
         init {
+            // Apply the one-time auth-model migration before the UI reflects auth defaults.
+            viewModelScope.launch(ioDispatcher) {
+                settingsRepository.ensureAuthModelMigrated()
+            }
             viewModelScope.launch(ioDispatcher) {
                 settingsRepository.serverConfig.collect { config ->
                     _serverConfig.value = config
@@ -204,18 +206,6 @@ class MainViewModel
             }
         }
 
-        fun generateNewBearerToken() {
-            viewModelScope.launch(ioDispatcher) {
-                settingsRepository.generateNewBearerToken()
-            }
-        }
-
-        fun clearBearerToken() {
-            viewModelScope.launch(ioDispatcher) {
-                settingsRepository.updateBearerToken("")
-            }
-        }
-
         fun updateAutoStartOnBoot(enabled: Boolean) {
             viewModelScope.launch(ioDispatcher) {
                 settingsRepository.updateAutoStartOnBoot(enabled)
@@ -267,15 +257,6 @@ class MainViewModel
                     action = McpServerService.ACTION_STOP
                 }
             context.startForegroundService(intent)
-        }
-
-        fun copyToClipboard(
-            context: Context,
-            text: String,
-        ) {
-            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            val clip = ClipData.newPlainText(CLIPBOARD_LABEL, text)
-            clipboard.setPrimaryClip(clip)
         }
 
         fun refreshPermissionStatus(context: Context) {
@@ -565,7 +546,6 @@ class MainViewModel
         companion object {
             private const val TAG = "MCP:MainViewModel"
             private const val MAX_LOG_ENTRIES = 100
-            private const val CLIPBOARD_LABEL = "MCP Remote Control"
             private const val FLOW_TIMEOUT_MS = 5_000L
         }
     }

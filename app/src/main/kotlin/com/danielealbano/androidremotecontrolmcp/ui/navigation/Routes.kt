@@ -17,6 +17,10 @@ sealed class SettingsRoute(
 
     data object General : SettingsRoute("settings/general")
 
+    data object Access : SettingsRoute("settings/access")
+
+    data object OAuthClients : SettingsRoute("settings/access/clients")
+
     data object Security : SettingsRoute("settings/security")
 
     data object Tunnel : SettingsRoute("settings/tunnel")

@@ -51,11 +51,22 @@ class McpApplication : Application() {
                 description = "Notification for the running MCP server"
             }
 
+        val oauthApprovalChannel =
+            NotificationChannel(
+                OAUTH_APPROVAL_CHANNEL_ID,
+                getString(R.string.notification_channel_oauth_approval_name),
+                NotificationManager.IMPORTANCE_HIGH,
+            ).apply {
+                description = "Heads-up notification for pending OAuth connection approvals"
+            }
+
         notificationManager.createNotificationChannel(mcpServerChannel)
+        notificationManager.createNotificationChannel(oauthApprovalChannel)
     }
 
     companion object {
         private const val TAG = "MCP:Application"
         const val MCP_SERVER_CHANNEL_ID = "mcp_server_channel"
+        const val OAUTH_APPROVAL_CHANNEL_ID = "oauth_approval_channel"
     }
 }

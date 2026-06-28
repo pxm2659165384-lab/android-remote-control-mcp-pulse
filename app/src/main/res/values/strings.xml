@@ -21,7 +21,9 @@
 
     <!-- Settings Sub-pages -->
     <string name="settings_general_title">General</string>
-    <string name="settings_general_subtitle">Port, address, token, auto-start</string>
+    <string name="settings_general_subtitle">Port, address, device, auto-start</string>
+    <string name="settings_access_title">Access</string>
+    <string name="settings_access_subtitle">OAuth, bearer token, connected clients</string>
     <string name="settings_security_title">Security</string>
     <string name="settings_security_subtitle">HTTPS, certificate</string>
     <string name="settings_tunnel_title">Tunnel</string>
@@ -177,4 +179,46 @@
     <string name="channel_not_configured_dialog_title">Endpoint URL not set</string>
     <string name="channel_not_configured_dialog_body">Configure the event channel endpoint URL in Settings → Event Channel before starting the service. The auth token is optional and can be left empty if your endpoint does not require it.</string>
     <string name="channel_not_configured_dialog_ok">OK</string>
+
+    <!-- Access settings (OAuth + bearer) -->
+    <string name="access_title">Access</string>
+    <string name="access_oauth_label">OAuth (Claude.ai connectors)</string>
+    <string name="access_oauth_supporting">Requires an active tunnel (HTTPS, public reachability)</string>
+    <string name="access_connected_clients">Connected clients</string>
+    <string name="access_bearer_label">Bearer token authentication</string>
+    <string name="access_bearer_token_field_label">Bearer token</string>
+    <string name="access_public_url_label">Public URL override (optional)</string>
+    <string name="access_public_url_supporting">Leave empty to auto-detect from the request; overrides the host used for OAuth metadata and share links</string>
+    <string name="access_no_auth_warning_title">Server has NO authentication</string>
+    <string name="access_no_auth_warning_body">Anyone who can reach the server has full control of this device.</string>
+    <string name="access_autodetect_warning_body">OAuth metadata and links are auto-detected from request headers; on a network binding without a trusted proxy a client could spoof the host — set a Public URL override to pin it.</string>
+    <string name="access_disable_auth_dialog_title">Disable all authentication?</string>
+    <string name="access_disable_auth_dialog_body">This leaves the server with NO authentication. Anyone who can reach it has full control. Continue?</string>
+    <string name="access_disable_auth_confirm">Disable anyway</string>
+    <string name="access_disable_auth_cancel">Cancel</string>
+    <string name="access_token_show">Show token</string>
+    <string name="access_token_hide">Hide token</string>
+    <string name="access_token_copy">Copy token</string>
+    <string name="access_token_regenerate">Regenerate token</string>
+
+    <!-- Connected clients -->
+    <string name="oauth_clients_title">Connected clients</string>
+    <string name="oauth_clients_empty">No connected clients. Clients appear here after they connect via OAuth.</string>
+    <string name="oauth_clients_created">Created %1$s</string>
+    <string name="oauth_clients_last_used">Last used %1$s</string>
+    <string name="oauth_clients_revoke">Revoke</string>
+    <string name="oauth_clients_revoke_dialog_title">Revoke client?</string>
+    <string name="oauth_clients_revoke_dialog_body">Revoking immediately invalidates this client\'s tokens. It must re-authorize to reconnect.</string>
+    <string name="oauth_clients_revoke_confirm">Revoke</string>
+    <string name="oauth_clients_revoke_cancel">Cancel</string>
+
+    <!-- On-device approval -->
+    <string name="approval_title">Connection requests</string>
+    <string name="approval_empty">No pending requests.</string>
+    <string name="approval_match_code_label">Confirm this code matches your browser:</string>
+    <string name="approval_approve">Approve</string>
+    <string name="approval_deny">Deny</string>
+    <string name="notification_channel_oauth_approval_name">Connection approvals</string>
+    <string name="notification_oauth_approval_title">Connection request pending</string>
+    <string name="notification_oauth_approval_body">%1$d request(s) waiting — tap to review</string>
 </resources>
