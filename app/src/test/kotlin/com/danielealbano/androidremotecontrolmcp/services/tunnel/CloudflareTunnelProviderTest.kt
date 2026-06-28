@@ -277,6 +277,19 @@ class CloudflareTunnelProviderTest {
         fun `isServiceValid rejects service with no port`() {
             assertFalse(CloudflareTunnelProvider.isServiceValid("http://localhost", 8080))
         }
+
+        @Test
+        fun `isServiceValid accepts uppercase scheme and host`() {
+            assertTrue(CloudflareTunnelProvider.isServiceValid("HTTP://LOCALHOST:8080", 8080))
+            assertTrue(CloudflareTunnelProvider.isServiceValid("http://Localhost:8080", 8080))
+        }
+
+        @Test
+        fun `isServiceValid rejects userinfo query and fragment`() {
+            assertFalse(CloudflareTunnelProvider.isServiceValid("http://user@localhost:8080", 8080))
+            assertFalse(CloudflareTunnelProvider.isServiceValid("http://localhost:8080?x=1", 8080))
+            assertFalse(CloudflareTunnelProvider.isServiceValid("http://localhost:8080#frag", 8080))
+        }
     }
 
     @Nested

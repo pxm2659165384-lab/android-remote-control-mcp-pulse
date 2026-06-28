@@ -182,7 +182,7 @@ class CloudflareTunnelProvider
         }
 
         /**
-         * Mutex-guarded teardown shared by [stop] and [terminateWithError]. Cancels all jobs and
+         * Mutex-guarded teardown shared by [stop] and [failLocked]. Cancels all jobs and
          * destroys the process. When [setDisconnected] is true the status becomes
          * [TunnelStatus.Disconnected]; otherwise the current (error) status is preserved.
          */
@@ -380,17 +380,26 @@ class CloudflareTunnelProvider
                         }
                 }.getOrDefault(emptyList())
 
-            /** True when the routed service points at our MCP server: http://(localhost|127.0.0.1):<port>. */
+            /**
+             * True when the routed service points at our MCP server: `http://(localhost|127.0.0.1):<port>`.
+             * Scheme and host are compared case-insensitively (RFC 3986); any service carrying userinfo,
+             * a query, or a fragment is rejected (cloudflared never emits those for an origin service).
+             */
             internal fun isServiceValid(
                 service: String,
                 expectedPort: Int,
             ): Boolean {
                 val uri = runCatching { URI(service) }.getOrNull() ?: return false
+                val host = uri.host?.lowercase()
                 val path = uri.path
-                return uri.scheme == "http" &&
-                    (uri.host == "localhost" || uri.host == "127.0.0.1") &&
+                val isLoopback = host == "localhost" || host == "127.0.0.1"
+                val pathIsRoot = path.isNullOrEmpty() || path == "/"
+                val hasNoExtraParts = uri.userInfo == null && uri.query == null && uri.fragment == null
+                return uri.scheme?.lowercase() == "http" &&
+                    isLoopback &&
                     uri.port == expectedPort &&
-                    (path.isNullOrEmpty() || path == "/")
+                    pathIsRoot &&
+                    hasNoExtraParts
             }
         }
     }
