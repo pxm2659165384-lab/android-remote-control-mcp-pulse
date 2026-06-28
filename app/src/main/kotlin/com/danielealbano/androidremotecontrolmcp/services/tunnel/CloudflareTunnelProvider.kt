@@ -159,7 +159,10 @@ class CloudflareTunnelProvider
                     // Skip non-JSON lines and act only on the remote-config push; `Registered tunnel
                     // connection` is ignored so status stays Connecting until a valid config validates.
                     if (!terminating && logMessageOf(line) == MSG_UPDATED_CONFIG) {
-                        configPayloadOf(line)?.let { handleTokenConfig(it, localPort) }
+                        val payload = configPayloadOf(line)
+                        if (payload != null) {
+                            handleTokenConfig(payload, localPort)
+                        }
                     }
                 }
                 startProcessMonitor(proc)
@@ -208,12 +211,13 @@ class CloudflareTunnelProvider
         }
 
         /**
-         * Sets the error status and tears the tunnel down. Safe to call from the stderr-reader or
-         * timeout coroutine: the teardown is launched on [scope] (never inline) so it can take the
-         * mutex without deadlocking, and [terminating] is set first so the process monitor will not
+         * Sets the error status and tears the tunnel down. MUST be called while holding [mutex] (so
+         * the status transition is serialized with the success path and the timeout check). The
+         * teardown is launched on [scope] so it acquires the mutex only AFTER the caller releases it
+         * (no re-entrancy/deadlock); [terminating] is set first so the process monitor will not
          * overwrite the error when it observes the resulting process exit.
          */
-        private fun terminateWithError(message: String) {
+        private fun failLocked(message: String) {
             terminating = true
             _status.value = TunnelStatus.Error(message)
             scope.launch { shutdownProcess(setDisconnected = false) }
@@ -221,21 +225,23 @@ class CloudflareTunnelProvider
 
         /**
          * Launches a coroutine that reads the process stderr line by line and forwards each line to
-         * [onLine]. Shared by both modes; mode-specific handling lives in the caller's lambda.
+         * [onLine]. Shared by both modes; mode-specific handling lives in the caller's lambda. The
+         * reader is closed on any exit path (`use`) to release the file descriptor.
          */
         private fun launchStderrReader(
             proc: Process,
-            onLine: (String) -> Unit,
+            onLine: suspend (String) -> Unit,
         ) {
             stderrReaderJob =
                 scope.launch {
                     try {
-                        val reader = BufferedReader(InputStreamReader(proc.errorStream))
-                        while (isActive) {
-                            @Suppress("BlockingMethodInNonBlockingContext")
-                            val line = reader.readLine() ?: break
-                            Log.d(TAG, "cloudflared: $line")
-                            onLine(line)
+                        BufferedReader(InputStreamReader(proc.errorStream)).use { reader ->
+                            while (isActive) {
+                                @Suppress("BlockingMethodInNonBlockingContext")
+                                val line = reader.readLine() ?: break
+                                Log.d(TAG, "cloudflared: $line")
+                                onLine(line)
+                            }
                         }
                     } catch (
                         @Suppress("TooGenericExceptionCaught") e: Exception,
@@ -252,35 +258,49 @@ class CloudflareTunnelProvider
          * zero public hostnames or any hostname whose service is not our local MCP server stops the
          * tunnel with an error; otherwise the status becomes Connected with every public hostname.
          */
-        private fun handleTokenConfig(
+        private suspend fun handleTokenConfig(
             configJson: String,
             localPort: Int,
         ) {
             val routes = ingressRoutesOf(configJson)
-            if (routes.isEmpty()) {
-                terminateWithError("No public hostname configured for this tunnel")
-                return
+            // The whole decision (status transition + timeout cancellation) runs under the mutex so it
+            // is serialized with the timeout coroutine and with stop()/teardown — `timeoutJob` is only
+            // ever mutated under the mutex.
+            mutex.withLock {
+                if (terminating) return@withLock
+                val invalid = routes.firstOrNull { !isServiceValid(it.service, localPort) }
+                when {
+                    routes.isEmpty() -> {
+                        failLocked("No public hostname configured for this tunnel")
+                    }
+
+                    invalid != null -> {
+                        failLocked("Tunnel route misconfigured: ${invalid.hostname} -> ${invalid.service}")
+                    }
+
+                    else -> {
+                        timeoutJob?.cancel()
+                        timeoutJob = null
+                        _status.value =
+                            TunnelStatus.Connected(
+                                urls = routes.map { "https://${it.hostname}" },
+                                providerType = TunnelProviderType.CLOUDFLARE,
+                            )
+                    }
+                }
             }
-            val invalid = routes.firstOrNull { !isServiceValid(it.service, localPort) }
-            if (invalid != null) {
-                terminateWithError("Tunnel route misconfigured: ${invalid.hostname} -> ${invalid.service}")
-                return
-            }
-            timeoutJob?.cancel()
-            timeoutJob = null
-            _status.value =
-                TunnelStatus.Connected(
-                    urls = routes.map { "https://${it.hostname}" },
-                    providerType = TunnelProviderType.CLOUDFLARE,
-                )
         }
 
         private fun startTokenConfigTimeout() {
             timeoutJob =
                 scope.launch {
                     delay(configTimeoutMs)
-                    if (_status.value is TunnelStatus.Connecting) {
-                        terminateWithError("No public hostname configured for this tunnel")
+                    // Check-and-act under the mutex so a config push that connects at the same instant
+                    // cannot be overwritten by a spurious timeout error.
+                    mutex.withLock {
+                        if (!terminating && _status.value is TunnelStatus.Connecting) {
+                            failLocked("No public hostname configured for this tunnel")
+                        }
                     }
                 }
         }
