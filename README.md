@@ -334,18 +334,22 @@ adb shell am broadcast \
 ```
 
 ```bash
-# Clear the bearer token (disables authentication; see Security section)
+# Disable bearer authentication (use only on trusted networks; the server is open
+# only if OAuth is also disabled — see the Security section)
 adb shell am broadcast \
   -a com.danielealbano.androidremotecontrolmcp.ADB_CONFIGURE \
   -n <app-id>/com.danielealbano.androidremotecontrolmcp.services.mcp.AdbConfigReceiver \
-  --es bearer_token ""
+  --ez bearer_token_enabled false
 ```
 
-Passing `--es bearer_token ""` clears the stored token. The MCP server skips authentication when the token is empty — use only on trusted networks.
+Bearer enforcement is controlled by `--ez bearer_token_enabled <bool>`, NOT by clearing the value. Clearing the value (`--es bearer_token ""`) while `bearer_token_enabled=true` makes `/mcp` fail CLOSED (401) — it does NOT open the server. The server accepts unauthenticated requests only when BOTH `bearer_token_enabled` and `oauth_enabled` are false.
 
 | Extra | Type | Description |
 |-------|------|-------------|
-| `bearer_token` | string | Authentication token for MCP requests (empty string clears the token and disables auth) |
+| `bearer_token` | string | Static bearer-token value (clearing it while `bearer_token_enabled=true` fails closed, it does NOT disable auth) |
+| `bearer_token_enabled` | boolean | Enable/disable bearer-token authentication (controls enforcement, independent of the value) |
+| `oauth_enabled` | boolean | Enable/disable the self-contained OAuth 2.1 server (Claude.ai / Claude Desktop connectors) |
+| `public_url_override` | string | Pin the public host used for OAuth metadata and share links (empty = auto-detect from the request) |
 | `binding_address` | string | `127.0.0.1` (localhost) or `0.0.0.0` (network) |
 | `port` | int | HTTP/HTTPS server port (1-65535) |
 | `auto_start_on_boot` | boolean | Start MCP server when device boots |
@@ -391,7 +395,7 @@ The application runs entirely within Android's standard permission model. No roo
 
 ### Authentication
 
-When the bearer token is configured (non-empty), every MCP request must carry an `Authorization: Bearer <token>` header. The token is auto-generated once on first launch (UUID, preserved across app upgrades) and can be viewed, copied, regenerated, or cleared in the app. When the token is empty, the MCP server skips authentication entirely — see the security note in the Connect section.
+Authentication is combined (dual-accept): a `/mcp` request is authorized by a valid static bearer token OR a valid issued OAuth access token. Enforcement is controlled by two independent toggles in **Settings → Access** — `bearer_token_enabled` (default on) and `oauth_enabled` (default off) — not by the token value. The bearer token is auto-generated once on first launch (UUID, preserved across app upgrades) and can be viewed, copied, or regenerated in the app. Clearing the value while bearer is enabled makes the server fail CLOSED (401). The server accepts unauthenticated requests only when BOTH toggles are off (the app shows a warning and a confirmation before that happens) — see the security note in the Connect section.
 
 ### Network Security
 
