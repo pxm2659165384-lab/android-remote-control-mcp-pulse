@@ -303,18 +303,27 @@ dependencies {
 // Offline IP-geolocation database, generated at build time from the CURRENT month's DB-IP City Lite
 // (CC BY 4.0). The gzipped LDB1 asset is not committed (a generated artifact). Keyed on the year-month,
 // so it naturally refreshes when DB-IP publishes a new monthly DB: the task re-runs when the month rolls
-// over (and is up-to-date within the same month). Requires python3 + network access at build time.
+// over (and is up-to-date within the same month). Requires python3 + network access at build time. The
+// source CSV is cached under .dbip-cache (gitignored) so CI can cache the monthly download.
 val generateLocationDb =
     tasks.register<Exec>("generateLocationDb") {
         val script = rootProject.layout.projectDirectory.file("scripts/location-db/build_location_db.py")
         val asset = layout.projectDirectory.file("src/main/assets/geo/location-db.bin.gz")
+        val cacheDir = rootProject.layout.projectDirectory.dir(".dbip-cache")
         val month = YearMonth.now().toString()
         inputs.file(script)
         inputs.property("dbMonth", month)
         outputs.file(asset)
-        commandLine("python3", script.asFile.absolutePath, "--month", month, "--out", asset.asFile.absolutePath)
+        commandLine(
+            "python3", script.asFile.absolutePath,
+            "--month", month,
+            "--cache-dir", cacheDir.asFile.absolutePath,
+            "--out", asset.asFile.absolutePath,
+        )
     }
-tasks.named("preBuild") { dependsOn(generateLocationDb) }
+// Only the APK asset-packaging tasks need the DB — wiring it here (not to preBuild) keeps it out of the
+// unit-test path, which uses the small committed fixture instead of the ~25 MB asset.
+tasks.matching { it.name.matches(Regex("merge.*Assets")) }.configureEach { dependsOn(generateLocationDb) }
 
 tasks.withType<Test> {
     useJUnitPlatform()
