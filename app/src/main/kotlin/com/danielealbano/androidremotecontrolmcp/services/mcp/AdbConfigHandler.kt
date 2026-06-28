@@ -42,6 +42,9 @@ class AdbConfigHandler(
         Log.i(TAG, "Received ADB configuration broadcast")
 
         applyBearerToken(intent)
+        applyOauthEnabled(intent)
+        applyBearerTokenEnabled(intent)
+        applyPublicUrlOverride(intent)
         applyBindingAddress(intent)
         applyPort(intent)
         applyAutoStartOnBoot(intent)
@@ -67,10 +70,51 @@ class AdbConfigHandler(
         val value = intent.getStringExtra(EXTRA_BEARER_TOKEN) ?: return
         settingsRepository.updateBearerToken(value)
         if (value.isEmpty()) {
-            Log.i(TAG, "Bearer token cleared")
+            Log.w(
+                TAG,
+                "Bearer token cleared; while bearer_token_enabled=true this makes /mcp fail closed (401) " +
+                    "until a token is set or bearer is disabled",
+            )
         } else {
             Log.i(TAG, "Bearer token updated (length=${value.length})")
         }
+    }
+
+    private suspend fun applyOauthEnabled(intent: Intent) {
+        if (!intent.hasExtra(EXTRA_OAUTH_ENABLED)) return
+        val value = intent.getBooleanExtra(EXTRA_OAUTH_ENABLED, false)
+        settingsRepository.updateOauthEnabled(value)
+        Log.i(TAG, "OAuth enabled updated to $value")
+    }
+
+    private suspend fun applyBearerTokenEnabled(intent: Intent) {
+        if (!intent.hasExtra(EXTRA_BEARER_TOKEN_ENABLED)) return
+        val value = intent.getBooleanExtra(EXTRA_BEARER_TOKEN_ENABLED, false)
+        settingsRepository.updateBearerTokenEnabled(value)
+        if (value) {
+            Log.i(TAG, "Bearer token authentication enabled")
+        } else {
+            Log.w(
+                TAG,
+                "Bearer token authentication disabled; if OAuth is also disabled the server is UNAUTHENTICATED",
+            )
+        }
+    }
+
+    private suspend fun applyPublicUrlOverride(intent: Intent) {
+        if (!intent.hasExtra(EXTRA_PUBLIC_URL_OVERRIDE)) return
+        val value = intent.getStringExtra(EXTRA_PUBLIC_URL_OVERRIDE) ?: ""
+        settingsRepository.validatePublicUrlOverride(value).fold(
+            onSuccess = {
+                settingsRepository.updatePublicUrlOverride(it)
+                if (it.isEmpty()) {
+                    Log.i(TAG, "Public URL override cleared (auto-detect from request)")
+                } else {
+                    Log.i(TAG, "Public URL override updated")
+                }
+            },
+            onFailure = { Log.w(TAG, "Ignoring invalid public_url_override: ${it.message}") },
+        )
     }
 
     private suspend fun applyBindingAddress(intent: Intent) {
@@ -301,6 +345,9 @@ class AdbConfigHandler(
         private const val TAG = "MCP:AdbConfigHandler"
 
         internal const val EXTRA_BEARER_TOKEN = "bearer_token"
+        internal const val EXTRA_OAUTH_ENABLED = "oauth_enabled"
+        internal const val EXTRA_BEARER_TOKEN_ENABLED = "bearer_token_enabled"
+        internal const val EXTRA_PUBLIC_URL_OVERRIDE = "public_url_override"
         internal const val EXTRA_BINDING_ADDRESS = "binding_address"
         internal const val EXTRA_PORT = "port"
         internal const val EXTRA_AUTO_START_ON_BOOT = "auto_start_on_boot"

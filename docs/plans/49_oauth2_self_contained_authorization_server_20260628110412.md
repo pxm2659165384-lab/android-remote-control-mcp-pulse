@@ -88,28 +88,28 @@
 **Why:** Replace the implicit "empty bearer value = disabled" semantics with explicit independent toggles, enabling dual-accept and a clear "no auth when both off" state, all adb-configurable. Add the HS256 signing secret accessor and the optional public-URL override.
 
 **Acceptance criteria:**
-- [ ] `ServerConfig` exposes `oauthEnabled` (default false), `bearerTokenEnabled` (default true), `publicUrlOverride` (default ""); `bearerToken` remains the value.
-- [ ] One-time migration preserves current behavior: existing non-empty token → bearer enabled; previously-cleared token → bearer disabled; fresh install → bearer enabled + auto-generated token. Migration runs ONCE (idempotent; never overrides a later explicit toggle).
-- [ ] Disabling bearer keeps the value; enabling bearer with empty value auto-generates one.
-- [ ] HS256 signing secret is generated once (SecureRandom) and persisted.
-- [ ] `oauth_enabled`, `bearer_token_enabled`, `public_url_override` are settable via adb.
+- [x] `ServerConfig` exposes `oauthEnabled` (default false), `bearerTokenEnabled` (default true), `publicUrlOverride` (default ""); `bearerToken` remains the value.
+- [x] One-time migration preserves current behavior: existing non-empty token → bearer enabled; previously-cleared token → bearer disabled; fresh install → bearer enabled + auto-generated token. Migration runs ONCE (idempotent; never overrides a later explicit toggle).
+- [x] Disabling bearer keeps the value; enabling bearer with empty value auto-generates one.
+- [x] HS256 signing secret is generated once (SecureRandom) and persisted.
+- [x] `oauth_enabled`, `bearer_token_enabled`, `public_url_override` are settable via adb.
 
 ### Task 2.1 — `ServerConfig` fields
-- [ ] **Action:** modify `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/data/model/ServerConfig.kt` — add `val oauthEnabled: Boolean = false`, `val bearerTokenEnabled: Boolean = true`, and `val publicUrlOverride: String = ""` — insert all three immediately BEFORE the existing trailing `toolPermissionsConfig` field (do not disturb it). Update KDoc.
-- [ ] **DoD:** Compiles; defaults set.
+- [x] **Action:** modify `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/data/model/ServerConfig.kt` — add `val oauthEnabled: Boolean = false`, `val bearerTokenEnabled: Boolean = true`, and `val publicUrlOverride: String = ""` — insert all three immediately BEFORE the existing trailing `toolPermissionsConfig` field (do not disturb it). Update KDoc.
+- [x] **DoD:** Compiles; defaults set.
 
 ### Task 2.2 — `SettingsRepository` interface additions
-- [ ] **Action:** modify `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/data/repository/SettingsRepository.kt`:
+- [x] **Action:** modify `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/data/repository/SettingsRepository.kt`:
   - `suspend fun updateOauthEnabled(enabled: Boolean)`
   - `suspend fun updateBearerTokenEnabled(enabled: Boolean)` (KDoc: enabling with empty value auto-generates a token; disabling preserves the value)
   - `suspend fun updatePublicUrlOverride(url: String)`
   - `fun validatePublicUrlOverride(url: String): Result<String>` (KDoc: UNLIKE `validateEndpointUrl` — which rejects blank — empty IS valid here and means auto-detect → `Result.success("")`; otherwise apply the same http/https protocol check as `validateEndpointUrl`. Non-suspending pure validation.)
   - `suspend fun ensureAuthModelMigrated()` (KDoc: runs the one-time bearer-enabled migration AND the bearer-token auto-generation; idempotent; MUST be invoked before the auth model is consumed by the server or UI)
   - `suspend fun getOrCreateJwtSigningSecret(): String` (KDoc: returns a stable base64url secret, generated once on first read)
-- [ ] **DoD:** Interface compiles.
+- [x] **DoD:** Interface compiles.
 
 ### Task 2.3 — `SettingsRepositoryImpl` — keys, mapping, migration, override, secret
-- [ ] **Action:** modify `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/data/repository/SettingsRepositoryImpl.kt`:
+- [x] **Action:** modify `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/data/repository/SettingsRepositoryImpl.kt`:
   - Add keys: `OAUTH_ENABLED_KEY = booleanPreferencesKey("oauth_enabled")`, `BEARER_TOKEN_ENABLED_KEY = booleanPreferencesKey("bearer_token_enabled")`, `BEARER_TOKEN_ENABLED_INITIALIZED_KEY = booleanPreferencesKey("bearer_token_enabled_initialized")`, `PUBLIC_URL_OVERRIDE_KEY = stringPreferencesKey("public_url_override")`, `JWT_SIGNING_SECRET_KEY = stringPreferencesKey("jwt_signing_secret")`.
   - In `mapPreferencesToServerConfig`: `oauthEnabled = prefs[OAUTH_ENABLED_KEY] ?: false`, `bearerTokenEnabled = prefs[BEARER_TOKEN_ENABLED_KEY] ?: true`, `publicUrlOverride = prefs[PUBLIC_URL_OVERRIDE_KEY] ?: ""`.
   - Extract the migration + token-init into `ensureAuthModelMigrated()` (a single `dataStore.edit`). EXPLICITLY DELETE the existing inline `dataStore.edit { … BEARER_TOKEN_INITIALIZED_KEY … }` block currently in `getServerConfig()` and replace the whole `getServerConfig()` body with exactly `ensureAuthModelMigrated(); return mapPreferencesToServerConfig(dataStore.data.first())` — do NOT leave the old inline block in place (that would double-run token-init). (Moving the token-init into `ensureAuthModelMigrated()` preserves current behavior while making the migration callable eagerly — see Task 4.5 + the `McpApplication` action below — so a previously-cleared-token user is NOT regressed into a token-required state when the server reads the `serverConfig` Flow before any `getServerConfig` consumer runs.)
@@ -157,18 +157,18 @@
     return dataStore.data.first()[JWT_SIGNING_SECRET_KEY]!! // read-AFTER-edit: key is guaranteed present, so !! is always safe
     ```
     (The `JwtTokenServiceImpl` additionally memoizes the resulting `Algorithm`, so this accessor is effectively called once per process.)
-- [ ] **Action:** modify `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/McpApplication.kt` — add `@Inject lateinit var settingsRepository: SettingsRepository` and, in `onCreate()`, `CoroutineScope(Dispatchers.IO).launch { settingsRepository.ensureAuthModelMigrated() }` so the UI Flow reflects the migrated auth model promptly at app startup (idempotent; the server start path additionally guarantees it via `getServerConfig()` in Task 4.5).
-- [ ] **DoD:** Migration runs once and is idempotent; runs before the server or UI consume the auth model; fresh install secure-by-default; override persisted/validated; secret stable across reads and JVM-test-safe.
+- [x] **Action:** modify `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/McpApplication.kt` — add `@Inject lateinit var settingsRepository: SettingsRepository` and, in `onCreate()`, `CoroutineScope(Dispatchers.IO).launch { settingsRepository.ensureAuthModelMigrated() }` so the UI Flow reflects the migrated auth model promptly at app startup (idempotent; the server start path additionally guarantees it via `getServerConfig()` in Task 4.5).
+- [x] **DoD:** Migration runs once and is idempotent; runs before the server or UI consume the auth model; fresh install secure-by-default; override persisted/validated; secret stable across reads and JVM-test-safe.
 
 ### Task 2.4 — adb extras
-- [ ] **Action:** modify `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/services/mcp/AdbConfigHandler.kt`:
+- [x] **Action:** modify `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/services/mcp/AdbConfigHandler.kt`:
   - Add `internal const val EXTRA_OAUTH_ENABLED = "oauth_enabled"`, `EXTRA_BEARER_TOKEN_ENABLED = "bearer_token_enabled"`, `EXTRA_PUBLIC_URL_OVERRIDE = "public_url_override"`.
   - Add `applyOauthEnabled` / `applyBearerTokenEnabled` (`hasExtra → getBooleanExtra → settingsRepository.updateX`; log applied value; when `bearer_token_enabled=false` log a warning that the server may be unauthenticated) and `applyPublicUrlOverride` (`getStringExtra` → `validatePublicUrlOverride().fold(...)` → `updatePublicUrlOverride`; ignore+log invalid). Call all three from `handleConfigure`.
   - Update the existing `applyBearerToken` empty-value branch to additionally warn that clearing the token while `bearer_token_enabled=true` makes `/mcp` fail closed (401) until a token is set or bearer is disabled.
-- [ ] **DoD:** Three keys applied via broadcast; invalid override ignored with a log; no UI dialog gating (adb is the automation path).
+- [x] **DoD:** Three keys applied via broadcast; invalid override ignored with a log; no UI dialog gating (adb is the automation path).
 
 ### Task 2.5 — Tests (Story 2)
-- [ ] **Action:** extend `app/src/test/kotlin/com/danielealbano/androidremotecontrolmcp/data/repository/SettingsRepositoryImplTest.kt` (use the existing in-memory/temp DataStore harness in that file)
+- [x] **Action:** extend `app/src/test/kotlin/com/danielealbano/androidremotecontrolmcp/data/repository/SettingsRepositoryImplTest.kt` (use the existing in-memory/temp DataStore harness in that file)
 
   | Test | Verifies |
   |------|----------|
@@ -184,7 +184,7 @@
   | `updateOauthEnabled persists` | Flag round-trips |
   | `publicUrlOverride round-trips and validates` | Persists; `validatePublicUrlOverride` accepts empty + https URL, rejects `ftp://`/garbage |
 
-- [ ] **Action:** extend `app/src/test/kotlin/com/danielealbano/androidremotecontrolmcp/services/mcp/AdbConfigHandlerTest.kt`
+- [x] **Action:** extend `app/src/test/kotlin/com/danielealbano/androidremotecontrolmcp/services/mcp/AdbConfigHandlerTest.kt`
 
   | Test | Verifies |
   |------|----------|
@@ -194,7 +194,7 @@
   | `ignores invalid public_url_override` | garbage → no update |
   | `absent extras are no-ops` | No call when extra missing |
 
-- [ ] **DoD:** Tests defined.
+- [x] **DoD:** Tests defined.
 
 ---
 

@@ -29,12 +29,8 @@ interface SettingsRepository {
 
     /**
      * Returns the current server configuration as a one-shot read.
-     * On the first call after install (or after upgrade from a version that
-     * predates the BEARER_TOKEN_INITIALIZED flag), the bearer token is
-     * initialized exactly once: any existing non-empty token is preserved;
-     * an empty token is replaced with a freshly generated UUID. On subsequent
-     * calls, the stored value (including an empty string, which disables
-     * bearer-token authentication) is returned as-is — no regeneration.
+     * Runs [ensureAuthModelMigrated] first, so the one-time bearer-enabled migration and the
+     * bearer-token auto-generation have applied before the auth model is read.
      */
     suspend fun getServerConfig(): ServerConfig
 
@@ -50,11 +46,11 @@ interface SettingsRepository {
 
     /**
      * Updates the bearer token used for MCP request authentication.
-     * Passing an empty string clears the token and disables bearer-token
-     * authentication on the MCP server (the auth plugin skips auth when
-     * the expected token is empty).
+     * Passing an empty string clears the value. Whether bearer authentication is enforced is controlled
+     * by [updateBearerTokenEnabled], not by the value: clearing the token while bearer is enabled makes
+     * `/mcp` fail closed (401) until a token is set or bearer is disabled.
      *
-     * @param token The new bearer token value (empty string clears).
+     * @param token The new bearer token value (empty string clears the value).
      */
     suspend fun updateBearerToken(token: String)
 
@@ -65,6 +61,43 @@ interface SettingsRepository {
      * @return The newly generated bearer token.
      */
     suspend fun generateNewBearerToken(): String
+
+    /** Enables or disables the self-contained OAuth 2.1 authorization server. */
+    suspend fun updateOauthEnabled(enabled: Boolean)
+
+    /**
+     * Enables or disables static bearer-token authentication.
+     *
+     * Enabling with an empty stored value auto-generates a token; disabling preserves the stored value
+     * (re-enabling restores it).
+     */
+    suspend fun updateBearerTokenEnabled(enabled: Boolean)
+
+    /** Updates the optional public-URL override (empty = auto-detect from the request). */
+    suspend fun updatePublicUrlOverride(url: String)
+
+    /**
+     * Validates a public-URL override.
+     *
+     * UNLIKE [validateEndpointUrl] (which rejects blank), an empty value IS valid here and means
+     * auto-detect → [Result.success] with `""`; otherwise the same http/https protocol check applies.
+     *
+     * This is a pure validation function with no I/O; it is intentionally non-suspending.
+     *
+     * @return [Result.success] with the validated URL (possibly empty), or [Result.failure].
+     */
+    fun validatePublicUrlOverride(url: String): Result<String>
+
+    /**
+     * Runs the one-time bearer-enabled migration AND the bearer-token auto-generation.
+     *
+     * Idempotent; MUST be invoked before the auth model is consumed by the server or the UI so a
+     * previously-cleared-token user is not regressed into a token-required state.
+     */
+    suspend fun ensureAuthModelMigrated()
+
+    /** Returns a stable base64url HS256 signing secret, generated once (SecureRandom) on first read. */
+    suspend fun getOrCreateJwtSigningSecret(): String
 
     /** Updates the auto-start-on-boot preference. */
     suspend fun updateAutoStartOnBoot(enabled: Boolean)
