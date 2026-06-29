@@ -79,8 +79,8 @@
 **Why:** `NativeSession` reads `agent.version` from `getResourceAsStream("/native.properties")`; neither vendored jar ships it, so on device the version defaults. `native.properties` is not a `.so`, so AGP packages it as a Java resource correctly (established by a planning-time Gradle experiment; Task 5.1 re-asserts it mechanically against the assembled APK).
 
 **Acceptance criteria:**
-- [ ] An assembled APK exposes `/native.properties` at the Java-resources root with `agent.version=1.1.1`.
-- [ ] No collision/regression on the host JVM test path.
+- [x] An assembled APK exposes `/native.properties` at the Java-resources root with `agent.version=1.1.1`.
+- [x] No collision/regression on the host JVM test path.
 
 ### Task 3.1 — Create the committed resource
 - [x] **Create** `app/src/main/resources/native.properties` containing exactly `agent.version=1.1.1`. (Only `agent.version` is read at runtime by `NativeSession`; `agent.classifier` is omitted because a single resource serves both ABIs and the value is never read.)
@@ -97,7 +97,7 @@
 
 **Acceptance criteria:**
 - [x] The ABI-matching logic is unit-tested for arm64-v8a, x86_64, an unsupported ABI, a realistic multi-entry list (mixed supported + unsupported), and an empty list.
-- [ ] The existing `NgrokTunnelProviderTest` cases still pass unchanged in intent (they stub `isSupportedAbi()`).
+- [x] The existing `NgrokTunnelProviderTest` cases still pass unchanged in intent (they stub `isSupportedAbi()`).
 
 ### Task 4.1 — Add coverage for the matching helper
 - [x] **Modify** `app/src/test/kotlin/com/danielealbano/androidremotecontrolmcp/services/tunnel/NgrokTunnelProviderTest.kt`: add cases for the pure helper introduced in Task 2.1.
@@ -113,7 +113,7 @@
   | `abi match false for empty list` | Returns false for an empty ABI list. |
 
 **DoD:**
-- [ ] New cases pass; existing provider tests remain green.
+- [x] New cases pass; existing provider tests remain green.
 
 ---
 
@@ -122,26 +122,26 @@
 **Why:** Prove the fix on the host test path (loader resource fallback), on the real arm64 device and an x86_64 emulator (the `loadLibrary` path for each enabled ABI), with the E2E suite as a no-regression gate.
 
 **Acceptance criteria:**
-- [ ] Host x86_64: lint clean; full JVM unit + integration suite passes (incl. the host ngrok integration test, which exercises the loader's resource fallback); `./gradlew build` clean.
-- [ ] E2E suite (`make test-e2e`) passes — regression gate confirming the debug APK assembles and device flows work with the changes (it does not itself exercise ngrok).
+- [x] Host x86_64: lint clean; full JVM unit + integration suite passes (incl. the host ngrok integration test, which exercises the loader's resource fallback); `./gradlew build` clean.
+- [x] E2E suite (`make test-e2e`) passes — regression gate confirming the debug APK assembles and device flows work with the changes (it does not itself exercise ngrok).
 - [ ] arm64 device AND x86_64 emulator: the ngrok tunnel loads its native library (no `UnsatisfiedLinkError`).
 
 ### Task 5.1 — Host x86_64 quality gates
-- [ ] **Run** `make lint` → `/tmp/p52-lint.log`.
-- [ ] **Run** the full JVM suite (sourcing `.env` so the ngrok integration test runs) → `/tmp/p52-test.log`.
-- [ ] **Run** `./gradlew build` → `/tmp/p52-build.log`.
-- [ ] **Inspect** the assembled debug APK (`unzip -l`) and assert it contains `lib/arm64-v8a/libngrok_java.so`, `lib/x86_64/libngrok_java.so`, and `/native.properties` at the resource root — and that no `libngrok_java.so` is present as a Java resource. → `/tmp/p52-apk-contents.log`.
-- [ ] **Run** `make check-so-alignment` to confirm both ngrok `.so`s (and `cloudflared`) are 16KB-aligned in the APK → `/tmp/p52-so-align.log`.
+- [x] **Run** `make lint` → `/tmp/p52-lint.log`.
+- [x] **Run** the full JVM suite (sourcing `.env` so the ngrok integration test runs) → `/tmp/p52-test.log`.
+- [x] **Run** `./gradlew build` → `/tmp/p52-build.log`.
+- [x] **Inspect** the assembled debug APK (`unzip -l`) and assert it contains `lib/arm64-v8a/libngrok_java.so`, `lib/x86_64/libngrok_java.so`, and `/native.properties` at the resource root — and that no `libngrok_java.so` is present as a Java resource. → `/tmp/p52-apk-contents.log`.
+- [x] **Run** `make check-so-alignment` to confirm both ngrok `.so`s (and `cloudflared`) are 16KB-aligned in the APK → `/tmp/p52-so-align.log`.
 
 **DoD:**
-- [ ] Lint clean; all JVM tests pass; build clean (no warnings).
-- [ ] APK contains both ABIs' `libngrok_java.so` under `lib/` and `/native.properties` at the resource root; alignment check passes.
+- [x] Lint clean; all JVM tests pass; build clean (no warnings).
+- [x] APK contains both ABIs' `libngrok_java.so` under `lib/` and `/native.properties` at the resource root; alignment check passes.
 
 ### Task 5.2 — E2E regression gate
-- [ ] **Run** `make test-e2e` → `/tmp/p52-e2e.log`.
+- [x] **Run** `make test-e2e` → `/tmp/p52-e2e.log`.
 
 **DoD:**
-- [ ] E2E suite passes (no regression from the submodule bump / provider / resource changes).
+- [x] E2E suite passes (no regression from the submodule bump / provider / resource changes).
 
 ### Task 5.3 — arm64 device manual verification
 - [ ] **Manual Test (arm64 device):** `make install` to the connected arm64 device, start the MCP server with a real ngrok authtoken configured, and confirm via `adb logcat` that the tunnel reaches Connected with a tunnel URL and no `UnsatisfiedLinkError`.
