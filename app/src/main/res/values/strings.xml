@@ -128,7 +128,7 @@
     <string name="remote_access_status_connected">Connected</string>
     <string name="remote_access_status_error">Error: %1$s</string>
     <string name="remote_access_public_url_label">Public URL</string>
-    <string name="remote_access_ngrok_unsupported">ngrok is not available on this device (requires ARM64)</string>
+    <string name="remote_access_ngrok_unsupported">ngrok is not available on this device (requires arm64-v8a or x86_64)</string>
     <string name="remote_access_cloudflare_mode_label">Cloudflare Mode</string>
     <string name="remote_access_cloudflare_mode_free">Free</string>
     <string name="remote_access_cloudflare_mode_free_desc">Random temporary URL, no account</string>

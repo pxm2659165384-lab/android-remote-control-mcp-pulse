@@ -23,28 +23,28 @@
 **Why:** `Runtime.load()` must succeed on Android (so the subsequent native `Runtime.init()` runs) by loading the `.so` from `jniLibs`, while still loading from the classpath resource on the host JVM test path.
 
 **Acceptance criteria:**
-- [ ] In the fork, `Runtime.load()` attempts `System.loadLibrary("ngrok_java")` first and returns on success; on `UnsatisfiedLinkError` it falls back to the existing `getResourceAsStream` + `System.load()` logic unchanged.
-- [ ] No other ngrok behavior changes (`init()`, `getLibname()`, resource fallback, etc. are untouched).
-- [ ] The change is committed and pushed to `github.com/danielealbano/ngrok-java`; this repo's `vendor/ngrok-java` submodule points at that commit.
+- [x] In the fork, `Runtime.load()` attempts `System.loadLibrary("ngrok_java")` first and returns on success; on `UnsatisfiedLinkError` it falls back to the existing `getResourceAsStream` + `System.load()` logic unchanged.
+- [x] No other ngrok behavior changes (`init()`, `getLibname()`, resource fallback, etc. are untouched).
+- [x] The change is committed and pushed to `github.com/danielealbano/ngrok-java`; this repo's `vendor/ngrok-java` submodule points at that commit.
 
 ### Task 1.1 — Patch the loader in the fork
-- [ ] **Modify (in the fork submodule)** `vendor/ngrok-java/ngrok-java-native/src/main/java/com/ngrok/Runtime.java`: at the top of `load()`, try `System.loadLibrary("ngrok_java")` and `return` on success; catch `UnsatisfiedLinkError` and fall through to the existing temp-file extraction path. Keep all existing fallback code intact.
-- [ ] **Commit + push** the change on the fork; record the new commit SHA.
+- [x] **Modify (in the fork submodule)** `vendor/ngrok-java/ngrok-java-native/src/main/java/com/ngrok/Runtime.java`: at the top of `load()`, try `System.loadLibrary("ngrok_java")` and `return` on success; catch `UnsatisfiedLinkError` and fall through to the existing temp-file extraction path. Keep all existing fallback code intact.
+- [x] **Commit + push** the change on the fork; record the new commit SHA. _(commit `6d351b1` on branch `fix/load-native-via-loadlibrary`)_
 
 **DoD:**
-- [ ] Fork builds; loader prefers `loadLibrary`, falls back to the resource path.
+- [x] Fork builds; loader prefers `loadLibrary`, falls back to the resource path.
 
 ### Task 1.2 — Bump the submodule pointer in this repo
-- [ ] **Modify** `vendor/ngrok-java` (submodule gitlink): check out the new fork commit so the parent repo records the bumped pointer; stage only the submodule gitlink.
+- [x] **Modify** `vendor/ngrok-java` (submodule gitlink): check out the new fork commit so the parent repo records the bumped pointer; stage only the submodule gitlink.
 
 **DoD:**
-- [ ] `git submodule status vendor/ngrok-java` shows the new commit; the parent repo's staged change is only the gitlink bump.
+- [x] `git submodule status vendor/ngrok-java` shows the new commit; the parent repo's staged change is only the gitlink bump.
 
 ### Task 1.3 — Rebuild the ngrok native artifacts from the bumped submodule
-- [ ] **Run** `make compile-ngrok-native` so the patched loader is compiled into the local `ngrok-java-native-classes.jar` and `ngrok-java-native-host.jar` (the `files(...)` classpath artifacts the app build and host tests consume) and the per-ABI `.so`s are (re)produced into `jniLibs/{arm64-v8a,x86_64}/`. Without this, the stale unpatched jars remain and verification would be invalid. (The native `.so`s are unaffected by the Java-only patch; the target rebuilds them too.) On Linux, ensure `JAVA_HOME` points to JDK 17 (the target's macOS-Homebrew defaults are overridden by `JAVA_HOME`, per project setup).
+- [x] **Run** `make compile-ngrok-native` so the patched loader is compiled into the local `ngrok-java-native-classes.jar` and `ngrok-java-native-host.jar` (the `files(...)` classpath artifacts the app build and host tests consume) and the per-ABI `.so`s are (re)produced into `jniLibs/{arm64-v8a,x86_64}/`. Without this, the stale unpatched jars remain and verification would be invalid. (The native `.so`s are unaffected by the Java-only patch; the target rebuilds them too.) On Linux, ensure `JAVA_HOME` points to JDK 17 (the target's macOS-Homebrew defaults are overridden by `JAVA_HOME`, per project setup).
 
 **DoD:**
-- [ ] The local `ngrok-java-native-classes.jar` carries the patched `Runtime.class`; the host jar (`libngrok_java.so` only) and the API jar (`ngrok-java-1.1.1.jar`) are unaffected by the Java-only patch.
+- [x] The local `ngrok-java-native-classes.jar` carries the patched `Runtime.class`; the host jar (`libngrok_java.so` only) and the API jar (`ngrok-java-1.1.1.jar`) are unaffected by the Java-only patch.
 
 ---
 
@@ -53,24 +53,24 @@
 **Why:** With `System.loadLibrary` + `jniLibs`, the correct `.so` loads per-ABI automatically; the only blocker is the provider's arm64-only guard.
 
 **Acceptance criteria:**
-- [ ] `isSupportedAbi()` returns true when the device's `Build.SUPPORTED_ABIS` contains `arm64-v8a` or `x86_64`.
-- [ ] Unsupported ABIs still produce the existing graceful error.
-- [ ] The provider KDoc/comment no longer claims arm64-only.
+- [x] `isSupportedAbi()` returns true when the device's `Build.SUPPORTED_ABIS` contains `arm64-v8a` or `x86_64`.
+- [x] Unsupported ABIs still produce the existing graceful error.
+- [x] The provider KDoc/comment no longer claims arm64-only.
 
 ### Task 2.1 — Relax the ABI guard (via a testable helper)
-- [ ] **Modify** `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/services/tunnel/NgrokTunnelProvider.kt`: replace the single `SUPPORTED_ABI` constant with a supported-ABI set (`arm64-v8a`, `x86_64`); have `isSupportedAbi()` read `Build.SUPPORTED_ABIS` and delegate the decision to a pure, `internal` helper that takes the device ABI list and tests membership against the set (so the matching is unit-testable without mocking the `Build` static field); update the class KDoc ("Only available on arm64-v8a devices …") to state arm64-v8a + x86_64.
+- [x] **Modify** `app/src/main/kotlin/com/danielealbano/androidremotecontrolmcp/services/tunnel/NgrokTunnelProvider.kt`: replace the single `SUPPORTED_ABI` constant with a supported-ABI set (`arm64-v8a`, `x86_64`); have `isSupportedAbi()` read `Build.SUPPORTED_ABIS` and delegate the decision to a pure, `internal` helper that takes the device ABI list and tests membership against the set (so the matching is unit-testable without mocking the `Build` static field); update the class KDoc ("Only available on arm64-v8a devices …") to state arm64-v8a + x86_64.
 
 **DoD:**
-- [ ] Guard accepts both ABIs; error path unchanged for others; KDoc accurate.
+- [x] Guard accepts both ABIs; error path unchanged for others; KDoc accurate.
 
 ### Task 2.2 — Update stale arm64-only ngrok claims (string resources + live docs)
-- [ ] **Modify** `app/src/main/res/values/strings.xml`: change the `remote_access_ngrok_unsupported` string from `ngrok is not available on this device (requires ARM64)` to `ngrok is not available on this device (requires arm64-v8a or x86_64)` so it no longer claims ARM64-only.
-- [ ] **Modify** the two live docs that explicitly assert ngrok is arm64-only — `README.md` (line ~266, "Only available on ARM64 devices.") and `docs/PROJECT.md` (line ~610, "Only available on ARM64 devices.") — to read arm64-v8a + x86_64.
-- [ ] **Sweep** the rest of the live docs (e.g. `docs/ARCHITECTURE.md`, any other current ngrok/tunnel doc) for further arm64-only ngrok assertions and **modify** only those now inaccurate. (A full repo grep at planning time found only the README, PROJECT.md, and `strings.xml` claims, but the implementer MUST re-grep to catch any added since.)
-- [ ] **MUST NOT** edit any file under `docs/plans/` — those are SACRED permanent artifacts; their arm64-only references record past state and are never updated. Make no other unrelated edits.
+- [x] **Modify** `app/src/main/res/values/strings.xml`: change the `remote_access_ngrok_unsupported` string from `ngrok is not available on this device (requires ARM64)` to `ngrok is not available on this device (requires arm64-v8a or x86_64)` so it no longer claims ARM64-only.
+- [x] **Modify** the two live docs that explicitly assert ngrok is arm64-only — `README.md` (line ~266, "Only available on ARM64 devices.") and `docs/PROJECT.md` (line ~610, "Only available on ARM64 devices.") — to read arm64-v8a + x86_64.
+- [x] **Sweep** the rest of the live docs (e.g. `docs/ARCHITECTURE.md`, any other current ngrok/tunnel doc) for further arm64-only ngrok assertions and **modify** only those now inaccurate. (A full repo grep at planning time found only the README, PROJECT.md, and `strings.xml` claims, but the implementer MUST re-grep to catch any added since.) _(re-grep confirmed only those three live claims)_
+- [x] **MUST NOT** edit any file under `docs/plans/` — those are SACRED permanent artifacts; their arm64-only references record past state and are never updated. Make no other unrelated edits.
 
 **DoD:**
-- [ ] No live doc or string resource claims ngrok is arm64-only; every file under `docs/plans/` is untouched; no out-of-scope edits.
+- [x] No live doc or string resource claims ngrok is arm64-only; every file under `docs/plans/` is untouched; no out-of-scope edits.
 
 ---
 

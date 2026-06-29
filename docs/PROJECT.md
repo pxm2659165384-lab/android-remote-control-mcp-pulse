@@ -607,7 +607,7 @@ HomeScreen contains a TopAppBar, then a scrollable layout with: ServerStatusCard
 The app supports exposing the local MCP server to the internet via tunnel providers. This allows MCP clients to connect from anywhere without port forwarding or VPN configuration.
 
 - **Cloudflare Quick Tunnels** (default): Runs the `cloudflared` binary as a child process. Creates a temporary tunnel with a random `*.trycloudflare.com` HTTPS URL. No account or configuration needed. The cloudflared binary is bundled as a native library (`libcloudflared.so`) via a git submodule in `vendor/cloudflared/`.
-- **ngrok**: Uses the `ngrok-java` library (JNI-based, in-process). Requires an ngrok authtoken (free tier available). Supports optional custom domains. Only available on ARM64 devices.
+- **ngrok**: Uses the `ngrok-java` library (JNI-based, in-process). Requires an ngrok authtoken (free tier available). Supports optional custom domains. Available on arm64-v8a and x86_64 devices.
 
 Tunnel architecture:
 - `TunnelProvider` interface defines `start(localPort, config)` / `stop()` with `status: StateFlow<TunnelStatus>`
