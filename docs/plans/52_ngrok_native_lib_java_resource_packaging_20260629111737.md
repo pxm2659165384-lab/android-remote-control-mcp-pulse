@@ -96,11 +96,11 @@
 **Why:** The guard change (single ABI → arm64-v8a + x86_64) needs direct coverage. The existing `NgrokTunnelProviderTest` stubs `isSupportedAbi()` via `mockkObject(NgrokTunnelProvider.Companion)`, and `Build.SUPPORTED_ABIS` is a static **field** MockK cannot stub — so the real matching logic must be made testable to cover it.
 
 **Acceptance criteria:**
-- [ ] The ABI-matching logic is unit-tested for arm64-v8a, x86_64, an unsupported ABI, a realistic multi-entry list (mixed supported + unsupported), and an empty list.
+- [x] The ABI-matching logic is unit-tested for arm64-v8a, x86_64, an unsupported ABI, a realistic multi-entry list (mixed supported + unsupported), and an empty list.
 - [ ] The existing `NgrokTunnelProviderTest` cases still pass unchanged in intent (they stub `isSupportedAbi()`).
 
 ### Task 4.1 — Add coverage for the matching helper
-- [ ] **Modify** `app/src/test/kotlin/com/danielealbano/androidremotecontrolmcp/services/tunnel/NgrokTunnelProviderTest.kt`: add cases for the pure helper introduced in Task 2.1.
+- [x] **Modify** `app/src/test/kotlin/com/danielealbano/androidremotecontrolmcp/services/tunnel/NgrokTunnelProviderTest.kt`: add cases for the pure helper introduced in Task 2.1.
 
   **Setup**: call the pure helper directly with crafted ABI lists; no `Build`/`mockkStatic` needed.
 
