@@ -250,7 +250,7 @@ dependencies {
 
     // ngrok tunnel (in-process, JNI-based) — built from source via vendor/ngrok-java submodule
     // ngrok-java: API module (interfaces, builders, Session)
-    implementation(files("../vendor/ngrok-java/ngrok-java/target/ngrok-java-1.1.1.jar"))
+    implementation(files("../vendor/ngrok-java/ngrok-java/target/ngrok-java-1.2.0-SNAPSHOT.jar"))
     // ngrok-java-native: implementation classes (NativeSession, Runtime, etc.)
     implementation(files("../vendor/ngrok-java/ngrok-java-native/target/ngrok-java-native-classes.jar"))
 
