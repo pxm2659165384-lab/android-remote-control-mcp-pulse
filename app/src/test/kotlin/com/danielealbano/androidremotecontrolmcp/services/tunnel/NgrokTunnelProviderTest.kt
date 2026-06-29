@@ -18,6 +18,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -274,6 +275,37 @@ class NgrokTunnelProviderTest {
         fun `initial status is Disconnected`() {
             val provider = createProvider()
             assertEquals(TunnelStatus.Disconnected, provider.status.value)
+        }
+    }
+
+    @Nested
+    @DisplayName("isAbiSupported")
+    inner class IsAbiSupported {
+        @Test
+        fun `returns true for arm64-v8a`() {
+            assertTrue(NgrokTunnelProvider.isAbiSupported(arrayOf("arm64-v8a")))
+        }
+
+        @Test
+        fun `returns true for x86_64`() {
+            assertTrue(NgrokTunnelProvider.isAbiSupported(arrayOf("x86_64")))
+        }
+
+        @Test
+        fun `returns false for an unsupported abi`() {
+            assertFalse(NgrokTunnelProvider.isAbiSupported(arrayOf("armeabi-v7a")))
+        }
+
+        @Test
+        fun `returns true for a multi-entry list containing a supported abi`() {
+            assertTrue(
+                NgrokTunnelProvider.isAbiSupported(arrayOf("arm64-v8a", "armeabi-v7a", "armeabi")),
+            )
+        }
+
+        @Test
+        fun `returns false for an empty list`() {
+            assertFalse(NgrokTunnelProvider.isAbiSupported(emptyArray()))
         }
     }
 }

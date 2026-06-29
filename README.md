@@ -263,7 +263,7 @@ When the server is bound to `0.0.0.0`:
 For connecting from outside the local network without port forwarding:
 
 1. **Cloudflare Quick Tunnels** (default, no account required): Creates a temporary tunnel with a random `*.trycloudflare.com` HTTPS URL.
-2. **ngrok** (account required): Supports optional custom domains. Requires an ngrok authtoken (free tier available). Only available on ARM64 devices.
+2. **ngrok** (account required): Supports optional custom domains. Requires an ngrok authtoken (free tier available). Available on arm64-v8a and x86_64 devices.
 
 Enable the tunnel in the app's "Remote Access" section. The public URL is displayed in the connection info and server logs.
 

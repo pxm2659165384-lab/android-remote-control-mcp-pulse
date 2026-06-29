@@ -25,7 +25,7 @@ import javax.inject.Inject
  * HTTPS tunnel. Requires an authtoken and optionally supports a
  * custom domain.
  *
- * Only available on `arm64-v8a` devices — graceful error on
+ * Available on `arm64-v8a` and `x86_64` devices — graceful error on
  * unsupported ABIs.
  */
 class NgrokTunnelProvider
@@ -123,8 +123,11 @@ class NgrokTunnelProvider
 
         companion object {
             private const val TAG = "MCP:NgrokTunnel"
-            private const val SUPPORTED_ABI = "arm64-v8a"
+            private val SUPPORTED_ABIS = setOf("arm64-v8a", "x86_64")
 
-            internal fun isSupportedAbi(): Boolean = Build.SUPPORTED_ABIS.any { it == SUPPORTED_ABI }
+            /** Pure ABI-membership check, separated from [Build] so it is unit-testable. */
+            internal fun isAbiSupported(deviceAbis: Array<String>): Boolean = deviceAbis.any { it in SUPPORTED_ABIS }
+
+            internal fun isSupportedAbi(): Boolean = isAbiSupported(Build.SUPPORTED_ABIS)
         }
     }

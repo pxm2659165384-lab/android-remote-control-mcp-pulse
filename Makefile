@@ -368,7 +368,7 @@ compile-cloudflared: ## Cross-compile cloudflared for Android (requires Go + And
 NGROK_SRC_DIR := vendor/ngrok-java
 NGROK_NATIVE_DIR := $(NGROK_SRC_DIR)/ngrok-java-native
 NGROK_JNILIBS_DIR := app/src/main/jniLibs
-NGROK_JAVA_JAR := $(NGROK_SRC_DIR)/ngrok-java/target/ngrok-java-1.1.1.jar
+NGROK_JAVA_JAR := $(NGROK_SRC_DIR)/ngrok-java/target/ngrok-java-1.2.0-SNAPSHOT.jar
 NGROK_NATIVE_CLASSES_JAR := $(NGROK_NATIVE_DIR)/target/ngrok-java-native-classes.jar
 NGROK_HOST_NATIVE_DIR := $(NGROK_NATIVE_DIR)/target/aarch64-apple-darwin/release
 JAVA_HOME_17 ?= $(or $(JAVA_HOME),/opt/homebrew/opt/openjdk@17)
