@@ -37,8 +37,8 @@ jobs:
         id: cache-ngrok-jar
         uses: actions/cache@v5
         with:
-          path: vendor/ngrok-java/ngrok-java/target/ngrok-java-1.1.1.jar
-          key: ngrok-jar-${{ runner.os }}-${{ hashFiles('vendor/ngrok-java/ngrok-java/pom.xml', 'vendor/ngrok-java/ngrok-java/src/**') }}
+          path: vendor/ngrok-java/ngrok-java/target/ngrok-java-1.2.0-SNAPSHOT.jar
+          key: ngrok-jar-v2-${{ runner.os }}-${{ hashFiles('vendor/ngrok-java/ngrok-java/pom.xml', 'vendor/ngrok-java/ngrok-java/src/**') }}
 
       - name: Build ngrok-java JAR (required for Gradle classpath)
         if: steps.cache-ngrok-jar.outputs.cache-hit != 'true'
@@ -77,12 +77,12 @@ jobs:
         uses: actions/cache@v5
         with:
           path: |
-            vendor/ngrok-java/ngrok-java/target/ngrok-java-1.1.1.jar
+            vendor/ngrok-java/ngrok-java/target/ngrok-java-1.2.0-SNAPSHOT.jar
             vendor/ngrok-java/ngrok-java-native/target/ngrok-java-native-classes.jar
             vendor/ngrok-java/ngrok-java-native/target/ngrok-java-native-host.jar
             vendor/ngrok-java/ngrok-java-native/target/release/libngrok_java.so
             vendor/ngrok-java/ngrok-java-native/target/release/libngrok_java.dylib
-          key: ngrok-host-${{ runner.os }}-${{ hashFiles('.gitmodules', 'vendor/ngrok-java/**/*.toml', 'vendor/ngrok-java/**/pom.xml', 'vendor/ngrok-java/ngrok-java-native/src/**') }}
+          key: ngrok-host-v2-${{ runner.os }}-${{ hashFiles('.gitmodules', 'vendor/ngrok-java/**/*.toml', 'vendor/ngrok-java/**/pom.xml', 'vendor/ngrok-java/ngrok-java-native/src/**') }}
 
       - name: Cache Maven repository
         if: steps.cache-ngrok-host.outputs.cache-hit != 'true'
@@ -175,9 +175,9 @@ jobs:
           path: |
             app/src/main/jniLibs/arm64-v8a/libngrok_java.so
             app/src/main/jniLibs/x86_64/libngrok_java.so
-            vendor/ngrok-java/ngrok-java/target/ngrok-java-1.1.1.jar
+            vendor/ngrok-java/ngrok-java/target/ngrok-java-1.2.0-SNAPSHOT.jar
             vendor/ngrok-java/ngrok-java-native/target/ngrok-java-native-classes.jar
-          key: ngrok-android-${{ runner.os }}-${{ hashFiles('.gitmodules', 'vendor/ngrok-java/**/*.toml', 'vendor/ngrok-java/**/pom.xml', 'vendor/ngrok-java/ngrok-java-native/src/**') }}
+          key: ngrok-android-v2-${{ runner.os }}-${{ hashFiles('.gitmodules', 'vendor/ngrok-java/**/*.toml', 'vendor/ngrok-java/**/pom.xml', 'vendor/ngrok-java/ngrok-java-native/src/**') }}
 
       - name: Set up Go
         if: steps.cache-cloudflared.outputs.cache-hit != 'true'
@@ -315,9 +315,9 @@ jobs:
           path: |
             app/src/main/jniLibs/arm64-v8a/libngrok_java.so
             app/src/main/jniLibs/x86_64/libngrok_java.so
-            vendor/ngrok-java/ngrok-java/target/ngrok-java-1.1.1.jar
+            vendor/ngrok-java/ngrok-java/target/ngrok-java-1.2.0-SNAPSHOT.jar
             vendor/ngrok-java/ngrok-java-native/target/ngrok-java-native-classes.jar
-          key: ngrok-android-${{ runner.os }}-${{ hashFiles('.gitmodules', 'vendor/ngrok-java/**/*.toml', 'vendor/ngrok-java/**/pom.xml', 'vendor/ngrok-java/ngrok-java-native/src/**') }}
+          key: ngrok-android-v2-${{ runner.os }}-${{ hashFiles('.gitmodules', 'vendor/ngrok-java/**/*.toml', 'vendor/ngrok-java/**/pom.xml', 'vendor/ngrok-java/ngrok-java-native/src/**') }}
 
       - name: Set up Go
         if: steps.cache-cloudflared.outputs.cache-hit != 'true'
