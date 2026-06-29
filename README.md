@@ -111,6 +111,35 @@ The server starts on `http://127.0.0.1:8080` by default. The connection info (IP
 
 > **Note**: `127.0.0.1` refers to the phone's localhost, not your computer. To connect from your computer, use [adb port forwarding](#using-with-adb-port-forwarding), bind to `0.0.0.0` (network mode), or enable a [remote access tunnel](#using-remote-access-tunnels).
 
+### Permissions Reference
+
+The app declares the permissions below. **Normal** permissions are granted automatically at install. **Runtime** permissions and **Special access** require explicit user action (via the app's Settings > Permissions tab, or programmatically — see [Granting Permissions Programmatically](docs/PERMISSIONS.md)). All runtime permissions are optional: the app works without them, but the features that depend on them are disabled until granted.
+
+| Permission | Type | Used for |
+|------------|------|----------|
+| `INTERNET` | Normal | HTTP/HTTPS server and remote access tunnels |
+| `ACCESS_NETWORK_STATE` | Normal | Detect network connectivity |
+| `FOREGROUND_SERVICE` | Normal | Run the MCP server as a foreground service |
+| `FOREGROUND_SERVICE_SPECIAL_USE` | Normal | Foreground service type for the MCP server |
+| `FOREGROUND_SERVICE_LOCATION` | Normal | Foreground service type for the Event Channel (geofence/WiFi) |
+| `RECEIVE_BOOT_COMPLETED` | Normal | Auto-start the server on device boot |
+| `QUERY_ALL_PACKAGES` | Normal | Enumerate installed apps for app-management tools |
+| `KILL_BACKGROUND_PROCESSES` | Normal | Stop background apps via app-management tools |
+| `ACCESS_WIFI_STATE` | Normal | Read WiFi state for the Event Channel |
+| `CHANGE_WIFI_STATE` | Normal | Manage WiFi for the Event Channel |
+| `POST_NOTIFICATIONS` | Runtime | Show the foreground service notification (Android 13+) |
+| `CAMERA` | Runtime | Camera photo/video MCP tools |
+| `RECORD_AUDIO` | Runtime | Audio capture for camera video tools |
+| `ACCESS_FINE_LOCATION` | Runtime | Location tools and geofence events |
+| `ACCESS_COARSE_LOCATION` | Runtime | Approximate location |
+| `ACCESS_BACKGROUND_LOCATION` | Runtime | Location/geofence events while the app is in the background |
+| `NEARBY_WIFI_DEVICES` | Runtime | WiFi scanning for the Event Channel (Android 13+) |
+| `READ_MEDIA_IMAGES` | Runtime | "All files" mode for built-in image storage locations (Android 13+) |
+| `READ_MEDIA_VIDEO` | Runtime | "All files" mode for built-in video storage locations (Android 13+) |
+| `READ_MEDIA_AUDIO` | Runtime | "All files" mode for built-in audio storage locations (Android 13+) |
+| Accessibility Service | Special access | UI introspection, action execution, and screenshots — **required** for core functionality |
+| Notification Listener | Special access | Reading and managing notifications via notification tools |
+
 ---
 
 ## Connect
@@ -300,11 +329,16 @@ adb shell pm grant <app-id> android.permission.ACCESS_FINE_LOCATION
 adb shell pm grant <app-id> android.permission.ACCESS_COARSE_LOCATION
 adb shell pm grant <app-id> android.permission.ACCESS_BACKGROUND_LOCATION
 
+# Grant nearby WiFi devices permission (Android 13+)
+adb shell pm grant <app-id> android.permission.NEARBY_WIFI_DEVICES
+
 # Grant media read permissions (Android 13+)
 adb shell pm grant <app-id> android.permission.READ_MEDIA_IMAGES
 adb shell pm grant <app-id> android.permission.READ_MEDIA_VIDEO
 adb shell pm grant <app-id> android.permission.READ_MEDIA_AUDIO
 ```
+
+See [docs/PERMISSIONS.md](docs/PERMISSIONS.md) for the full reference and a copy-paste script that grants everything in one go.
 
 #### Configure the App
 
