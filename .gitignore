@@ -3,6 +3,9 @@
 build/
 !gradle/wrapper/gradle-wrapper.jar
 
+# Kotlin compiler caches (kotlin Gradle plugin, e.g. .kotlin/sessions)
+.kotlin/
+
 # Android Studio / IntelliJ IDEA
 .idea/
 *.iml
