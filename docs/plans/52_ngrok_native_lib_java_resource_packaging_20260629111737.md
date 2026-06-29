@@ -144,10 +144,10 @@
 - [x] E2E suite passes (no regression from the submodule bump / provider / resource changes).
 
 ### Task 5.3 — arm64 device manual verification
-- [ ] **Manual Test (arm64 device):** `make install` to the connected arm64 device, start the MCP server with a real ngrok authtoken configured, and confirm via `adb logcat` that the tunnel reaches Connected with a tunnel URL and no `UnsatisfiedLinkError`.
+- [x] **Manual Test (arm64 device):** `make install` to the connected arm64 device, start the MCP server with a real ngrok authtoken configured, and confirm via `adb logcat` that the tunnel reaches Connected with a tunnel URL and no `UnsatisfiedLinkError`. _(Verified on Pixel 8 Pro. NOTE: on-device testing surfaced a further native bug — the jaffi-generated `JNI_OnLoad` returned `JNI_VERSION_1_8`, which Android rejects, so `loadLibrary` threw and native `Runtime.init()` was skipped → "runtime not initialized" panic. Fixed by also patching the `jaffi` generator (not just `jaffi_support`) to the lower-jni-version branch so `JNI_OnLoad` returns `JNI_VERSION_1_6`; fork commit `62232d4`, submodule re-bumped.)_
 
 **DoD:**
-- [ ] Tunnel connects on the device; logcat shows no native-load error.
+- [x] Tunnel connects on the device; logcat shows no native-load error.
 
 ### Task 5.4 — x86_64 emulator manual verification
 - [ ] **Manual Test (x86_64 emulator):** start an x86_64 emulator (`make setup-emulator` / `make start-emulator`), `make install`, start the MCP server with a real ngrok authtoken configured, and confirm via `adb logcat` that the ngrok native library loads (tunnel reaches Connected, or at minimum produces an ngrok auth/connection error — **not** `UnsatisfiedLinkError`). This verifies the newly enabled x86_64 ABI end-to-end.
