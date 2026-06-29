@@ -83,11 +83,11 @@
 - [ ] No collision/regression on the host JVM test path.
 
 ### Task 3.1 — Create the committed resource
-- [ ] **Create** `app/src/main/resources/native.properties` containing exactly `agent.version=1.1.1`. (Only `agent.version` is read at runtime by `NativeSession`; `agent.classifier` is omitted because a single resource serves both ABIs and the value is never read.)
+- [x] **Create** `app/src/main/resources/native.properties` containing exactly `agent.version=1.1.1`. (Only `agent.version` is read at runtime by `NativeSession`; `agent.classifier` is omitted because a single resource serves both ABIs and the value is never read.)
 
 **DoD:**
-- [ ] File present and tracked; `agent.version` matches the vendored `1.1.1`.
-- [ ] On the host JVM test classpath this file is the sole `/native.properties` (host jar and classes jar ship none), so it introduces no collision.
+- [x] File present and tracked; `agent.version` matches the vendored `1.1.1`.
+- [x] On the host JVM test classpath this file is the sole `/native.properties` (host jar and classes jar ship none), so it introduces no collision.
 
 ---
 
