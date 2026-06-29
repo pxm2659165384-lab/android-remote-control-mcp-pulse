@@ -3,6 +3,7 @@ package com.danielealbano.androidremotecontrolmcp.data.repository
 import com.danielealbano.androidremotecontrolmcp.data.model.BindingAddress
 import com.danielealbano.androidremotecontrolmcp.data.model.BuiltinPermissions
 import com.danielealbano.androidremotecontrolmcp.data.model.CertificateSource
+import com.danielealbano.androidremotecontrolmcp.data.model.CloudflareTunnelMode
 import com.danielealbano.androidremotecontrolmcp.data.model.EventChannelConfig
 import com.danielealbano.androidremotecontrolmcp.data.model.GeofenceZone
 import com.danielealbano.androidremotecontrolmcp.data.model.NotificationFilterMode
@@ -146,6 +147,12 @@ interface SettingsRepository {
 
     /** Updates the ngrok domain (optional, empty string means auto-assigned). */
     suspend fun updateNgrokDomain(domain: String)
+
+    /** Updates the Cloudflare tunnel mode (Free quick tunnel vs token-based named tunnel). */
+    suspend fun updateCloudflareTunnelMode(mode: CloudflareTunnelMode)
+
+    /** Updates the Cloudflare tunnel token (required when using token mode). */
+    suspend fun updateCloudflareTunnelToken(token: String)
 
     /** Updates the file size limit for file operations (in MB). */
     suspend fun updateFileSizeLimit(limitMb: Int)

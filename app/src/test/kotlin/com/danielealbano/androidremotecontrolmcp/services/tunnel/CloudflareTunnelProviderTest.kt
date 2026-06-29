@@ -1,12 +1,17 @@
 package com.danielealbano.androidremotecontrolmcp.services.tunnel
 
+import com.danielealbano.androidremotecontrolmcp.data.model.CloudflareTunnelMode
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerConfig
+import com.danielealbano.androidremotecontrolmcp.data.model.TunnelEndpoint
 import com.danielealbano.androidremotecontrolmcp.data.model.TunnelStatus
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -165,5 +170,255 @@ class CloudflareTunnelProviderTest {
                     (status as TunnelStatus.Error).message.contains("Failed to start cloudflared"),
                 )
             }
+    }
+
+    // --- Token-mode fixtures (real captured shapes) ---
+
+    private val configLineValid =
+        """{"config":"{\"ingress\":[{\"hostname\":\"pixel8.example.com\",\"service\":\"http://localhost:8080\"},""" +
+            """{\"service\":\"http_status:404\"}]}","level":"info",""" +
+            """"message":"Updated to new configuration","time":"t","version":1}"""
+
+    private val configLineMismatch =
+        """{"config":"{\"ingress\":[{\"hostname\":\"pixel8.example.com\",\"service\":\"http://localhost:9999\"},""" +
+            """{\"service\":\"http_status:404\"}]}","level":"info",""" +
+            """"message":"Updated to new configuration","time":"t","version":1}"""
+
+    private val configLineMulti =
+        """{"config":"{\"ingress\":[{\"hostname\":\"a.example.com\",\"service\":\"http://localhost:8080\"},""" +
+            """{\"hostname\":\"b.example.com\",\"service\":\"http://localhost:8080\"},""" +
+            """{\"service\":\"http_status:404\"}]}","level":"info",""" +
+            """"message":"Updated to new configuration","time":"t","version":1}"""
+
+    private val registeredLine =
+        """{"connIndex":0,"connection":"abc","event":0,"ip":"198.41.192.77","level":"info",""" +
+            """"location":"zrh01","message":"Registered tunnel connection","protocol":"quic","time":"t"}"""
+
+    private val nonJsonLine =
+        "2026/06/28 21:07:30 failed to sufficiently increase receive buffer size (was: 208 kiB, wanted: 7168 kiB)."
+
+    private val innerConfigMulti =
+        """{"ingress":[{"hostname":"a.example.com","service":"http://localhost:8080"},""" +
+            """{"hostname":"b.example.com","service":"http://localhost:8080"},""" +
+            """{"service":"http_status:404"}]}"""
+
+    private fun tokenConfig() =
+        ServerConfig(
+            cloudflareTunnelMode = CloudflareTunnelMode.TOKEN,
+            cloudflareTunnelToken = "fake-token",
+        )
+
+    private fun fakeBinaryEmitting(vararg stderrLines: String): String {
+        val script = File.createTempFile("fake-cloudflared", ".sh")
+        script.deleteOnExit()
+        val sb = StringBuilder("#!/bin/sh\n")
+        for (logLine in stderrLines) {
+            sb.append("printf '%s\\n' '").append(logLine).append("' >&2\n")
+        }
+        sb.append("sleep 60\n")
+        script.writeText(sb.toString())
+        script.setExecutable(true)
+        return script.absolutePath
+    }
+
+    private suspend fun CloudflareTunnelProvider.awaitStatus(predicate: (TunnelStatus) -> Boolean): TunnelStatus =
+        withTimeout(AWAIT_TIMEOUT_MS) { status.first(predicate) }
+
+    @Nested
+    @DisplayName("token-mode helpers")
+    inner class Helpers {
+        @Test
+        fun `logMessageOf returns message for json line`() {
+            assertEquals(
+                CloudflareTunnelProvider.MSG_UPDATED_CONFIG,
+                CloudflareTunnelProvider.logMessageOf(configLineValid),
+            )
+        }
+
+        @Test
+        fun `logMessageOf returns null for non-json line`() {
+            assertEquals(null, CloudflareTunnelProvider.logMessageOf(nonJsonLine))
+        }
+
+        @Test
+        fun `ingressRoutesOf extracts only hostname entries in order`() {
+            val routes = CloudflareTunnelProvider.ingressRoutesOf(innerConfigMulti)
+            assertEquals(listOf("a.example.com", "b.example.com"), routes.map { it.hostname })
+        }
+
+        @Test
+        fun `ingressRoutesOf returns empty for malformed json`() {
+            assertTrue(CloudflareTunnelProvider.ingressRoutesOf("{not json").isEmpty())
+        }
+
+        @Test
+        fun `isServiceValid accepts localhost and loopback ip`() {
+            assertTrue(CloudflareTunnelProvider.isServiceValid("http://localhost:8080", 8080))
+            assertTrue(CloudflareTunnelProvider.isServiceValid("http://127.0.0.1:8080", 8080))
+        }
+
+        @Test
+        fun `isServiceValid accepts trailing slash`() {
+            assertTrue(CloudflareTunnelProvider.isServiceValid("http://localhost:8080/", 8080))
+        }
+
+        @Test
+        fun `isServiceValid rejects wrong port`() {
+            assertFalse(CloudflareTunnelProvider.isServiceValid("http://localhost:9999", 8080))
+        }
+
+        @Test
+        fun `isServiceValid rejects https and non-loopback host`() {
+            assertFalse(CloudflareTunnelProvider.isServiceValid("https://localhost:8080", 8080))
+            assertFalse(CloudflareTunnelProvider.isServiceValid("http://192.168.1.5:8080", 8080))
+        }
+
+        @Test
+        fun `isServiceValid rejects service with no port`() {
+            assertFalse(CloudflareTunnelProvider.isServiceValid("http://localhost", 8080))
+        }
+
+        @Test
+        fun `isServiceValid accepts uppercase scheme and host`() {
+            assertTrue(CloudflareTunnelProvider.isServiceValid("HTTP://LOCALHOST:8080", 8080))
+            assertTrue(CloudflareTunnelProvider.isServiceValid("http://Localhost:8080", 8080))
+        }
+
+        @Test
+        fun `isServiceValid rejects userinfo query and fragment`() {
+            assertFalse(CloudflareTunnelProvider.isServiceValid("http://user@localhost:8080", 8080))
+            assertFalse(CloudflareTunnelProvider.isServiceValid("http://localhost:8080?x=1", 8080))
+            assertFalse(CloudflareTunnelProvider.isServiceValid("http://localhost:8080#frag", 8080))
+        }
+    }
+
+    @Nested
+    @DisplayName("token mode")
+    inner class TokenMode {
+        @Test
+        fun `empty token sets error`() =
+            runTest {
+                every { mockBinaryResolver.resolve() } returns "/bin/true"
+                val provider = createProvider()
+
+                provider.start(8080, ServerConfig(cloudflareTunnelMode = CloudflareTunnelMode.TOKEN))
+
+                val status = provider.status.value
+                assertTrue(status is TunnelStatus.Error)
+                assertEquals(
+                    "Cloudflare tunnel token is required",
+                    (status as TunnelStatus.Error).message,
+                )
+            }
+
+        @Test
+        fun `valid config sets Connected with valid endpoint`() =
+            runBlocking {
+                every { mockBinaryResolver.resolve() } returns fakeBinaryEmitting(registeredLine, configLineValid)
+                val provider = createProvider()
+
+                provider.start(8080, tokenConfig())
+                val status = provider.awaitStatus { it.connectedWithEndpoints() }
+
+                assertEquals(
+                    listOf(TunnelEndpoint("https://pixel8.example.com", valid = true)),
+                    (status as TunnelStatus.Connected).endpoints,
+                )
+                provider.stop()
+            }
+
+        @Test
+        fun `multiple hostnames all valid`() =
+            runBlocking {
+                every { mockBinaryResolver.resolve() } returns fakeBinaryEmitting(configLineMulti)
+                val provider = createProvider()
+
+                provider.start(8080, tokenConfig())
+                val status = provider.awaitStatus { it.connectedWithEndpoints() }
+
+                assertEquals(
+                    listOf(
+                        TunnelEndpoint("https://a.example.com", valid = true),
+                        TunnelEndpoint("https://b.example.com", valid = true),
+                    ),
+                    (status as TunnelStatus.Connected).endpoints,
+                )
+                provider.stop()
+            }
+
+        @Test
+        fun `service mismatch flags endpoint invalid without stopping`() =
+            runBlocking {
+                every { mockBinaryResolver.resolve() } returns fakeBinaryEmitting(configLineMismatch)
+                val provider = createProvider()
+
+                provider.start(8080, tokenConfig())
+                val status = provider.awaitStatus { it.connectedWithEndpoints() }
+
+                // Connected (NOT Error) with the misconfigured route flagged invalid.
+                assertEquals(
+                    listOf(TunnelEndpoint("https://pixel8.example.com", valid = false)),
+                    (status as TunnelStatus.Connected).endpoints,
+                )
+                provider.stop()
+            }
+
+        @Test
+        fun `registered with no config goes connected with no routes`() =
+            runBlocking {
+                every { mockBinaryResolver.resolve() } returns fakeBinaryEmitting(registeredLine)
+                val provider = createProvider()
+
+                provider.start(8080, tokenConfig())
+                val status = provider.awaitStatus { it is TunnelStatus.Connected }
+
+                assertEquals(emptyList<TunnelEndpoint>(), (status as TunnelStatus.Connected).endpoints)
+                provider.stop()
+            }
+
+        @Test
+        fun `re-validation flags endpoint invalid on later push`() =
+            runBlocking {
+                every { mockBinaryResolver.resolve() } returns
+                    fakeBinaryEmitting(configLineValid, configLineMismatch)
+                val provider = createProvider()
+
+                provider.start(8080, tokenConfig())
+                // Wait for the second (mismatch) push to flip the endpoint to invalid.
+                val status =
+                    provider.awaitStatus {
+                        it is TunnelStatus.Connected && it.endpoints.firstOrNull()?.valid == false
+                    }
+
+                assertEquals(
+                    listOf(TunnelEndpoint("https://pixel8.example.com", valid = false)),
+                    (status as TunnelStatus.Connected).endpoints,
+                )
+                provider.stop()
+            }
+
+        @Test
+        fun `non-json lines are ignored`() =
+            runBlocking {
+                every { mockBinaryResolver.resolve() } returns
+                    fakeBinaryEmitting(nonJsonLine, registeredLine, configLineValid)
+                val provider = createProvider()
+
+                provider.start(8080, tokenConfig())
+                val status = provider.awaitStatus { it.connectedWithEndpoints() }
+
+                assertEquals(
+                    listOf(TunnelEndpoint("https://pixel8.example.com", valid = true)),
+                    (status as TunnelStatus.Connected).endpoints,
+                )
+                provider.stop()
+            }
+    }
+
+    companion object {
+        private const val AWAIT_TIMEOUT_MS = 10_000L
+
+        /** True for a Connected status that already carries at least one endpoint (route applied). */
+        private fun TunnelStatus.connectedWithEndpoints() = this is TunnelStatus.Connected && endpoints.isNotEmpty()
     }
 }

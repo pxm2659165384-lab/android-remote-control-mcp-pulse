@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danielealbano.androidremotecontrolmcp.data.model.BindingAddress
 import com.danielealbano.androidremotecontrolmcp.data.model.CertificateSource
+import com.danielealbano.androidremotecontrolmcp.data.model.CloudflareTunnelMode
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerConfig
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerLogEntry
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerStatus
@@ -100,6 +101,9 @@ class MainViewModel
         private val _ngrokDomainInput = MutableStateFlow("")
         val ngrokDomainInput: StateFlow<String> = _ngrokDomainInput.asStateFlow()
 
+        private val _cloudflareTokenInput = MutableStateFlow("")
+        val cloudflareTokenInput: StateFlow<String> = _cloudflareTokenInput.asStateFlow()
+
         private val _storageLocations = MutableStateFlow<List<StorageLocation>>(emptyList())
         val storageLocations: StateFlow<List<StorageLocation>> = _storageLocations.asStateFlow()
 
@@ -142,6 +146,7 @@ class MainViewModel
                     _hostnameError.value = null
                     _ngrokAuthtokenInput.value = config.ngrokAuthtoken
                     _ngrokDomainInput.value = config.ngrokDomain
+                    _cloudflareTokenInput.value = config.cloudflareTunnelToken
                     _fileSizeLimitInput.value = config.fileSizeLimitMb.toString()
                     _fileSizeLimitError.value = null
                     _downloadTimeoutInput.value = config.downloadTimeoutSeconds.toString()
@@ -309,6 +314,19 @@ class MainViewModel
             _ngrokDomainInput.value = domain
             viewModelScope.launch(ioDispatcher) {
                 settingsRepository.updateNgrokDomain(domain)
+            }
+        }
+
+        fun updateCloudflareTunnelMode(mode: CloudflareTunnelMode) {
+            viewModelScope.launch(ioDispatcher) {
+                settingsRepository.updateCloudflareTunnelMode(mode)
+            }
+        }
+
+        fun updateCloudflareTunnelToken(token: String) {
+            _cloudflareTokenInput.value = token
+            viewModelScope.launch(ioDispatcher) {
+                settingsRepository.updateCloudflareTunnelToken(token)
             }
         }
 

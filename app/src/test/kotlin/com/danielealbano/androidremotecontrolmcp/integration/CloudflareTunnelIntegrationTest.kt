@@ -115,8 +115,9 @@ class CloudflareTunnelIntegrationTest {
 
             assertTrue(connectedStatus is TunnelStatus.Connected)
             val connected = connectedStatus as TunnelStatus.Connected
-            assertTrue(connected.url.startsWith("https://"))
-            assertTrue(connected.url.contains(".trycloudflare.com"))
+            val tunnelUrl = connected.endpoints.single().url
+            assertTrue(tunnelUrl.startsWith("https://"))
+            assertTrue(tunnelUrl.contains(".trycloudflare.com"))
             assertEquals(TunnelProviderType.CLOUDFLARE, connected.providerType)
 
             // Wait for Cloudflare DNS to propagate the new subdomain record.
@@ -125,7 +126,6 @@ class CloudflareTunnelIntegrationTest {
             delay(DNS_PROPAGATION_DELAY_MS)
 
             // Make an HTTP GET request through the tunnel
-            val tunnelUrl = connected.url
             val response = fetchUrlWithRetry(tunnelUrl)
             assertTrue(
                 response.contains(EXPECTED_RESPONSE_BODY),

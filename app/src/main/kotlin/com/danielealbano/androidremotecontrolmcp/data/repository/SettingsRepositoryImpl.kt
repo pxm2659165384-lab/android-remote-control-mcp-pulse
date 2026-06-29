@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import com.danielealbano.androidremotecontrolmcp.data.model.BindingAddress
 import com.danielealbano.androidremotecontrolmcp.data.model.BuiltinPermissions
 import com.danielealbano.androidremotecontrolmcp.data.model.CertificateSource
+import com.danielealbano.androidremotecontrolmcp.data.model.CloudflareTunnelMode
 import com.danielealbano.androidremotecontrolmcp.data.model.EventChannelConfig
 import com.danielealbano.androidremotecontrolmcp.data.model.GeofenceZone
 import com.danielealbano.androidremotecontrolmcp.data.model.NotificationFilterMode
@@ -191,6 +192,14 @@ class SettingsRepositoryImpl
 
         override suspend fun updateNgrokDomain(domain: String) {
             dataStore.edit { prefs -> prefs[NGROK_DOMAIN_KEY] = domain }
+        }
+
+        override suspend fun updateCloudflareTunnelMode(mode: CloudflareTunnelMode) {
+            dataStore.edit { prefs -> prefs[CLOUDFLARE_TUNNEL_MODE_KEY] = mode.name }
+        }
+
+        override suspend fun updateCloudflareTunnelToken(token: String) {
+            dataStore.edit { prefs -> prefs[CLOUDFLARE_TUNNEL_TOKEN_KEY] = token }
         }
 
         override suspend fun updateFileSizeLimit(limitMb: Int) {
@@ -485,6 +494,8 @@ class SettingsRepositoryImpl
             val certificateSourceName = prefs[CERTIFICATE_SOURCE_KEY] ?: CertificateSource.AUTO_GENERATED.name
 
             val tunnelProviderName = prefs[TUNNEL_PROVIDER_KEY] ?: TunnelProviderType.CLOUDFLARE.name
+            val cloudflareTunnelModeName =
+                prefs[CLOUDFLARE_TUNNEL_MODE_KEY] ?: CloudflareTunnelMode.FREE.name
 
             return ServerConfig(
                 port = prefs[PORT_KEY] ?: ServerConfig.DEFAULT_PORT,
@@ -506,6 +517,10 @@ class SettingsRepositoryImpl
                         ?: TunnelProviderType.CLOUDFLARE,
                 ngrokAuthtoken = prefs[NGROK_AUTHTOKEN_KEY] ?: "",
                 ngrokDomain = prefs[NGROK_DOMAIN_KEY] ?: "",
+                cloudflareTunnelMode =
+                    CloudflareTunnelMode.entries.firstOrNull { it.name == cloudflareTunnelModeName }
+                        ?: CloudflareTunnelMode.FREE,
+                cloudflareTunnelToken = prefs[CLOUDFLARE_TUNNEL_TOKEN_KEY] ?: "",
                 fileSizeLimitMb = prefs[FILE_SIZE_LIMIT_KEY] ?: ServerConfig.DEFAULT_FILE_SIZE_LIMIT_MB,
                 allowHttpDownloads = prefs[ALLOW_HTTP_DOWNLOADS_KEY] ?: false,
                 allowUnverifiedHttpsCerts = prefs[ALLOW_UNVERIFIED_HTTPS_KEY] ?: false,
@@ -745,6 +760,8 @@ class SettingsRepositoryImpl
             private val TUNNEL_PROVIDER_KEY = stringPreferencesKey("tunnel_provider")
             private val NGROK_AUTHTOKEN_KEY = stringPreferencesKey("ngrok_authtoken")
             private val NGROK_DOMAIN_KEY = stringPreferencesKey("ngrok_domain")
+            private val CLOUDFLARE_TUNNEL_MODE_KEY = stringPreferencesKey("cloudflare_tunnel_mode")
+            private val CLOUDFLARE_TUNNEL_TOKEN_KEY = stringPreferencesKey("cloudflare_tunnel_token")
             private val FILE_SIZE_LIMIT_KEY = intPreferencesKey("file_size_limit_mb")
             private val ALLOW_HTTP_DOWNLOADS_KEY = booleanPreferencesKey("allow_http_downloads")
             private val ALLOW_UNVERIFIED_HTTPS_KEY = booleanPreferencesKey("allow_unverified_https_certs")

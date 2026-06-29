@@ -1,6 +1,7 @@
 package com.danielealbano.androidremotecontrolmcp.services.tunnel
 
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerConfig
+import com.danielealbano.androidremotecontrolmcp.data.model.TunnelEndpoint
 import com.danielealbano.androidremotecontrolmcp.data.model.TunnelStatus
 import com.ngrok.Forwarder
 import com.ngrok.HttpBuilder
@@ -110,8 +111,8 @@ class NgrokTunnelProviderTest {
                 val status = provider.status.value
                 assertTrue(status is TunnelStatus.Connected)
                 assertEquals(
-                    "https://test-123.ngrok-free.app",
-                    (status as TunnelStatus.Connected).url,
+                    listOf(TunnelEndpoint("https://test-123.ngrok-free.app", valid = true)),
+                    (status as TunnelStatus.Connected).endpoints,
                 )
 
                 verify { mockHttpBuilder.forward(URL("http://localhost:8080")) }

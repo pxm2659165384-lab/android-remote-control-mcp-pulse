@@ -109,10 +109,11 @@ class NgrokTunnelIntegrationTest {
 
             assertTrue(connectedStatus is TunnelStatus.Connected)
             val connected = connectedStatus as TunnelStatus.Connected
-            assertTrue(connected.url.startsWith("https://"))
+            val tunnelUrl = connected.endpoints.single().url
+            assertTrue(tunnelUrl.startsWith("https://"))
             assertEquals(TunnelProviderType.NGROK, connected.providerType)
 
-            val response = fetchUrlWithRetry(connected.url)
+            val response = fetchUrlWithRetry(tunnelUrl)
             assertTrue(
                 response.contains(EXPECTED_RESPONSE_BODY),
                 "Expected response to contain '$EXPECTED_RESPONSE_BODY' but got: $response",

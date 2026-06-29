@@ -3,6 +3,7 @@ package com.danielealbano.androidremotecontrolmcp.services.tunnel
 import android.os.Build
 import android.util.Log
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerConfig
+import com.danielealbano.androidremotecontrolmcp.data.model.TunnelEndpoint
 import com.danielealbano.androidremotecontrolmcp.data.model.TunnelProviderType
 import com.danielealbano.androidremotecontrolmcp.data.model.TunnelStatus
 import com.ngrok.Forwarder
@@ -82,7 +83,7 @@ class NgrokTunnelProvider
                         Log.i(TAG, "ngrok tunnel URL: $url")
                         _status.value =
                             TunnelStatus.Connected(
-                                url = url,
+                                endpoints = listOf(TunnelEndpoint(url = url, valid = true)),
                                 providerType = TunnelProviderType.NGROK,
                             )
                     }

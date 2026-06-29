@@ -276,12 +276,18 @@ class McpServerService : Service() {
                 ),
             )
 
-            // Start tunnel if remote access is enabled
-            @Suppress("TooGenericExceptionCaught")
-            try {
-                tunnelManager.start(config.port)
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to start tunnel (server continues without tunnel)", e)
+            // Start tunnel if remote access is enabled. A tunnel always targets an
+            // http://localhost origin, so it MUST NOT run while the server serves HTTPS.
+            if (config.httpsEnabled) {
+                Log.i(TAG, "Remote access tunnel disabled while HTTPS is enabled")
+                tunnelManager.stop()
+            } else {
+                @Suppress("TooGenericExceptionCaught")
+                try {
+                    tunnelManager.start(config.port)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to start tunnel (server continues without tunnel)", e)
+                }
             }
 
             // Observe tunnel status for logging
@@ -290,12 +296,16 @@ class McpServerService : Service() {
                     tunnelManager.tunnelStatus.collect { status ->
                         when (status) {
                             is TunnelStatus.Connected -> {
-                                Log.i(TAG, "Tunnel connected: ${status.url} (provider: ${status.providerType})")
+                                Log.i(
+                                    TAG,
+                                    "Tunnel connected: ${status.endpoints.joinToString { it.url }} " +
+                                        "(provider: ${status.providerType})",
+                                )
                                 emitLogEntry(
                                     ServerLogEntry(
                                         timestamp = System.currentTimeMillis(),
                                         type = ServerLogEntry.Type.TUNNEL,
-                                        message = "Tunnel connected: ${status.url}",
+                                        message = "Tunnel connected: ${status.endpoints.joinToString { it.url }}",
                                     ),
                                 )
                             }
@@ -349,8 +359,9 @@ class McpServerService : Service() {
      */
     private val currentBaseUrl: () -> String = {
         val tunnel = tunnelManager.tunnelStatus.value
-        if (tunnel is TunnelStatus.Connected) {
-            tunnel.url
+        val tunnelUrl = (tunnel as? TunnelStatus.Connected)?.endpoints?.firstOrNull { it.valid }?.url
+        if (tunnelUrl != null) {
+            tunnelUrl
         } else {
             val cfg = activeConfig
             val scheme = if (cfg?.httpsEnabled == true) "https" else "http"

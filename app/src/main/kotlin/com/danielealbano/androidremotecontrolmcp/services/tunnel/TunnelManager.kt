@@ -46,6 +46,10 @@ class TunnelManager
 
                 if (!config.tunnelEnabled) return
 
+                // A tunnel always targets an http://localhost origin, so it MUST NOT run while the
+                // server serves HTTPS. (The McpServerService start path enforces this too.)
+                if (config.httpsEnabled) return
+
                 val provider =
                     when (config.tunnelProvider) {
                         TunnelProviderType.CLOUDFLARE -> cloudflareTunnelProviderFactory.get()

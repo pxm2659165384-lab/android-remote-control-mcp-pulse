@@ -1,6 +1,7 @@
 package com.danielealbano.androidremotecontrolmcp.services.tunnel
 
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerConfig
+import com.danielealbano.androidremotecontrolmcp.data.model.TunnelEndpoint
 import com.danielealbano.androidremotecontrolmcp.data.model.TunnelProviderType
 import com.danielealbano.androidremotecontrolmcp.data.model.TunnelStatus
 import com.danielealbano.androidremotecontrolmcp.data.repository.SettingsRepository
@@ -99,6 +100,19 @@ class TunnelManagerTest {
             }
 
         @Test
+        fun `start with https enabled does not start tunnel`() =
+            runTest {
+                val config = ServerConfig(tunnelEnabled = true, httpsEnabled = true)
+                every { mockSettingsRepository.serverConfig } returns flowOf(config)
+
+                val manager = createManager()
+                manager.start(8080)
+
+                coVerify(exactly = 0) { mockCloudflareProvider.start(any(), any()) }
+                coVerify(exactly = 0) { mockNgrokProvider.start(any(), any()) }
+            }
+
+        @Test
         fun `start relays provider status to tunnelStatus`() =
             runTest {
                 val providerStatus =
@@ -121,7 +135,7 @@ class TunnelManagerTest {
                 // Simulate the provider reporting Connected
                 providerStatus.value =
                     TunnelStatus.Connected(
-                        url = "https://test.trycloudflare.com",
+                        endpoints = listOf(TunnelEndpoint("https://test.trycloudflare.com", valid = true)),
                         providerType = TunnelProviderType.CLOUDFLARE,
                     )
 
@@ -131,7 +145,7 @@ class TunnelManagerTest {
                 val status = manager.tunnelStatus.value
                 assertEquals(
                     TunnelStatus.Connected(
-                        url = "https://test.trycloudflare.com",
+                        endpoints = listOf(TunnelEndpoint("https://test.trycloudflare.com", valid = true)),
                         providerType = TunnelProviderType.CLOUDFLARE,
                     ),
                     status,

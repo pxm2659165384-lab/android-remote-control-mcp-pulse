@@ -132,7 +132,6 @@ When implementing a plan (git workflow):
 - When all plan work is complete and all quality gates pass, you MUST create a Pull Request:
   1. Push any remaining unpushed commits
   2. Create the PR via `gh pr create` following the PR convention in TOOLS.md
-  3. Request Copilot as a reviewer: `gh pr edit <PR#> --add-reviewer copilot`
 - You MUST report the PR URL to the user when done
 
 When performing ad-hoc code changes (outside of plan workflows):

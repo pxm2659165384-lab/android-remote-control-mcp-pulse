@@ -1,7 +1,9 @@
 package com.danielealbano.androidremotecontrolmcp.services.tunnel
 
 import android.util.Log
+import com.danielealbano.androidremotecontrolmcp.data.model.CloudflareTunnelMode
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerConfig
+import com.danielealbano.androidremotecontrolmcp.data.model.TunnelEndpoint
 import com.danielealbano.androidremotecontrolmcp.data.model.TunnelProviderType
 import com.danielealbano.androidremotecontrolmcp.data.model.TunnelStatus
 import kotlinx.coroutines.CoroutineScope
@@ -17,16 +19,31 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import java.net.URI
 import javax.inject.Inject
 
 /**
- * Cloudflare Quick Tunnel provider.
+ * Cloudflare tunnel provider.
  *
- * Runs the `cloudflared` binary as a child process to create a temporary
- * tunnel with a random `*.trycloudflare.com` URL. No account or
- * configuration is needed.
+ * Runs the `cloudflared` binary as a child process. Two modes are supported:
+ * - [CloudflareTunnelMode.FREE]: a temporary Quick Tunnel with a random
+ *   `*.trycloudflare.com` URL (no account or configuration needed).
+ * - [CloudflareTunnelMode.TOKEN]: a remotely-managed named tunnel run with a
+ *   dashboard token. The tunnel goes Connected as soon as it registers to the
+ *   Cloudflare edge — even before any public hostname is configured — and stays
+ *   running. Public hostname(s) and their origin service are configured in the
+ *   dashboard; cloudflared logs them as `Updated to new configuration` lines,
+ *   which we parse to populate the endpoint list. Each endpoint's service is
+ *   validated against the local MCP server, but validation is ADVISORY: an
+ *   invalid route is flagged (`TunnelEndpoint.valid == false`) for the UI to show
+ *   a warning — it never stops the tunnel.
  */
 class CloudflareTunnelProvider
     @Inject
@@ -42,7 +59,6 @@ class CloudflareTunnelProvider
         private var stderrReaderJob: Job? = null
         private var processMonitorJob: Job? = null
 
-        @Suppress("UNUSED_PARAMETER")
         override suspend fun start(
             localPort: Int,
             config: ServerConfig,
@@ -56,30 +72,129 @@ class CloudflareTunnelProvider
                         return
                     }
 
-                _status.value = TunnelStatus.Connecting
+                when (config.cloudflareTunnelMode) {
+                    CloudflareTunnelMode.FREE -> startFreeTunnel(binaryPath, localPort)
+                    CloudflareTunnelMode.TOKEN -> startTokenTunnel(binaryPath, localPort, config)
+                }
+            }
+        }
 
-                try {
-                    val pb =
-                        ProcessBuilder(
-                            binaryPath,
-                            "tunnel",
-                            "--url",
-                            "http://localhost:$localPort",
-                            "--output",
-                            "json",
+        private fun startFreeTunnel(
+            binaryPath: String,
+            localPort: Int,
+        ) {
+            _status.value = TunnelStatus.Connecting
+            try {
+                val pb =
+                    ProcessBuilder(
+                        binaryPath,
+                        "tunnel",
+                        "--url",
+                        "http://localhost:$localPort",
+                        "--output",
+                        "json",
+                    )
+                pb.redirectErrorStream(false)
+                val proc = pb.start()
+                process = proc
+
+                launchStderrReader(proc) { line ->
+                    val match = TUNNEL_URL_REGEX.find(line)
+                    if (match != null && _status.value is TunnelStatus.Connecting) {
+                        val url = match.value
+                        Log.i(TAG, "Cloudflare tunnel URL: $url")
+                        _status.value =
+                            TunnelStatus.Connected(
+                                endpoints = listOf(TunnelEndpoint(url = url, valid = true)),
+                                providerType = TunnelProviderType.CLOUDFLARE,
+                            )
+                    }
+                }
+                startProcessMonitor(proc)
+            } catch (
+                @Suppress("TooGenericExceptionCaught") e: Exception,
+            ) {
+                Log.e(TAG, "Failed to start cloudflared process", e)
+                _status.value = TunnelStatus.Error("Failed to start cloudflared: ${e.message}")
+                process = null
+            }
+        }
+
+        private fun startTokenTunnel(
+            binaryPath: String,
+            localPort: Int,
+            config: ServerConfig,
+        ) {
+            if (config.cloudflareTunnelToken.isEmpty()) {
+                _status.value = TunnelStatus.Error("Cloudflare tunnel token is required")
+                return
+            }
+
+            _status.value = TunnelStatus.Connecting
+            try {
+                // NOTE: exact argument order; `--output json` MUST come before `run`, and `--url`
+                // MUST NOT be passed (it breaks the control stream of a remotely-managed tunnel).
+                val pb =
+                    ProcessBuilder(
+                        binaryPath,
+                        "tunnel",
+                        "--output",
+                        "json",
+                        "run",
+                        "--token",
+                        config.cloudflareTunnelToken,
+                    )
+                pb.redirectErrorStream(false)
+                val proc = pb.start()
+                process = proc
+
+                launchStderrReader(proc) { line -> handleTokenLine(line, localPort) }
+                startProcessMonitor(proc)
+            } catch (
+                @Suppress("TooGenericExceptionCaught") e: Exception,
+            ) {
+                Log.e(TAG, "Failed to start cloudflared process", e)
+                _status.value = TunnelStatus.Error("Failed to start cloudflared: ${e.message}")
+                process = null
+            }
+        }
+
+        /**
+         * Handles one token-mode stderr line. The tunnel becomes Connected (with no endpoints) as
+         * soon as it registers to the edge, so it stays up while the user configures a route; each
+         * `Updated to new configuration` push then refreshes the endpoint list. Per-endpoint service
+         * validation is ADVISORY — an invalid route is flagged, never terminated. Non-JSON lines and
+         * other messages are ignored.
+         */
+        private fun handleTokenLine(
+            line: String,
+            localPort: Int,
+        ) {
+            when (logMessageOf(line)) {
+                MSG_REGISTERED -> {
+                    if (_status.value is TunnelStatus.Connecting) {
+                        _status.value =
+                            TunnelStatus.Connected(
+                                endpoints = emptyList(),
+                                providerType = TunnelProviderType.CLOUDFLARE,
+                            )
+                    }
+                }
+
+                MSG_UPDATED_CONFIG -> {
+                    val payload = configPayloadOf(line) ?: return
+                    val endpoints =
+                        ingressRoutesOf(payload).map { route ->
+                            TunnelEndpoint(
+                                url = "https://${route.hostname}",
+                                valid = isServiceValid(route.service, localPort),
+                            )
+                        }
+                    _status.value =
+                        TunnelStatus.Connected(
+                            endpoints = endpoints,
+                            providerType = TunnelProviderType.CLOUDFLARE,
                         )
-                    pb.redirectErrorStream(false)
-                    val proc = pb.start()
-                    process = proc
-
-                    startStderrReader(proc)
-                    startProcessMonitor(proc)
-                } catch (
-                    @Suppress("TooGenericExceptionCaught") e: Exception,
-                ) {
-                    Log.e(TAG, "Failed to start cloudflared process", e)
-                    _status.value = TunnelStatus.Error("Failed to start cloudflared: ${e.message}")
-                    process = null
                 }
             }
         }
@@ -103,28 +218,24 @@ class CloudflareTunnelProvider
             }
         }
 
-        private fun startStderrReader(proc: Process) {
+        /**
+         * Launches a coroutine that reads the process stderr line by line and forwards each line to
+         * [onLine]. Shared by both modes; mode-specific handling lives in the caller's lambda. The
+         * reader is closed on any exit path (`use`) to release the file descriptor.
+         */
+        private fun launchStderrReader(
+            proc: Process,
+            onLine: (String) -> Unit,
+        ) {
             stderrReaderJob =
                 scope.launch {
                     try {
-                        val reader = BufferedReader(InputStreamReader(proc.errorStream))
-                        var line: String?
-                        while (isActive) {
-                            @Suppress("BlockingMethodInNonBlockingContext")
-                            line = reader.readLine()
-                            if (line == null) break
-
-                            Log.d(TAG, "cloudflared: $line")
-
-                            val match = TUNNEL_URL_REGEX.find(line)
-                            if (match != null && _status.value is TunnelStatus.Connecting) {
-                                val url = match.value
-                                Log.i(TAG, "Cloudflare tunnel URL: $url")
-                                _status.value =
-                                    TunnelStatus.Connected(
-                                        url = url,
-                                        providerType = TunnelProviderType.CLOUDFLARE,
-                                    )
+                        BufferedReader(InputStreamReader(proc.errorStream)).use { reader ->
+                            while (isActive) {
+                                @Suppress("BlockingMethodInNonBlockingContext")
+                                val line = reader.readLine() ?: break
+                                Log.d(TAG, "cloudflared: $line")
+                                onLine(line)
                             }
                         }
                     } catch (
@@ -159,11 +270,77 @@ class CloudflareTunnelProvider
                 }
         }
 
+        /** A Cloudflare ingress rule that declares a public hostname. */
+        internal data class IngressRoute(
+            val hostname: String,
+            val service: String,
+        )
+
         companion object {
             private const val TAG = "MCP:CloudflareTunnel"
             internal val TUNNEL_URL_REGEX =
                 Regex("https://[-a-zA-Z0-9]+\\.trycloudflare\\.com")
             internal const val SHUTDOWN_TIMEOUT_MS = 5_000L
             private const val PROCESS_MONITOR_INITIAL_DELAY_MS = 1_000L
+            internal const val MSG_REGISTERED = "Registered tunnel connection"
+            internal const val MSG_UPDATED_CONFIG = "Updated to new configuration"
+            internal val LOG_JSON = Json { ignoreUnknownKeys = true }
+
+            /** Returns the top-level `message` field of a cloudflared JSON log line, or null for non-JSON. */
+            internal fun logMessageOf(line: String): String? =
+                runCatching {
+                    LOG_JSON
+                        .parseToJsonElement(line)
+                        .jsonObject["message"]
+                        ?.jsonPrimitive
+                        ?.contentOrNull
+                }.getOrNull()
+
+            /** Returns the escaped `config` payload of an `Updated to new configuration` line, or null. */
+            internal fun configPayloadOf(line: String): String? =
+                runCatching {
+                    LOG_JSON
+                        .parseToJsonElement(line)
+                        .jsonObject["config"]
+                        ?.jsonPrimitive
+                        ?.contentOrNull
+                }.getOrNull()
+
+            /** Parses the nested config JSON into the ingress entries that declare a hostname. */
+            internal fun ingressRoutesOf(configJson: String): List<IngressRoute> =
+                runCatching {
+                    LOG_JSON
+                        .parseToJsonElement(configJson)
+                        .jsonObject["ingress"]
+                        ?.jsonArray
+                        .orEmpty()
+                        .mapNotNull { element ->
+                            val obj = element.jsonObject
+                            val host = obj["hostname"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+                            IngressRoute(host, obj["service"]?.jsonPrimitive?.contentOrNull ?: "")
+                        }
+                }.getOrDefault(emptyList())
+
+            /**
+             * True when the routed service points at our MCP server: `http://(localhost|127.0.0.1):<port>`.
+             * Scheme and host are compared case-insensitively (RFC 3986); any service carrying userinfo,
+             * a query, or a fragment is rejected (cloudflared never emits those for an origin service).
+             */
+            internal fun isServiceValid(
+                service: String,
+                expectedPort: Int,
+            ): Boolean {
+                val uri = runCatching { URI(service) }.getOrNull() ?: return false
+                val host = uri.host?.lowercase()
+                val path = uri.path
+                val isLoopback = host == "localhost" || host == "127.0.0.1"
+                val pathIsRoot = path.isNullOrEmpty() || path == "/"
+                val hasNoExtraParts = uri.userInfo == null && uri.query == null && uri.fragment == null
+                return uri.scheme?.lowercase() == "http" &&
+                    isLoopback &&
+                    uri.port == expectedPort &&
+                    pathIsRoot &&
+                    hasNoExtraParts
+            }
         }
     }

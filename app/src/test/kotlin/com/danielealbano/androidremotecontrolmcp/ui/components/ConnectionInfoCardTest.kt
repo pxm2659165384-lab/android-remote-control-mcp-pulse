@@ -1,7 +1,8 @@
 package com.danielealbano.androidremotecontrolmcp.ui.components
 
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerStatus
-import com.danielealbano.androidremotecontrolmcp.data.model.TunnelProviderType
+import com.danielealbano.androidremotecontrolmcp.data.model.TunnelEndpoint
+import com.danielealbano.androidremotecontrolmcp.data.model.TunnelProviderType.CLOUDFLARE
 import com.danielealbano.androidremotecontrolmcp.data.model.TunnelStatus
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -23,7 +24,12 @@ class ConnectionInfoCardTest {
 
     private val running = ServerStatus.Running(port = 8080, bindingAddress = "127.0.0.1")
 
-    private fun connected(url: String) = TunnelStatus.Connected(url, TunnelProviderType.CLOUDFLARE)
+    private fun ep(
+        url: String,
+        valid: Boolean = true,
+    ) = TunnelEndpoint(url, valid)
+
+    private fun connected(vararg urls: String) = TunnelStatus.Connected(urls.map { ep(it) }, CLOUDFLARE)
 
     @Test
     fun `serverUrl includes mcp suffix`() {
@@ -45,7 +51,7 @@ class ConnectionInfoCardTest {
         val connectionString =
             buildConnectionString(
                 serverUrl = "http://127.0.0.1:8080/mcp",
-                tunnelUrl = tunnelUrl,
+                tunnelEndpoints = listOf(ep(tunnelUrl)),
                 bearerToken = "test-token",
             )
         assertTrue(
@@ -60,7 +66,7 @@ class ConnectionInfoCardTest {
         val connectionString =
             buildConnectionString(
                 serverUrl = "http://127.0.0.1:8080/mcp",
-                tunnelUrl = null,
+                tunnelEndpoints = emptyList(),
                 bearerToken = realToken,
             )
         assertTrue(
@@ -78,7 +84,7 @@ class ConnectionInfoCardTest {
         val connectionString =
             buildConnectionString(
                 serverUrl = "http://127.0.0.1:8080/mcp",
-                tunnelUrl = null,
+                tunnelEndpoints = emptyList(),
                 bearerToken = "test-token-123",
             )
         assertEquals(
@@ -92,7 +98,7 @@ class ConnectionInfoCardTest {
         val connectionString =
             buildConnectionString(
                 serverUrl = "http://127.0.0.1:8080/mcp",
-                tunnelUrl = "https://example.trycloudflare.com",
+                tunnelEndpoints = listOf(ep("https://example.trycloudflare.com")),
                 bearerToken = "test-token-123",
             )
         assertEquals(
@@ -104,19 +110,36 @@ class ConnectionInfoCardTest {
     }
 
     @Test
+    fun `buildConnectionString includes one line per endpoint including invalid ones`() {
+        val connectionString =
+            buildConnectionString(
+                serverUrl = "http://127.0.0.1:8080/mcp",
+                tunnelEndpoints = listOf(ep("https://a.example.com"), ep("https://b.example.com", valid = false)),
+                bearerToken = "test-token-123",
+            )
+        assertEquals(
+            "URL: http://127.0.0.1:8080/mcp\n" +
+                "Tunnel: https://a.example.com/mcp\n" +
+                "Tunnel: https://b.example.com/mcp\n" +
+                "Bearer Token: test-token-123",
+            connectionString,
+        )
+    }
+
+    @Test
     fun `connection string includes tunnel line only when connected`() {
         val url = "https://random-words.trycloudflare.com"
         val withTunnel =
             buildConnectionString(
                 serverUrl = "http://127.0.0.1:8080/mcp",
-                tunnelUrl = url,
+                tunnelEndpoints = listOf(ep(url)),
                 bearerToken = "test-token",
             )
         assertTrue(withTunnel.contains("\nTunnel: $url/mcp"))
         val withoutTunnel =
             buildConnectionString(
                 serverUrl = "http://127.0.0.1:8080/mcp",
-                tunnelUrl = null,
+                tunnelEndpoints = emptyList(),
                 bearerToken = "test-token",
             )
         assertFalse(withoutTunnel.contains("Tunnel:"))
@@ -127,7 +150,7 @@ class ConnectionInfoCardTest {
         val connectionString =
             buildConnectionString(
                 serverUrl = "http://127.0.0.1:8080/mcp",
-                tunnelUrl = null,
+                tunnelEndpoints = emptyList(),
                 bearerToken = "",
             )
         assertEquals("URL: http://127.0.0.1:8080/mcp", connectionString)
@@ -212,7 +235,7 @@ class ConnectionInfoCardTest {
     }
 
     @Test
-    fun `tunnelRowContent connected exposes url when running`() {
+    fun `tunnelRowContent connected exposes endpoint list when running`() {
         val url = "https://random-words.trycloudflare.com"
         val result =
             tunnelRowContent(
@@ -220,7 +243,43 @@ class ConnectionInfoCardTest {
                 serverStatus = running,
                 tunnelStatus = connected(url),
             )
-        assertEquals(TunnelRowContent.Connected(url), result)
+        assertEquals(TunnelRowContent.Connected(listOf(ep(url))), result)
+    }
+
+    @Test
+    fun `tunnelRowContent maps Connected to endpoint list preserving validity`() {
+        val status =
+            TunnelStatus.Connected(
+                endpoints = listOf(ep("https://a.example.com"), ep("https://b.example.com", valid = false)),
+                providerType = CLOUDFLARE,
+            )
+        val result =
+            tunnelRowContent(
+                tunnelEnabled = true,
+                serverStatus = running,
+                tunnelStatus = status,
+            )
+        assertEquals(
+            TunnelRowContent.Connected(
+                listOf(ep("https://a.example.com"), ep("https://b.example.com", valid = false)),
+            ),
+            result,
+        )
+    }
+
+    @Test
+    fun `tunnelRowContent connected with no endpoints when route not configured`() {
+        val result =
+            tunnelRowContent(
+                tunnelEnabled = true,
+                serverStatus = running,
+                tunnelStatus =
+                    TunnelStatus.Connected(
+                        endpoints = emptyList(),
+                        providerType = CLOUDFLARE,
+                    ),
+            )
+        assertEquals(TunnelRowContent.Connected(emptyList()), result)
     }
 
     @Test
@@ -232,7 +291,7 @@ class ConnectionInfoCardTest {
                 serverStatus = ServerStatus.Starting,
                 tunnelStatus = connected(url),
             )
-        assertEquals(TunnelRowContent.Connected(url), result)
+        assertEquals(TunnelRowContent.Connected(listOf(ep(url))), result)
     }
 
     @Test

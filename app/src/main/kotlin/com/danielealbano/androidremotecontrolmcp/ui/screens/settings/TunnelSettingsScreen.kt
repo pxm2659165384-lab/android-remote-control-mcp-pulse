@@ -19,9 +19,11 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -38,14 +40,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danielealbano.androidremotecontrolmcp.R
+import com.danielealbano.androidremotecontrolmcp.data.model.CloudflareTunnelMode
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerStatus
 import com.danielealbano.androidremotecontrolmcp.data.model.TunnelProviderType
 import com.danielealbano.androidremotecontrolmcp.data.model.TunnelStatus
@@ -65,10 +70,14 @@ fun TunnelSettingsScreen(
     val tunnelStatus by viewModel.tunnelStatus.collectAsStateWithLifecycle()
     val ngrokAuthtokenInput by viewModel.ngrokAuthtokenInput.collectAsStateWithLifecycle()
     val ngrokDomainInput by viewModel.ngrokDomainInput.collectAsStateWithLifecycle()
+    val cloudflareTokenInput by viewModel.cloudflareTokenInput.collectAsStateWithLifecycle()
 
     val isEnabled =
         serverStatus !is ServerStatus.Running &&
             serverStatus !is ServerStatus.Starting
+    // The entire remote-access section is disabled while HTTPS is enabled (a tunnel always
+    // targets an http://localhost origin).
+    val sectionEnabled = isEnabled && !serverConfig.httpsEnabled
 
     Column(modifier = modifier.fillMaxSize()) {
         TopAppBar(
@@ -87,6 +96,22 @@ fun TunnelSettingsScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(16.dp),
         ) {
+            if (serverConfig.httpsEnabled) {
+                ElevatedCard(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.remote_access_https_disabled_warning),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(16.dp),
+                    )
+                }
+            }
+
             // Tunnel Enable/Disable Toggle
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -100,7 +125,7 @@ fun TunnelSettingsScreen(
                 Switch(
                     checked = serverConfig.tunnelEnabled,
                     onCheckedChange = viewModel::updateTunnelEnabled,
-                    enabled = isEnabled,
+                    enabled = sectionEnabled,
                 )
             }
 
@@ -124,14 +149,14 @@ fun TunnelSettingsScreen(
                                             selected = provider == serverConfig.tunnelProvider,
                                             onClick = { viewModel.updateTunnelProvider(provider) },
                                             role = Role.RadioButton,
-                                            enabled = isEnabled,
+                                            enabled = sectionEnabled,
                                         ).padding(vertical = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 RadioButton(
                                     selected = provider == serverConfig.tunnelProvider,
                                     onClick = null,
-                                    enabled = isEnabled,
+                                    enabled = sectionEnabled,
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
@@ -166,6 +191,37 @@ fun TunnelSettingsScreen(
                         }
                     }
 
+                    // Cloudflare mode selector (Free vs Token)
+                    AnimatedVisibility(
+                        visible = serverConfig.tunnelProvider == TunnelProviderType.CLOUDFLARE,
+                    ) {
+                        Column {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            CloudflareModeSelector(
+                                selectedMode = serverConfig.cloudflareTunnelMode,
+                                enabled = sectionEnabled,
+                                onModeSelected = viewModel::updateCloudflareTunnelMode,
+                            )
+                        }
+                    }
+
+                    // Cloudflare token-mode fields
+                    AnimatedVisibility(
+                        visible =
+                            serverConfig.tunnelProvider == TunnelProviderType.CLOUDFLARE &&
+                                serverConfig.cloudflareTunnelMode == CloudflareTunnelMode.TOKEN,
+                    ) {
+                        Column {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            CloudflareTokenFields(
+                                token = cloudflareTokenInput,
+                                serviceUrl = "http://localhost:${serverConfig.port}",
+                                enabled = sectionEnabled,
+                                onTokenChange = viewModel::updateCloudflareTunnelToken,
+                            )
+                        }
+                    }
+
                     // ngrok-specific fields
                     AnimatedVisibility(visible = serverConfig.tunnelProvider == TunnelProviderType.NGROK) {
                         Column {
@@ -173,7 +229,7 @@ fun TunnelSettingsScreen(
                             NgrokConfigFields(
                                 authtoken = ngrokAuthtokenInput,
                                 domain = ngrokDomainInput,
-                                enabled = isEnabled,
+                                enabled = sectionEnabled,
                                 onAuthtokenChange = viewModel::updateNgrokAuthtoken,
                                 onDomainChange = viewModel::updateNgrokDomain,
                             )
@@ -259,6 +315,142 @@ private fun NgrokConfigFields(
 }
 
 @Composable
+private fun CloudflareModeSelector(
+    selectedMode: CloudflareTunnelMode,
+    enabled: Boolean,
+    onModeSelected: (CloudflareTunnelMode) -> Unit,
+) {
+    Text(
+        text = stringResource(R.string.remote_access_cloudflare_mode_label),
+        style = MaterialTheme.typography.labelLarge,
+    )
+    Spacer(modifier = Modifier.height(4.dp))
+    Column(modifier = Modifier.selectableGroup()) {
+        CloudflareTunnelMode.entries.forEach { mode ->
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .selectable(
+                            selected = mode == selectedMode,
+                            onClick = { onModeSelected(mode) },
+                            role = Role.RadioButton,
+                            enabled = enabled,
+                        ).padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                RadioButton(
+                    selected = mode == selectedMode,
+                    onClick = null,
+                    enabled = enabled,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text =
+                        when (mode) {
+                            CloudflareTunnelMode.FREE -> {
+                                stringResource(R.string.remote_access_cloudflare_mode_free)
+                            }
+
+                            CloudflareTunnelMode.TOKEN -> {
+                                stringResource(R.string.remote_access_cloudflare_mode_token)
+                            }
+                        },
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text =
+                        when (mode) {
+                            CloudflareTunnelMode.FREE -> {
+                                stringResource(R.string.remote_access_cloudflare_mode_free_desc)
+                            }
+
+                            CloudflareTunnelMode.TOKEN -> {
+                                stringResource(R.string.remote_access_cloudflare_mode_token_desc)
+                            }
+                        },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CloudflareTokenFields(
+    token: String,
+    serviceUrl: String,
+    enabled: Boolean,
+    onTokenChange: (String) -> Unit,
+) {
+    var showToken by remember { mutableStateOf(false) }
+    val clipboardManager = LocalClipboardManager.current
+
+    Column {
+        Text(
+            text = stringResource(R.string.remote_access_cloudflare_token_label),
+            style = MaterialTheme.typography.labelLarge,
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        OutlinedTextField(
+            value = token,
+            onValueChange = onTokenChange,
+            singleLine = true,
+            enabled = enabled,
+            visualTransformation =
+                if (showToken) {
+                    VisualTransformation.None
+                } else {
+                    PasswordVisualTransformation()
+                },
+            trailingIcon = {
+                IconButton(onClick = { showToken = !showToken }) {
+                    Icon(
+                        imageVector =
+                            if (showToken) {
+                                Icons.Default.VisibilityOff
+                            } else {
+                                Icons.Default.Visibility
+                            },
+                        contentDescription =
+                            if (showToken) {
+                                stringResource(R.string.config_token_hide)
+                            } else {
+                                stringResource(R.string.config_token_show)
+                            },
+                    )
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = stringResource(R.string.remote_access_cloudflare_service_url_help),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = serviceUrl,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(onClick = { clipboardManager.setText(AnnotatedString(serviceUrl)) }) {
+                Icon(
+                    imageVector = Icons.Default.ContentCopy,
+                    contentDescription = stringResource(R.string.remote_access_cloudflare_service_url_copy),
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun TunnelStatusIndicator(
     status: TunnelStatus,
     modifier: Modifier = Modifier,
@@ -294,12 +486,6 @@ private fun TunnelStatusIndicator(
                     text = stringResource(R.string.remote_access_status_connected),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = status.url,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
