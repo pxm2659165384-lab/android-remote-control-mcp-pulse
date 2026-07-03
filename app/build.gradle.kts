@@ -218,9 +218,16 @@ dependencies {
     implementation(libs.ktor.network.tls.certificates)
     implementation(libs.ktor.serialization.kotlinx.json)
 
+    // Ktor Server CIO (用于 HapticMiddlewareService 触觉中台)
+    implementation("io.ktor:ktor-server-cio:2.3.7")
+
     // Ktor Client (Event Channel dispatcher — no Logging plugin, it would expose auth token)
     implementation(libs.ktor.client.okhttp)
     implementation(libs.ktor.client.content.negotiation)
+
+    // Ktor Client CIO + WebSocket (用于 Buttplug.io 客户端)
+    implementation("io.ktor:ktor-client-cio:2.3.7")
+    implementation("io.ktor:ktor-client-websockets:2.3.7")
 
     // Force patched Netty: Ktor's server engine ships netty 4.2.9, which is vulnerable.
     // Covers the HTTP Request Smuggling / HTTP/2 CONTINUATION-flood CVEs (CVE-2026-33870,

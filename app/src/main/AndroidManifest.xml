@@ -10,6 +10,14 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
+    <!-- Haptic Middleware (触觉中台) -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- Biometric Data (生物特征数据采集) -->
+    <uses-permission android:name="android.permission.BODY_SENSORS" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="nodomain.freeyourgadget.gadgetbridge.permission.FETCH_HEALTH_DATA" />
+
     <!-- Boot receiver -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
@@ -95,6 +103,16 @@
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="MCP server providing remote device control" />
+        </service>
+
+        <!-- Haptic Middleware Service (触觉中台服务) -->
+        <service
+            android:name=".services.haptic.HapticMiddlewareService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Local high-performance HTTP middleware for haptic synchronization and biometric fetching" />
         </service>
 
         <!-- Accessibility Service -->
