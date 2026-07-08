@@ -1,0 +1,304 @@
+<resources>
+    <string name="app_name">安卓远程控制 MCP</string>
+    <string name="share_target_label">安卓远程控制 MCP</string>
+
+    <!-- Accessibility Service -->
+    <string name="accessibility_service_description">通过 MCP 协议提供远程控制能力，可检查界面元素并在设备上执行操作。</string>
+
+    <!-- Notification Channel -->
+    <string name="notification_channel_mcp_server_id">mcp_server_channel</string>
+    <string name="notification_channel_mcp_server_name">MCP 服务</string>
+    <!-- Notification Content -->
+    <string name="notification_mcp_server_title">MCP 服务运行中</string>
+
+    <!-- App Bar -->
+    <string name="app_bar_title">MCP 远程控制</string>
+
+    <!-- Tabs -->
+    <string name="tab_server">服务</string>
+    <string name="tab_pulse_link">脉冲联动</string>
+    <string name="tab_settings">设置</string>
+    <string name="tab_about">关于</string>
+
+    <!-- Settings Sub-pages -->
+    <string name="settings_general_title">通用</string>
+    <string name="settings_general_subtitle">端口、地址、设备、开机自启</string>
+    <string name="settings_access_title">访问控制</string>
+    <string name="settings_access_subtitle">OAuth、Bearer 令牌、已连接客户端</string>
+    <string name="settings_security_title">安全</string>
+    <string name="settings_security_subtitle">HTTPS、证书</string>
+    <string name="settings_tunnel_title">隧道</string>
+    <string name="settings_tunnel_subtitle">Cloudflare、ngrok</string>
+    <string name="settings_mcp_tools_title">MCP 工具</string>
+    <string name="settings_mcp_tools_subtitle">启用或禁用工具</string>
+    <string name="settings_mcp_tools_placeholder">工具权限将在后续更新中提供</string>
+    <string name="settings_permissions_title">权限</string>
+    <string name="settings_permissions_subtitle">无障碍、相机、麦克风</string>
+    <string name="settings_storage_title">存储</string>
+    <string name="settings_storage_subtitle">存储位置、文件限制</string>
+    <string name="settings_channel_title">事件通道</string>
+    <string name="settings_channel_subtitle">转发通知、WiFi 与地理围栏事件</string>
+
+    <!-- About Screen -->
+    <string name="about_author_section">作者</string>
+    <string name="about_author_name">Daniele Salvatore Albano</string>
+    <string name="about_author_email">d.albano@gmail.com</string>
+    <string name="about_author_linkedin">linkedin.com/in/danielesalvatorealbano</string>
+    <string name="about_author_x">x.com/daniele_dll</string>
+    <string name="about_links_section">链接</string>
+    <string name="about_link_github">GitHub 仓库</string>
+    <string name="about_link_license">MIT 许可证</string>
+    <string name="about_link_issues">反馈问题</string>
+    <string name="about_attributions_section">致谢</string>
+    <string name="about_attribution_dbip">IP 地理位置数据由 DB-IP (db-ip.com) 提供，基于 CC BY 4.0 许可。</string>
+    <string name="about_footer">开源项目 • MIT 许可证</string>
+
+    <!-- Clipboard -->
+    <string name="copied_to_clipboard">已复制到剪贴板</string>
+
+    <!-- Server Status -->
+    <string name="server_status_title">服务状态</string>
+    <string name="server_status_running">运行中</string>
+    <string name="server_status_stopped">已停止</string>
+    <string name="server_status_starting">正在启动…</string>
+    <string name="server_status_stopping">正在停止…</string>
+    <string name="server_status_error">错误：%1$s</string>
+    <string name="server_action_start">启动</string>
+    <string name="server_action_stop">停止</string>
+    <string name="services_status_title">服务状态</string>
+    <string name="service_mcp_server">MCP 服务</string>
+    <string name="service_event_channel">事件通道</string>
+    <string name="service_status_description">%1$s 状态：%2$s</string>
+    <string name="channel_status_idle">待机</string>
+    <string name="channel_status_active">已连接</string>
+
+    <!-- Configuration -->
+    <string name="configuration_title">配置</string>
+    <string name="config_binding_address_label">绑定地址</string>
+    <string name="config_binding_localhost">本机 (127.0.0.1)</string>
+    <string name="config_binding_network">局域网 (0.0.0.0)</string>
+    <string name="config_port_label">端口</string>
+    <string name="config_device_slug_label">设备标识（可选）</string>
+    <string name="config_device_slug_hint">例如 pixel7、work_phone</string>
+    <string name="config_bearer_token_label">Bearer 令牌</string>
+    <string name="config_token_show">显示令牌</string>
+    <string name="config_token_hide">隐藏令牌</string>
+    <string name="config_token_copy">复制令牌</string>
+    <string name="config_token_regenerate">重新生成令牌</string>
+    <string name="config_token_clear">清空令牌</string>
+    <string name="config_bearer_token_empty_warning_title">认证已关闭</string>
+    <string name="config_bearer_token_empty_warning_body">Bearer 令牌为空，MCP 服务会接受任何可访问它的未认证请求。请先停止服务（如果正在运行），再点击重新生成以启用认证。</string>
+    <string name="config_auto_start_label">开机自启</string>
+    <string name="config_https_enabled_label">启用 HTTPS</string>
+    <string name="config_certificate_title">HTTPS 证书</string>
+    <string name="config_cert_auto_generated">自动生成自签名证书</string>
+    <string name="config_cert_custom">自定义证书 (.p12/.pfx)</string>
+    <string name="config_hostname_label">证书主机名</string>
+
+    <!-- Network Security Warning -->
+    <string name="network_warning_title">网络暴露警告</string>
+    <string name="network_warning_message">绑定到 0.0.0.0 会让 MCP 服务可被以下设备访问：\n\n\u2022 当前 WiFi 网络中的所有设备\n\u2022 连接到你热点的设备\n\u2022 取决于网络配置的其他潜在设备\n\n在公共或不可信网络中这存在安全风险。\n\n请仅在可信的私有网络中使用此选项。</string>
+    <string name="network_warning_confirm">我已了解，继续</string>
+    <string name="network_warning_cancel">取消</string>
+
+    <!-- Permissions -->
+    <string name="permissions_title">权限</string>
+    <string name="permission_accessibility">无障碍服务</string>
+    <string name="permission_notifications">通知</string>
+    <string name="permission_enable">启用</string>
+    <string name="permission_enabled">已启用</string>
+    <string name="permission_granted">已授权</string>
+    <string name="permission_grant">授权</string>
+    <string name="permission_camera">相机</string>
+    <string name="permission_microphone">麦克风</string>
+    <string name="permission_notification_listener">通知监听</string>
+    <string name="permission_location">位置</string>
+
+    <!-- Permission Warning -->
+    <string name="permission_warning_message">部分权限尚未授予，点击查看。</string>
+
+    <!-- Server Logs -->
+    <string name="server_logs_title">服务日志</string>
+    <string name="server_logs_empty">暂无日志</string>
+
+    <!-- Remote Access / Tunnel -->
+    <string name="remote_access_title">远程访问</string>
+    <string name="remote_access_enabled_label">启用远程访问</string>
+    <string name="remote_access_provider_label">隧道提供商</string>
+    <string name="remote_access_provider_cloudflare">Cloudflare</string>
+    <string name="remote_access_provider_cloudflare_desc">无需账号</string>
+    <string name="remote_access_provider_ngrok">ngrok</string>
+    <string name="remote_access_provider_ngrok_desc">需要账号</string>
+    <string name="remote_access_ngrok_authtoken_label">ngrok Authtoken</string>
+    <string name="remote_access_ngrok_domain_label">域名（可选）</string>
+    <string name="remote_access_ngrok_domain_hint">留空则自动分配</string>
+    <string name="remote_access_status_disconnected">未连接</string>
+    <string name="remote_access_status_connecting">连接中…</string>
+    <string name="remote_access_status_connected">已连接</string>
+    <string name="remote_access_status_error">错误：%1$s</string>
+    <string name="remote_access_public_url_label">公网 URL</string>
+    <string name="remote_access_ngrok_unsupported">此设备不支持 ngrok（需要 arm64-v8a 或 x86_64）</string>
+    <string name="remote_access_cloudflare_mode_label">Cloudflare 模式</string>
+    <string name="remote_access_cloudflare_mode_free">免费</string>
+    <string name="remote_access_cloudflare_mode_free_desc">随机临时 URL，无需账号</string>
+    <string name="remote_access_cloudflare_mode_token">使用令牌</string>
+    <string name="remote_access_cloudflare_mode_token_desc">通过你的 Cloudflare 账号使用固定主机名</string>
+    <string name="remote_access_cloudflare_token_label">Cloudflare Tunnel 令牌</string>
+    <string name="remote_access_cloudflare_service_url_help">请在 Cloudflare 控制台中，将此隧道的 Public Hostname → Service 设置为：</string>
+    <string name="remote_access_cloudflare_service_url_copy">复制服务 URL</string>
+    <string name="remote_access_https_disabled_warning">启用 HTTPS 时远程访问不可用。请关闭 HTTPS 后再使用隧道。</string>
+    <string name="remote_access_no_route_configured">未配置路由</string>
+    <string name="remote_access_route_misconfigured">路由未指向此服务</string>
+
+    <!-- Connection Info -->
+    <string name="connection_info_title">连接信息</string>
+    <string name="connection_info_ip">IP 地址</string>
+    <string name="connection_info_port">端口</string>
+    <string name="connection_info_url">URL</string>
+    <string name="connection_info_token">令牌</string>
+    <string name="connection_info_copy_all">复制全部</string>
+    <string name="connection_info_share">分享</string>
+
+    <!-- Storage Locations -->
+    <string name="storage_locations_title">存储位置</string>
+    <string name="storage_locations_description">添加存储位置以允许 MCP 工具执行文件操作。每个位置都会授权访问你选择的目录。</string>
+    <string name="storage_location_no_locations">尚未添加存储位置，点击 + 添加。</string>
+    <string name="storage_location_path_label">路径：%1$s</string>
+    <string name="storage_location_add_button">添加存储位置</string>
+    <string name="storage_location_add_dialog_title">添加存储位置</string>
+    <string name="storage_location_add_dialog_description_label">描述（可选）</string>
+    <string name="storage_location_add_dialog_description_hint">例如：项目文件、下载</string>
+    <string name="storage_location_add_dialog_browse">浏览</string>
+    <string name="storage_location_add_dialog_selected">已选择：%1$s</string>
+    <string name="storage_location_add_dialog_no_selection">未选择目录</string>
+    <string name="storage_location_add_dialog_add">添加</string>
+    <string name="storage_location_add_dialog_cancel">取消</string>
+    <string name="storage_location_add_dialog_duplicate">该目录已经添加过。</string>
+    <string name="storage_location_description_counter">%1$d / %2$d</string>
+    <string name="storage_location_edit_dialog_title">编辑描述</string>
+    <string name="storage_location_edit_dialog_save">保存</string>
+    <string name="storage_location_delete_dialog_title">移除存储位置</string>
+    <string name="storage_location_delete_dialog_message">要移除“%1$s”吗？MCP 服务将无法再访问此位置中的文件。</string>
+    <string name="storage_location_delete_dialog_confirm">移除</string>
+    <string name="storage_location_delete_dialog_cancel">取消</string>
+    <string name="storage_location_allow_write_label">允许写入</string>
+    <string name="storage_location_allow_delete_label">允许删除</string>
+    <string name="storage_builtin_locations_title">内置位置</string>
+    <string name="storage_builtin_locations_description">始终可用。通过 MediaStore 读写文件，无需额外设置。</string>
+    <string name="storage_user_locations_title">用户位置</string>
+    <string name="storage_builtin_grant_all_files">授予所有文件访问权限</string>
+    <string name="storage_builtin_all_files_granted">已授予所有文件访问权限</string>
+    <string name="storage_file_size_limit_label">文件大小限制 (MB)</string>
+    <string name="storage_file_size_limit_error">必须介于 %1$d 到 %2$d MB 之间</string>
+    <string name="storage_download_timeout_label">下载超时（秒）</string>
+    <string name="storage_download_timeout_error">必须介于 %1$d 到 %2$d 秒之间</string>
+    <string name="storage_allow_http_downloads_label">允许 HTTP 下载</string>
+    <string name="storage_allow_http_downloads_description">允许从未加密的 HTTP URL 下载文件（安全性较低）</string>
+    <string name="storage_allow_unverified_https_label">允许未验证 HTTPS</string>
+    <string name="storage_allow_unverified_https_description">下载时接受未验证的 HTTPS 证书（安全性较低）</string>
+
+    <!-- Event Channel — start/stop dialogs -->
+    <string name="channel_not_configured_dialog_title">未设置端点 URL</string>
+    <string name="channel_not_configured_dialog_body">请先在设置 → 事件通道中配置端点 URL，再启动服务。认证令牌是可选项；如果你的端点不需要认证，可以留空。</string>
+    <string name="channel_not_configured_dialog_ok">确定</string>
+    <string name="channel_endpoint_url_label">端点 URL</string>
+    <string name="channel_auth_token_label">认证令牌</string>
+    <string name="channel_auto_start_label">开机自动启动</string>
+    <string name="channel_auto_start_supporting">设备启动后自动启动事件通道</string>
+    <string name="channel_event_sources_title">事件来源</string>
+    <string name="channel_notifications_events">通知事件</string>
+    <string name="channel_wifi_events">WiFi 事件</string>
+    <string name="channel_geofence_events">地理围栏事件</string>
+
+    <!-- Common UI -->
+    <string name="common_back">返回</string>
+    <string name="common_show">显示</string>
+    <string name="common_hide">隐藏</string>
+    <string name="common_copy">复制</string>
+    <string name="common_generate_new">重新生成</string>
+    <string name="common_add">添加</string>
+    <string name="common_delete">删除</string>
+    <string name="common_cancel">取消</string>
+    <string name="common_save">保存</string>
+    <string name="common_remove">移除</string>
+    <string name="common_search">搜索</string>
+    <string name="common_unknown">未知</string>
+    <string name="common_realtime">实时</string>
+
+    <!-- Event channel detail screens -->
+    <string name="wifi_monitor_title">WiFi 监听</string>
+    <string name="wifi_notify_discovered">发现网络时通知</string>
+    <string name="wifi_notify_lost">网络消失时通知</string>
+    <string name="wifi_notify_connected">连接网络时通知</string>
+    <string name="wifi_notify_disconnected">断开网络时通知</string>
+    <string name="wifi_scan_delayed">依赖扫描，可能延迟</string>
+    <string name="wifi_delay_notice">WiFi 扫描事件（发现/消失）在后台可能因 Android 扫描限制延迟最多 30 分钟。连接和断开事件为实时事件。</string>
+    <string name="notification_filter_title">通知过滤</string>
+    <string name="notification_filter_search_apps">搜索应用</string>
+    <string name="notification_filter_selected_count">已选择 %1$d 个应用</string>
+    <string name="notification_filter_mode_all">全部应用</string>
+    <string name="notification_filter_mode_whitelist">仅所选应用</string>
+    <string name="notification_filter_mode_blacklist">排除所选应用</string>
+    <string name="geofence_zones_title">地理围栏区域</string>
+    <string name="geofence_add_zone">添加区域</string>
+    <string name="geofence_empty">尚未配置地理围栏区域</string>
+    <string name="geofence_delete_title">删除区域？</string>
+    <string name="geofence_delete_message">要移除“%1$s”吗？</string>
+    <string name="geofence_edit_title">编辑区域</string>
+    <string name="geofence_add_title">添加区域</string>
+    <string name="geofence_zone_name">区域名称</string>
+    <string name="geofence_notifications_title">通知</string>
+    <string name="geofence_enter">进入</string>
+    <string name="geofence_exit">离开</string>
+    <string name="geofence_my_location">我的位置</string>
+    <string name="geofence_radius_label">半径：%1$s</string>
+    <string name="geofence_search_address">搜索地址</string>
+    <string name="mcp_tools_restart_notice">改动会在 MCP 服务重启后生效</string>
+    <string name="permission_background_location">后台定位</string>
+    <string name="permission_open_settings">打开设置</string>
+
+    <!-- Access settings (OAuth + bearer) -->
+    <string name="access_title">访问控制</string>
+    <string name="access_oauth_label">OAuth</string>
+    <string name="access_oauth_supporting">需要可用的隧道（HTTPS、可公网访问）</string>
+    <string name="access_connected_clients">已连接客户端</string>
+    <string name="access_bearer_label">Bearer 令牌认证</string>
+    <string name="access_bearer_token_field_label">Bearer 令牌</string>
+    <string name="access_public_url_label">公网 URL 覆盖（可选）</string>
+    <string name="access_public_url_supporting">留空则从请求自动检测；填写后会覆盖 OAuth 元数据和分享链接使用的主机</string>
+    <string name="access_no_auth_warning_title">服务没有任何认证</string>
+    <string name="access_no_auth_warning_body">任何能访问此服务的人都可以完全控制这台设备。</string>
+    <string name="access_internet_exposure_warning_title">当前可从互联网访问</string>
+    <string name="access_internet_exposure_warning_body">隧道已开启且认证关闭，因此任何拿到 URL 的人都可以不经校验地通过 Android Remote Control 完全控制这台设备。请启用 OAuth 或 Bearer 令牌。</string>
+    <string name="access_disable_auth_dialog_title">关闭所有认证？</string>
+    <string name="access_disable_auth_dialog_body">这会让服务没有任何认证。任何能访问它的人都可以完全控制设备。继续吗？</string>
+    <string name="access_disable_auth_confirm">仍然关闭</string>
+    <string name="access_disable_auth_cancel">取消</string>
+    <string name="access_token_show">显示令牌</string>
+    <string name="access_token_hide">隐藏令牌</string>
+    <string name="access_token_copy">复制令牌</string>
+    <string name="access_token_regenerate">重新生成令牌</string>
+
+    <!-- Connected clients -->
+    <string name="oauth_clients_title">已连接客户端</string>
+    <string name="oauth_clients_empty">暂无已连接客户端。客户端通过 OAuth 连接后会显示在这里。</string>
+    <string name="oauth_clients_created">创建于 %1$s</string>
+    <string name="oauth_clients_last_used">上次使用 %1$s</string>
+    <string name="oauth_clients_revoke">撤销</string>
+    <string name="oauth_clients_revoke_dialog_title">撤销客户端？</string>
+    <string name="oauth_clients_revoke_dialog_body">撤销会立即使该客户端的令牌失效。它必须重新授权才能连接。</string>
+    <string name="oauth_clients_revoke_confirm">撤销</string>
+    <string name="oauth_clients_revoke_cancel">取消</string>
+
+    <!-- On-device approval -->
+    <string name="approval_title">连接请求</string>
+    <string name="approval_empty">暂无待处理请求。</string>
+    <string name="approval_match_code_label">请确认此代码与你浏览器中的代码一致：</string>
+    <string name="approval_approve">批准</string>
+    <string name="approval_deny">拒绝</string>
+    <string name="approval_expires_in">%1$s 后过期</string>
+    <string name="approval_expired">请求已过期</string>
+    <string name="notification_channel_oauth_approval_name">连接审批</string>
+    <string name="notification_oauth_approval_title">有连接请求待处理</string>
+    <string name="notification_oauth_approval_body">有 %1$d 个请求等待处理，点击查看</string>
+</resources>

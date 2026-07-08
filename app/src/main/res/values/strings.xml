@@ -1,0 +1,304 @@
+<resources>
+    <string name="app_name">Android Remote Control MCP</string>
+    <string name="share_target_label">Android Remote Control MCP</string>
+
+    <!-- Accessibility Service -->
+    <string name="accessibility_service_description">Provides remote control capabilities via MCP protocol. Allows introspecting UI elements and performing actions on the device.</string>
+
+    <!-- Notification Channel -->
+    <string name="notification_channel_mcp_server_id">mcp_server_channel</string>
+    <string name="notification_channel_mcp_server_name">MCP Server</string>
+    <!-- Notification Content -->
+    <string name="notification_mcp_server_title">MCP Server Running</string>
+
+    <!-- App Bar -->
+    <string name="app_bar_title">MCP Remote Control</string>
+
+    <!-- Tabs -->
+    <string name="tab_server">Server</string>
+    <string name="tab_pulse_link">Pulse Link</string>
+    <string name="tab_settings">Settings</string>
+    <string name="tab_about">About</string>
+
+    <!-- Settings Sub-pages -->
+    <string name="settings_general_title">General</string>
+    <string name="settings_general_subtitle">Port, address, device, auto-start</string>
+    <string name="settings_access_title">Access</string>
+    <string name="settings_access_subtitle">OAuth, bearer token, connected clients</string>
+    <string name="settings_security_title">Security</string>
+    <string name="settings_security_subtitle">HTTPS, certificate</string>
+    <string name="settings_tunnel_title">Tunnel</string>
+    <string name="settings_tunnel_subtitle">Cloudflare, ngrok</string>
+    <string name="settings_mcp_tools_title">MCP Tools</string>
+    <string name="settings_mcp_tools_subtitle">Enable or disable tools</string>
+    <string name="settings_mcp_tools_placeholder">Tool permissions — available in next update</string>
+    <string name="settings_permissions_title">Permissions</string>
+    <string name="settings_permissions_subtitle">Accessibility, camera, microphone</string>
+    <string name="settings_storage_title">Storage</string>
+    <string name="settings_storage_subtitle">Storage locations, file limits</string>
+    <string name="settings_channel_title">Event Channel</string>
+    <string name="settings_channel_subtitle">Notifications, WiFi, and geofence event forwarding</string>
+
+    <!-- About Screen -->
+    <string name="about_author_section">Author</string>
+    <string name="about_author_name">Daniele Salvatore Albano</string>
+    <string name="about_author_email">d.albano@gmail.com</string>
+    <string name="about_author_linkedin">linkedin.com/in/danielesalvatorealbano</string>
+    <string name="about_author_x">x.com/daniele_dll</string>
+    <string name="about_links_section">Links</string>
+    <string name="about_link_github">GitHub Repository</string>
+    <string name="about_link_license">MIT License</string>
+    <string name="about_link_issues">Report an Issue</string>
+    <string name="about_attributions_section">Attributions</string>
+    <string name="about_attribution_dbip">IP geolocation data by DB-IP (db-ip.com), licensed under CC BY 4.0.</string>
+    <string name="about_footer">Open Source • MIT License</string>
+
+    <!-- Clipboard -->
+    <string name="copied_to_clipboard">Copied to clipboard</string>
+
+    <!-- Server Status -->
+    <string name="server_status_title">Server Status</string>
+    <string name="server_status_running">Running</string>
+    <string name="server_status_stopped">Stopped</string>
+    <string name="server_status_starting">Starting…</string>
+    <string name="server_status_stopping">Stopping…</string>
+    <string name="server_status_error">Error: %1$s</string>
+    <string name="server_action_start">Start</string>
+    <string name="server_action_stop">Stop</string>
+    <string name="services_status_title">Services Status</string>
+    <string name="service_mcp_server">MCP Server</string>
+    <string name="service_event_channel">Event Channel</string>
+    <string name="service_status_description">%1$s status: %2$s</string>
+    <string name="channel_status_idle">Idle</string>
+    <string name="channel_status_active">Active</string>
+
+    <!-- Configuration -->
+    <string name="configuration_title">Configuration</string>
+    <string name="config_binding_address_label">Binding Address</string>
+    <string name="config_binding_localhost">Localhost (127.0.0.1)</string>
+    <string name="config_binding_network">Network (0.0.0.0)</string>
+    <string name="config_port_label">Port</string>
+    <string name="config_device_slug_label">Device Slug (optional)</string>
+    <string name="config_device_slug_hint">e.g., pixel7, work_phone</string>
+    <string name="config_bearer_token_label">Bearer Token</string>
+    <string name="config_token_show">Show token</string>
+    <string name="config_token_hide">Hide token</string>
+    <string name="config_token_copy">Copy token</string>
+    <string name="config_token_regenerate">Regenerate token</string>
+    <string name="config_token_clear">Clear token</string>
+    <string name="config_bearer_token_empty_warning_title">Authentication disabled</string>
+    <string name="config_bearer_token_empty_warning_body">The bearer token is empty, so the MCP server accepts unauthenticated requests from anyone who can reach it. Stop the server (if running), then press Regenerate to enable authentication.</string>
+    <string name="config_auto_start_label">Auto-start on boot</string>
+    <string name="config_https_enabled_label">Enable HTTPS</string>
+    <string name="config_certificate_title">HTTPS Certificate</string>
+    <string name="config_cert_auto_generated">Auto-generated self-signed</string>
+    <string name="config_cert_custom">Custom certificate (.p12/.pfx)</string>
+    <string name="config_hostname_label">Certificate hostname</string>
+
+    <!-- Network Security Warning -->
+    <string name="network_warning_title">Network Exposure Warning</string>
+    <string name="network_warning_message">Binding to 0.0.0.0 makes the MCP server accessible to:\n\n\u2022 All devices on your current WiFi network\n\u2022 Devices connected to your hotspot\n\u2022 Potentially other devices depending on network configuration\n\nThis is a SECURITY RISK on public/untrusted networks.\n\nOnly use this option on trusted private networks.</string>
+    <string name="network_warning_confirm">I Understand, Continue</string>
+    <string name="network_warning_cancel">Cancel</string>
+
+    <!-- Permissions -->
+    <string name="permissions_title">Permissions</string>
+    <string name="permission_accessibility">Accessibility Service</string>
+    <string name="permission_notifications">Notifications</string>
+    <string name="permission_enable">Enable</string>
+    <string name="permission_enabled">Enabled</string>
+    <string name="permission_granted">Granted</string>
+    <string name="permission_grant">Grant</string>
+    <string name="permission_camera">Camera</string>
+    <string name="permission_microphone">Microphone</string>
+    <string name="permission_notification_listener">Notification Listener</string>
+    <string name="permission_location">Location</string>
+
+    <!-- Permission Warning -->
+    <string name="permission_warning_message">Some permissions are not granted. Tap to review.</string>
+
+    <!-- Server Logs -->
+    <string name="server_logs_title">Server Logs</string>
+    <string name="server_logs_empty">No log entries yet</string>
+
+    <!-- Remote Access / Tunnel -->
+    <string name="remote_access_title">Remote Access</string>
+    <string name="remote_access_enabled_label">Enable Remote Access</string>
+    <string name="remote_access_provider_label">Tunnel Provider</string>
+    <string name="remote_access_provider_cloudflare">Cloudflare</string>
+    <string name="remote_access_provider_cloudflare_desc">No account required</string>
+    <string name="remote_access_provider_ngrok">ngrok</string>
+    <string name="remote_access_provider_ngrok_desc">Account required</string>
+    <string name="remote_access_ngrok_authtoken_label">ngrok Authtoken</string>
+    <string name="remote_access_ngrok_domain_label">Domain (optional)</string>
+    <string name="remote_access_ngrok_domain_hint">Leave empty for auto-assigned</string>
+    <string name="remote_access_status_disconnected">Disconnected</string>
+    <string name="remote_access_status_connecting">Connecting…</string>
+    <string name="remote_access_status_connected">Connected</string>
+    <string name="remote_access_status_error">Error: %1$s</string>
+    <string name="remote_access_public_url_label">Public URL</string>
+    <string name="remote_access_ngrok_unsupported">ngrok is not available on this device (requires arm64-v8a or x86_64)</string>
+    <string name="remote_access_cloudflare_mode_label">Cloudflare Mode</string>
+    <string name="remote_access_cloudflare_mode_free">Free</string>
+    <string name="remote_access_cloudflare_mode_free_desc">Random temporary URL, no account</string>
+    <string name="remote_access_cloudflare_mode_token">With Token</string>
+    <string name="remote_access_cloudflare_mode_token_desc">Static hostname via your Cloudflare account</string>
+    <string name="remote_access_cloudflare_token_label">Cloudflare Tunnel Token</string>
+    <string name="remote_access_cloudflare_service_url_help">In your Cloudflare dashboard, set this tunnel\'s Public Hostname → Service to:</string>
+    <string name="remote_access_cloudflare_service_url_copy">Copy service URL</string>
+    <string name="remote_access_https_disabled_warning">Remote access is unavailable while HTTPS is enabled. Disable HTTPS to use a tunnel.</string>
+    <string name="remote_access_no_route_configured">No route configured</string>
+    <string name="remote_access_route_misconfigured">Route does not point to this server</string>
+
+    <!-- Connection Info -->
+    <string name="connection_info_title">Connection Info</string>
+    <string name="connection_info_ip">IP Address</string>
+    <string name="connection_info_port">Port</string>
+    <string name="connection_info_url">URL</string>
+    <string name="connection_info_token">Token</string>
+    <string name="connection_info_copy_all">Copy All</string>
+    <string name="connection_info_share">Share</string>
+
+    <!-- Storage Locations -->
+    <string name="storage_locations_title">Storage Locations</string>
+    <string name="storage_locations_description">Add storage locations to enable file operations via MCP tools. Each location grants access to a directory you choose.</string>
+    <string name="storage_location_no_locations">No storage locations added. Tap + to add one.</string>
+    <string name="storage_location_path_label">Path: %1$s</string>
+    <string name="storage_location_add_button">Add Storage Location</string>
+    <string name="storage_location_add_dialog_title">Add Storage Location</string>
+    <string name="storage_location_add_dialog_description_label">Description (optional)</string>
+    <string name="storage_location_add_dialog_description_hint">e.g., Project files, Downloads</string>
+    <string name="storage_location_add_dialog_browse">Browse</string>
+    <string name="storage_location_add_dialog_selected">Selected: %1$s</string>
+    <string name="storage_location_add_dialog_no_selection">No directory selected</string>
+    <string name="storage_location_add_dialog_add">Add</string>
+    <string name="storage_location_add_dialog_cancel">Cancel</string>
+    <string name="storage_location_add_dialog_duplicate">This directory is already added.</string>
+    <string name="storage_location_description_counter">%1$d / %2$d</string>
+    <string name="storage_location_edit_dialog_title">Edit Description</string>
+    <string name="storage_location_edit_dialog_save">Save</string>
+    <string name="storage_location_delete_dialog_title">Remove Storage Location</string>
+    <string name="storage_location_delete_dialog_message">Remove \"%1$s\"? The MCP server will no longer be able to access files in this location.</string>
+    <string name="storage_location_delete_dialog_confirm">Remove</string>
+    <string name="storage_location_delete_dialog_cancel">Cancel</string>
+    <string name="storage_location_allow_write_label">Allow Write</string>
+    <string name="storage_location_allow_delete_label">Allow Delete</string>
+    <string name="storage_builtin_locations_title">Built-in Locations</string>
+    <string name="storage_builtin_locations_description">Always available. Use MediaStore to read and write files without additional setup.</string>
+    <string name="storage_user_locations_title">User Locations</string>
+    <string name="storage_builtin_grant_all_files">Grant access to all files</string>
+    <string name="storage_builtin_all_files_granted">All files access granted</string>
+    <string name="storage_file_size_limit_label">File Size Limit (MB)</string>
+    <string name="storage_file_size_limit_error">Must be between %1$d and %2$d MB</string>
+    <string name="storage_download_timeout_label">Download Timeout (seconds)</string>
+    <string name="storage_download_timeout_error">Must be between %1$d and %2$d seconds</string>
+    <string name="storage_allow_http_downloads_label">Allow HTTP Downloads</string>
+    <string name="storage_allow_http_downloads_description">Allow downloading files from unencrypted HTTP URLs (less secure)</string>
+    <string name="storage_allow_unverified_https_label">Allow Unverified HTTPS</string>
+    <string name="storage_allow_unverified_https_description">Accept unverified HTTPS certificates for downloads (less secure)</string>
+
+    <!-- Event Channel — start/stop dialogs -->
+    <string name="channel_not_configured_dialog_title">Endpoint URL not set</string>
+    <string name="channel_not_configured_dialog_body">Configure the event channel endpoint URL in Settings → Event Channel before starting the service. The auth token is optional and can be left empty if your endpoint does not require it.</string>
+    <string name="channel_not_configured_dialog_ok">OK</string>
+    <string name="channel_endpoint_url_label">Endpoint URL</string>
+    <string name="channel_auth_token_label">Auth Token</string>
+    <string name="channel_auto_start_label">Auto-start at boot</string>
+    <string name="channel_auto_start_supporting">Start event channel when device boots</string>
+    <string name="channel_event_sources_title">Event Sources</string>
+    <string name="channel_notifications_events">Notification Events</string>
+    <string name="channel_wifi_events">WiFi Events</string>
+    <string name="channel_geofence_events">Geofence Events</string>
+
+    <!-- Common UI -->
+    <string name="common_back">Back</string>
+    <string name="common_show">Show</string>
+    <string name="common_hide">Hide</string>
+    <string name="common_copy">Copy</string>
+    <string name="common_generate_new">Generate new</string>
+    <string name="common_add">Add</string>
+    <string name="common_delete">Delete</string>
+    <string name="common_cancel">Cancel</string>
+    <string name="common_save">Save</string>
+    <string name="common_remove">Remove</string>
+    <string name="common_search">Search</string>
+    <string name="common_unknown">Unknown</string>
+    <string name="common_realtime">Real-time</string>
+
+    <!-- Event channel detail screens -->
+    <string name="wifi_monitor_title">WiFi Monitor</string>
+    <string name="wifi_notify_discovered">Notify on discovered</string>
+    <string name="wifi_notify_lost">Notify on lost</string>
+    <string name="wifi_notify_connected">Notify on connected</string>
+    <string name="wifi_notify_disconnected">Notify on disconnected</string>
+    <string name="wifi_scan_delayed">Scan-based, may be delayed</string>
+    <string name="wifi_delay_notice">WiFi scan events (discovered/lost) may be delayed up to 30 minutes in background due to Android scan throttling. Connection events are real-time.</string>
+    <string name="notification_filter_title">Notification Filter</string>
+    <string name="notification_filter_search_apps">Search apps</string>
+    <string name="notification_filter_selected_count">%1$d apps selected</string>
+    <string name="notification_filter_mode_all">All apps</string>
+    <string name="notification_filter_mode_whitelist">Only selected apps</string>
+    <string name="notification_filter_mode_blacklist">Exclude selected apps</string>
+    <string name="geofence_zones_title">Geofence Zones</string>
+    <string name="geofence_add_zone">Add zone</string>
+    <string name="geofence_empty">No geofence zones configured</string>
+    <string name="geofence_delete_title">Delete zone?</string>
+    <string name="geofence_delete_message">Remove \"%1$s\"?</string>
+    <string name="geofence_edit_title">Edit Zone</string>
+    <string name="geofence_add_title">Add Zone</string>
+    <string name="geofence_zone_name">Zone name</string>
+    <string name="geofence_notifications_title">Notifications</string>
+    <string name="geofence_enter">Enter</string>
+    <string name="geofence_exit">Exit</string>
+    <string name="geofence_my_location">My location</string>
+    <string name="geofence_radius_label">Radius: %1$s</string>
+    <string name="geofence_search_address">Search address</string>
+    <string name="mcp_tools_restart_notice">Changes take effect on server restart</string>
+    <string name="permission_background_location">Background Location</string>
+    <string name="permission_open_settings">Open Settings</string>
+
+    <!-- Access settings (OAuth + bearer) -->
+    <string name="access_title">Access</string>
+    <string name="access_oauth_label">OAuth</string>
+    <string name="access_oauth_supporting">Requires an active tunnel (HTTPS, public reachability)</string>
+    <string name="access_connected_clients">Connected clients</string>
+    <string name="access_bearer_label">Bearer token authentication</string>
+    <string name="access_bearer_token_field_label">Bearer token</string>
+    <string name="access_public_url_label">Public URL override (optional)</string>
+    <string name="access_public_url_supporting">Leave empty to auto-detect from the request; overrides the host used for OAuth metadata and share links</string>
+    <string name="access_no_auth_warning_title">Server has NO authentication</string>
+    <string name="access_no_auth_warning_body">Anyone who can reach the server has full control of this device.</string>
+    <string name="access_internet_exposure_warning_title">Reachable over the internet</string>
+    <string name="access_internet_exposure_warning_body">A tunnel is active and authentication is off, so Android Remote Control can be accessed over the internet without any checks — anyone with the URL has full control of this device. Enable OAuth or the bearer token.</string>
+    <string name="access_disable_auth_dialog_title">Disable all authentication?</string>
+    <string name="access_disable_auth_dialog_body">This leaves the server with NO authentication. Anyone who can reach it has full control. Continue?</string>
+    <string name="access_disable_auth_confirm">Disable anyway</string>
+    <string name="access_disable_auth_cancel">Cancel</string>
+    <string name="access_token_show">Show token</string>
+    <string name="access_token_hide">Hide token</string>
+    <string name="access_token_copy">Copy token</string>
+    <string name="access_token_regenerate">Regenerate token</string>
+
+    <!-- Connected clients -->
+    <string name="oauth_clients_title">Connected clients</string>
+    <string name="oauth_clients_empty">No connected clients. Clients appear here after they connect via OAuth.</string>
+    <string name="oauth_clients_created">Created %1$s</string>
+    <string name="oauth_clients_last_used">Last used %1$s</string>
+    <string name="oauth_clients_revoke">Revoke</string>
+    <string name="oauth_clients_revoke_dialog_title">Revoke client?</string>
+    <string name="oauth_clients_revoke_dialog_body">Revoking immediately invalidates this client\'s tokens. It must re-authorize to reconnect.</string>
+    <string name="oauth_clients_revoke_confirm">Revoke</string>
+    <string name="oauth_clients_revoke_cancel">Cancel</string>
+
+    <!-- On-device approval -->
+    <string name="approval_title">Connection requests</string>
+    <string name="approval_empty">No pending requests.</string>
+    <string name="approval_match_code_label">Confirm this code matches your browser:</string>
+    <string name="approval_approve">Approve</string>
+    <string name="approval_deny">Deny</string>
+    <string name="approval_expires_in">Expires in %1$s</string>
+    <string name="approval_expired">Request expired</string>
+    <string name="notification_channel_oauth_approval_name">Connection approvals</string>
+    <string name="notification_oauth_approval_title">Connection request pending</string>
+    <string name="notification_oauth_approval_body">%1$d request(s) waiting — tap to review</string>
+</resources>

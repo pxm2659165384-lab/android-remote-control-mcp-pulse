@@ -1,0 +1,33 @@
+name: Android CI Cloud Build
+
+on:
+  push:
+    branches: [ "android-remote-control-mcp-pulse" ]
+  workflow_dispatch: # 允许你在网页上手动点击按钮触发打包
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    - name: Build with Gradle (Assemble Debug APK)
+      run: ./gradlew assembleDebug
+
+    - name: Upload Unsigned APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: mcp-pulse-debug-apk
+        path: app/build/outputs/apk/debug/app-debug.apk

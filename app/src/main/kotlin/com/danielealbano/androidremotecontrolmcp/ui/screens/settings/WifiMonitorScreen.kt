@@ -1,0 +1,153 @@
+@file:Suppress("FunctionNaming", "LongMethod")
+
+package com.danielealbano.androidremotecontrolmcp.ui.screens.settings
+
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.Card
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.danielealbano.androidremotecontrolmcp.R
+import com.danielealbano.androidremotecontrolmcp.ui.viewmodels.ChannelViewModel
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WifiMonitorScreen(
+    viewModel: ChannelViewModel,
+    onNavigateBack: () -> Unit,
+) {
+    val config by viewModel.eventChannelConfig.collectAsStateWithLifecycle()
+    var newSsid by rememberSaveable { mutableStateOf("") }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.wifi_monitor_title)) },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.common_back))
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        LazyColumn(modifier = Modifier.padding(padding)) {
+            items(config.wifi.ssids.toList()) { ssid ->
+                ListItem(
+                    headlineContent = { Text(ssid) },
+                    trailingContent = {
+                        IconButton(onClick = { viewModel.removeWifiSsid(ssid) }) {
+                            Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.common_remove))
+                        }
+                    },
+                )
+            }
+            item {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    OutlinedTextField(
+                        value = newSsid,
+                        onValueChange = { newSsid = it },
+                        label = { Text("SSID") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                    )
+                    IconButton(
+                        onClick = {
+                            if (newSsid.isNotBlank()) {
+                                viewModel.addWifiSsid(newSsid.trim())
+                                newSsid = ""
+                            }
+                        },
+                    ) {
+                        Icon(Icons.Default.Add, stringResource(R.string.common_add))
+                    }
+                }
+            }
+            item {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.wifi_notify_discovered)) },
+                    supportingContent = { Text(stringResource(R.string.wifi_scan_delayed)) },
+                    trailingContent = {
+                        Switch(
+                            checked = config.wifi.notifyOnDiscovered,
+                            onCheckedChange = { viewModel.updateWifiNotifyOnDiscovered(it) },
+                        )
+                    },
+                )
+            }
+            item {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.wifi_notify_lost)) },
+                    supportingContent = { Text(stringResource(R.string.wifi_scan_delayed)) },
+                    trailingContent = {
+                        Switch(
+                            checked = config.wifi.notifyOnLost,
+                            onCheckedChange = { viewModel.updateWifiNotifyOnLost(it) },
+                        )
+                    },
+                )
+            }
+            item {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.wifi_notify_connected)) },
+                    supportingContent = { Text(stringResource(R.string.common_realtime)) },
+                    trailingContent = {
+                        Switch(
+                            checked = config.wifi.notifyOnConnected,
+                            onCheckedChange = { viewModel.updateWifiNotifyOnConnected(it) },
+                        )
+                    },
+                )
+            }
+            item {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.wifi_notify_disconnected)) },
+                    supportingContent = { Text(stringResource(R.string.common_realtime)) },
+                    trailingContent = {
+                        Switch(
+                            checked = config.wifi.notifyOnDisconnected,
+                            onCheckedChange = { viewModel.updateWifiNotifyOnDisconnected(it) },
+                        )
+                    },
+                )
+            }
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                ) {
+                    Text(
+                        stringResource(R.string.wifi_delay_notice),
+                        modifier = Modifier.padding(16.dp),
+                    )
+                }
+            }
+        }
+    }
+}

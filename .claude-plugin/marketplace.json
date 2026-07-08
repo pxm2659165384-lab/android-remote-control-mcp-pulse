@@ -1,0 +1,16 @@
+{
+  "name": "android-remote-control-mcp-pulse",
+  "description": "Android Remote Control MCP with Haptic Pulse and Biometric Feedback",
+  "owner": {
+    "name": "pxm2659165384",
+    "email": "pxm2659165384@Gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "android-remote-control-pulse",
+      "description": "Pulse branch for Android Remote Control MCP — handles procedural haptics and heart rate feedback.",
+      "source": "./channel-plugin",
+      "category": "entertainment"
+    }
+  ]
+}
