@@ -1,5 +1,7 @@
 # Android Remote Control MCP - Pulse Link Edition
 
+[中文说明](README.zh-CN.md)
+
 This repository is a Pulse Link edition of `android-remote-control-mcp`. It keeps the original Android MCP server features and adds a Pulse Link haptic middleware service for SillyTavern:
 
 - `GET /vibrate?mode=&level=&randomize=&target=&targets=` for phone, gamepad, toy, and LAN Matrix haptics.
