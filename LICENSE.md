@@ -1,3 +1,27 @@
+=============================================================================
+PART 1: EXTENSIONS & HAPTIC MODIFICATIONS LICENSE (BY YOU)
+=============================================================================
+Copyright (c) 2026 YourName/YourLab. All rights reserved.
+
+The haptic engine components, vibration waveforms, and custom remote control 
+modifications added in this repository are the proprietary work of the contributor.
+
+1. Modification Prohibited:
+You are strictly prohibited from modifying, altering, adapting, or creating 
+derivative works based upon the HAPTIC AND VIBRATION COMPONENTS of this software.
+
+2. Commercial Use Prohibited:
+You may not use the haptic modifications for any commercial purposes or profit-generation.
+
+3. Community Non-Profit Clause:
+This modification is distributed solely for non-profit community usage and security 
+auditing under the local community guidelines.
+
+=============================================================================
+PART 2: ORIGINAL MCP CORE LICENSE (MIT)
+=============================================================================
+The original MCP core framework is derived from the upstream project:
+
 MIT License
 
 Copyright 2026-2027 Daniele Salvatore Albano
